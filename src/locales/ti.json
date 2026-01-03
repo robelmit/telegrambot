@@ -1,0 +1,99 @@
+{
+  "welcome": {
+    "title": "🇪🇹 ናብ ኢፋይዳ መንነት ጀነሬተር ቦት እንቋዕ ብደሓን መጻእኩም!",
+    "description": "ወግዓዊ ናይ ኢፋይዳ PDF ሰነድኩም ናብ ንምሕታም ድሉው ዝኾነ ሃገራዊ መንነት ካርድ ክቕይሮ እኽእል።",
+    "instructions": "ንምጅማር ኣብ ታሕቲ ዘለዉ ትእዛዛት ተጠቐሙ:"
+  },
+  "commands": {
+    "start": "ቦት ጀምር",
+    "language": "ቋንቋ ቀይር",
+    "upload": "ኢፋይዳ PDF ጸዓን",
+    "balance": "ናይ ዋሌት ተረፍ",
+    "topup": "ዋሌት ምላእ",
+    "pricing": "ዋጋ ርአ",
+    "settings": "ቅጥዕታት",
+    "help": "ሓገዝ"
+  },
+  "language": {
+    "select": "🌍 ዝደልይዎ ቋንቋ ምረጹ:",
+    "changed": "✅ ቋንቋ ናብ ትግርኛ ተቐይሩ",
+    "english": "🇬🇧 English",
+    "amharic": "🇪🇹 አማርኛ (Amharic)",
+    "tigrigna": "🇪🇹 ትግርኛ (Tigrigna)"
+  },
+  "upload": {
+    "prompt": "📄 በጃኹም ናይ ኢፋይዳ PDF ሰነድኩም ጸዓኑ።",
+    "instructions": "ካብ ወግዓዊ ኢፋይዳ ወብሳይት ዘውረድኩሞ PDF ፋይል ስደዱ።",
+    "processing": "⏳ ሰነድኩም ይስራሕ ኣሎ...",
+    "validating": "🔍 PDF ይረጋገጽ ኣሎ...",
+    "extracting": "📊 ሓበሬታ ይወጽእ ኣሎ...",
+    "generating": "🎨 ናይ መንነት ካርድታት ይፍጠሩ ኣለዉ...",
+    "success": "✅ ናይ መንነት ካርድታትኩም ብዓወት ተፈጢሮም!",
+    "delivering": "📤 ፋይላትኩም ይበጽሑ ኣለዉ..."
+  },
+  "balance": {
+    "title": "💰 ናይ ዋሌት ተረፍ",
+    "current": "ናይ ሕጂ ተረፍኩም: {amount} ብር",
+    "insufficient": "❌ እኹል ተረፍ የለን። በጃኹም ዋሌትኩም ምልኡ።",
+    "required": "ዘድሊ: {amount} ብር"
+  },
+  "topup": {
+    "title": "💳 ዋሌት ምላእ",
+    "selectAmount": "ክትውስኹ ዝደልይዎ መጠን ምረጹ:",
+    "selectProvider": "ናይ ክፍሊት ኣገባብ ምረጹ:",
+    "telebirr": "📱 ቴሌብር",
+    "cbe": "🏦 ሲቢኢ ብር",
+    "instructions": {
+      "telebirr": "{amount} ብር ናብዚ ስደዱ:\n📱 ስልኪ: {phone}\n👤 ስም: {name}\n\nድሕሪ ምኽፋል ናይ ግብይት መለለይኹም ስደዱ።",
+      "cbe": "{amount} ብር ናብዚ ኣመሓላልፉ:\n🏦 ኣካውንት: {account}\n👤 ስም: {name}\n\nድሕሪ ምኽፋል ናይ ግብይት መለለይኹም ስደዱ።"
+    },
+    "enterTxId": "📝 ናይ ግብይት መለለይኹም ኣእትዉ:",
+    "verifying": "🔍 ግብይት ይረጋገጽ ኣሎ...",
+    "success": "✅ {amount} ብር ብዓወት ናብ ዋሌትኩም ተወሲኹ!",
+    "newBalance": "ሓድሽ ተረፍ: {balance} ብር"
+  },
+  "pricing": {
+    "title": "💵 ናይ ኣገልግሎት ዋጋ",
+    "perDocument": "ብሰነድ ዋጋ: {price} ብር",
+    "includes": "ነፍሲ ወከፍ ምቕያር ዘጠቓልል:",
+    "item1": "• 2 ዝተገልበጡ PNG ስእልታት (ቅድሚትን ድሕሪትን)",
+    "item2": "• 2 ዝተገልበጡ A4 PDF ፋይላት (ሕብሪን ግራይን)",
+    "item3": "• ንምሕታም ድሉው ብ300 DPI"
+  },
+  "settings": {
+    "title": "⚙️ ቅጥዕታት",
+    "language": "🌍 ቋንቋ: {language}",
+    "notifications": "🔔 ምልክታታት: {status}",
+    "on": "ተኸፊቱ",
+    "off": "ተዓጽዩ"
+  },
+  "help": {
+    "title": "❓ ሓገዝን ደገፍን",
+    "howToUse": "እዚ ቦት ብኸመይ ከም ዝጥቀሙ:",
+    "step1": "1. /topup ተጠቒምኩም ዋሌትኩም ምልኡ",
+    "step2": "2. /upload ተጠቒምኩም ናይ ኢፋይዳ PDFኹም ጸዓኑ",
+    "step3": "3. ናይ መንነት ካርድታትኩም ብኣውቶማቲክ ተቐበሉ!",
+    "support": "ንደገፍ ርኸቡና: @support"
+  },
+  "errors": {
+    "invalidPdf": "❌ ቅኑዕ ዘይኮነ PDF ፋይል። በጃኹም ቅኑዕ ናይ ኢፋይዳ ሰነድ ጸዓኑ።",
+    "notEfayda": "❌ እዚ ወግዓዊ ናይ ኢፋይዳ ሰነድ ኣይመስልን።",
+    "corruptedPdf": "❌ PDF ፋይል ዝበላሸወ ይመስል።",
+    "parseFailed": "❌ ካብ PDF ሓበሬታ ምውጻእ ኣይተኻእለን።",
+    "invalidTxId": "❌ ቅኑዕ ዘይኮነ ናይ ግብይት መለለይ። በጃኹም ኣረጋግጹ እሞ ደጊምኩም ፈትኑ።",
+    "txAlreadyUsed": "❌ እዚ ናይ ግብይት መለለይ ድሮ ተጠቒሙሉ።",
+    "txWrongAmount": "❌ ናይ ግብይት መጠን ምስ ዝተመርጸ ናይ ምምላእ መጠን ኣይሰማማዕን።",
+    "txWrongReceiver": "❌ ግብይት ናብ ቅኑዕ ተቐባሊ ኣይተላእከን።",
+    "insufficientBalance": "❌ እኹል ናይ ዋሌት ተረፍ የለን። በጃኹም ቅድም ምልኡ።",
+    "generationFailed": "❌ ናይ መንነት ካርድታት ምፍጣር ኣይተኻእለን። በጃኹም ደጊምኩም ፈትኑ።",
+    "rateLimitExceeded": "⚠️ ብዙሕ ጠለባት። በጃኹም ቁሩብ ተጸበዩ።",
+    "serviceUnavailable": "❌ ኣገልግሎት ንግዚኡ ኣይርከብን። በጃኹም ጸኒሕኩም ፈትኑ።",
+    "generic": "❌ ጌጋ ተፈጢሩ። በጃኹም ደጊምኩም ፈትኑ።"
+  },
+  "buttons": {
+    "back": "⬅️ ተመለስ",
+    "cancel": "❌ ሰርዝ",
+    "confirm": "✅ ኣረጋግጽ",
+    "retry": "🔄 ደጊምካ ፈትን"
+  }
+}
