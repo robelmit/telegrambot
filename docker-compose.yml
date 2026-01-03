@@ -1,33 +1,6 @@
 version: '3.8'
 
 services:
-  mongodb:
-    image: mongo:7.0
-    container_name: efayda-mongodb
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password}
-      MONGO_INITDB_DATABASE: efayda
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - efayda-network
-
-  redis:
-    image: redis:7-alpine
-    container_name: efayda-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - efayda-network
-
   bot:
     build:
       context: .
@@ -40,19 +13,52 @@ services:
     environment:
       - NODE_ENV=production
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - MONGODB_URI=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/efayda?authSource=admin
+      - MONGODB_URI=mongodb://mongodb:27017/efayda
       - REDIS_URI=redis://redis:6379
-      - TELEBIRR_MERCHANT_PHONE=${TELEBIRR_MERCHANT_PHONE}
-      - CBE_MERCHANT_ACCOUNT=${CBE_MERCHANT_ACCOUNT}
-      - SERVICE_FEE=${SERVICE_FEE:-50}
+      - TELEBIRR_RECEIVER_PHONE=${TELEBIRR_RECEIVER_PHONE}
+      - CBE_RECEIVER_ACCOUNT=${CBE_RECEIVER_ACCOUNT}
+      - PAYMENT_RECIPIENT_NAME=${PAYMENT_RECIPIENT_NAME}
+      - SERVICE_PRICE=${SERVICE_PRICE:-50}
+      - TEMP_DIR=/app/temp
+      - LOG_LEVEL=info
+      - SUPPORT_CONTACT=${SUPPORT_CONTACT:-@efayda_support}
     volumes:
-      - ./temp:/app/temp
+      - bot-temp:/app/temp
     networks:
       - efayda-network
 
+  mongodb:
+    image: mongo:6
+    container_name: efayda-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - efayda-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: efayda-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - efayda-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
-  mongodb_data:
-  redis_data:
+  mongodb-data:
+  redis-data:
+  bot-temp:
 
 networks:
   efayda-network:

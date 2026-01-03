@@ -1,0 +1,268 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { Telegraf, Context } from 'telegraf';
+import { GeneratedFiles } from '../../types';
+import JobModel from '../../models/Job';
+import logger from '../../utils/logger';
+
+export interface DeliveryResult {
+  success: boolean;
+  deliveredFiles: string[];
+  errors: string[];
+}
+
+export interface FileInfo {
+  path: string;
+  filename: string;
+  type: 'png' | 'pdf';
+  variant: 'color' | 'grayscale';
+}
+
+export class FileDeliveryService {
+  private bot: Telegraf;
+  private tempDir: string;
+  private fileTTL: number; // Time to live in milliseconds
+
+  constructor(bot: Telegraf, tempDir?: string, fileTTL?: number) {
+    this.bot = bot;
+    this.tempDir = tempDir || process.env.TEMP_DIR || 'temp';
+    this.fileTTL = fileTTL || 24 * 60 * 60 * 1000; // 24 hours default
+  }
+
+  /**
+   * Deliver generated files to user via Telegram
+   */
+  async deliverFiles(
+    chatId: number,
+    files: GeneratedFiles,
+    userName: string
+  ): Promise<DeliveryResult> {
+    const result: DeliveryResult = {
+      success: false,
+      deliveredFiles: [],
+      errors: []
+    };
+
+    const fileInfos = this.getFileInfos(files, userName);
+
+    try {
+      // Send a message before files
+      await this.bot.telegram.sendMessage(
+        chatId,
+        '✅ Your ID cards are ready! Here are your files:'
+      );
+
+      // Send each file
+      for (const fileInfo of fileInfos) {
+        try {
+          await this.sendFile(chatId, fileInfo);
+          result.deliveredFiles.push(fileInfo.filename);
+        } catch (error) {
+          const errorMsg = `Failed to send ${fileInfo.filename}: ${(error as Error).message}`;
+          result.errors.push(errorMsg);
+          logger.error(errorMsg);
+        }
+      }
+
+      // Send completion message
+      if (result.deliveredFiles.length === fileInfos.length) {
+        await this.bot.telegram.sendMessage(
+          chatId,
+          '📋 All files delivered successfully!\n\n' +
+          '• PNG files: For digital use\n' +
+          '• PDF files: For printing (A4 size, 300 DPI)\n\n' +
+          'Print at 100% scale for best results.'
+        );
+        result.success = true;
+      } else {
+        await this.bot.telegram.sendMessage(
+          chatId,
+          `⚠️ Some files could not be delivered. ${result.deliveredFiles.length}/${fileInfos.length} files sent.`
+        );
+      }
+
+      logger.info(`Delivered ${result.deliveredFiles.length} files to chat ${chatId}`);
+    } catch (error) {
+      result.errors.push(`Delivery failed: ${(error as Error).message}`);
+      logger.error('File delivery failed:', error);
+    }
+
+    return result;
+  }
+
+  /**
+   * Send a single file to Telegram
+   */
+  private async sendFile(chatId: number, fileInfo: FileInfo): Promise<void> {
+    const fileBuffer = await fs.readFile(fileInfo.path);
+    
+    const caption = this.generateCaption(fileInfo);
+
+    if (fileInfo.type === 'png') {
+      await this.bot.telegram.sendDocument(chatId, {
+        source: fileBuffer,
+        filename: fileInfo.filename
+      }, {
+        caption
+      });
+    } else {
+      await this.bot.telegram.sendDocument(chatId, {
+        source: fileBuffer,
+        filename: fileInfo.filename
+      }, {
+        caption
+      });
+    }
+  }
+
+  /**
+   * Generate file caption
+   */
+  private generateCaption(fileInfo: FileInfo): string {
+    const variantLabel = fileInfo.variant === 'color' ? '🎨 Color' : '⬛ Grayscale';
+    const typeLabel = fileInfo.type === 'png' ? 'Image' : 'PDF (A4)';
+    return `${variantLabel} ${typeLabel} - Mirrored`;
+  }
+
+  /**
+   * Get file information array from GeneratedFiles
+   */
+  private getFileInfos(files: GeneratedFiles, userName: string): FileInfo[] {
+    const safeName = this.sanitizeFilename(userName);
+    
+    return [
+      {
+        path: files.colorMirroredPng,
+        filename: this.generateFilename(safeName, 'color', 'png'),
+        type: 'png' as const,
+        variant: 'color' as const
+      },
+      {
+        path: files.grayscaleMirroredPng,
+        filename: this.generateFilename(safeName, 'grayscale', 'png'),
+        type: 'png' as const,
+        variant: 'grayscale' as const
+      },
+      {
+        path: files.colorMirroredPdf,
+        filename: this.generateFilename(safeName, 'color', 'pdf'),
+        type: 'pdf' as const,
+        variant: 'color' as const
+      },
+      {
+        path: files.grayscaleMirroredPdf,
+        filename: this.generateFilename(safeName, 'grayscale', 'pdf'),
+        type: 'pdf' as const,
+        variant: 'grayscale' as const
+      }
+    ];
+  }
+
+  /**
+   * Generate descriptive filename
+   * Format: ID_Card_[Name]_[Variant]_Mirrored.[ext]
+   */
+  generateFilename(userName: string, variant: 'color' | 'grayscale', extension: 'png' | 'pdf'): string {
+    const safeName = this.sanitizeFilename(userName);
+    const variantLabel = variant === 'color' ? 'Color' : 'Grayscale';
+    return `ID_Card_${safeName}_${variantLabel}_Mirrored.${extension}`;
+  }
+
+  /**
+   * Sanitize filename to remove invalid characters
+   */
+  private sanitizeFilename(name: string): string {
+    return name
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .replace(/\s+/g, '_')
+      .substring(0, 30);
+  }
+
+  /**
+   * Clean up temporary files for a job
+   */
+  async cleanupJobFiles(files: GeneratedFiles): Promise<void> {
+    const filePaths = [
+      files.colorMirroredPng,
+      files.grayscaleMirroredPng,
+      files.colorMirroredPdf,
+      files.grayscaleMirroredPdf
+    ];
+
+    for (const filePath of filePaths) {
+      try {
+        await fs.unlink(filePath);
+        logger.debug(`Deleted file: ${filePath}`);
+      } catch (error) {
+        // File may not exist
+        logger.debug(`Could not delete file: ${filePath}`);
+      }
+    }
+  }
+
+  /**
+   * Clean up old temporary files
+   */
+  async cleanupOldFiles(): Promise<number> {
+    let deletedCount = 0;
+    
+    try {
+      const files = await fs.readdir(this.tempDir);
+      const now = Date.now();
+
+      for (const file of files) {
+        if (file === '.gitkeep') continue;
+        
+        const filePath = path.join(this.tempDir, file);
+        
+        try {
+          const stats = await fs.stat(filePath);
+          const age = now - stats.mtimeMs;
+          
+          if (age > this.fileTTL) {
+            await fs.unlink(filePath);
+            deletedCount++;
+            logger.debug(`Cleaned up old file: ${filePath}`);
+          }
+        } catch (error) {
+          // Skip files that can't be accessed
+        }
+      }
+
+      logger.info(`Cleaned up ${deletedCount} old files`);
+    } catch (error) {
+      logger.error('File cleanup failed:', error);
+    }
+
+    return deletedCount;
+  }
+
+  /**
+   * Schedule periodic cleanup
+   */
+  startCleanupScheduler(intervalMs: number = 60 * 60 * 1000): NodeJS.Timeout {
+    return setInterval(() => {
+      this.cleanupOldFiles().catch(err => {
+        logger.error('Scheduled cleanup failed:', err);
+      });
+    }, intervalMs);
+  }
+
+  /**
+   * Get expected output file count
+   */
+  getExpectedFileCount(): number {
+    return 4; // 2 PNG + 2 PDF
+  }
+
+  /**
+   * Validate filename format
+   */
+  isValidFilenameFormat(filename: string): boolean {
+    // Expected format: ID_Card_[Name]_[Variant]_Mirrored.[ext]
+    const pattern = /^ID_Card_[A-Za-z0-9_]+_(Color|Grayscale)_Mirrored\.(png|pdf)$/;
+    return pattern.test(filename);
+  }
+}
+
+export default FileDeliveryService;

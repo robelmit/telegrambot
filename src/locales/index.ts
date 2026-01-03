@@ -3,217 +3,95 @@ import en from './en.json';
 import am from './am.json';
 import ti from './ti.json';
 
-// Type definitions for locale messages
-export interface LocaleMessages {
-  welcome: {
-    title: string;
-    description: string;
-    instructions: string;
-  };
-  commands: {
-    start: string;
-    language: string;
-    upload: string;
-    balance: string;
-    topup: string;
-    pricing: string;
-    settings: string;
-    help: string;
-  };
-  language: {
-    select: string;
-    changed: string;
-    english: string;
-    amharic: string;
-    tigrigna: string;
-  };
-  upload: {
-    prompt: string;
-    instructions: string;
-    processing: string;
-    validating: string;
-    extracting: string;
-    generating: string;
-    success: string;
-    delivering: string;
-  };
-  balance: {
-    title: string;
-    current: string;
-    insufficient: string;
-    required: string;
-  };
-  topup: {
-    title: string;
-    selectAmount: string;
-    selectProvider: string;
-    telebirr: string;
-    cbe: string;
-    instructions: {
-      telebirr: string;
-      cbe: string;
-    };
-    enterTxId: string;
-    verifying: string;
-    success: string;
-    newBalance: string;
-  };
-  pricing: {
-    title: string;
-    perDocument: string;
-    includes: string;
-    item1: string;
-    item2: string;
-    item3: string;
-  };
-  settings: {
-    title: string;
-    language: string;
-    notifications: string;
-    on: string;
-    off: string;
-  };
-  help: {
-    title: string;
-    howToUse: string;
-    step1: string;
-    step2: string;
-    step3: string;
-    support: string;
-  };
-  errors: {
-    invalidPdf: string;
-    notEfayda: string;
-    corruptedPdf: string;
-    parseFailed: string;
-    invalidTxId: string;
-    txAlreadyUsed: string;
-    txWrongAmount: string;
-    txWrongReceiver: string;
-    insufficientBalance: string;
-    generationFailed: string;
-    rateLimitExceeded: string;
-    serviceUnavailable: string;
-    generic: string;
-  };
-  buttons: {
-    back: string;
-    cancel: string;
-    confirm: string;
-    retry: string;
-  };
-}
+export const SUPPORTED_LANGUAGES: Language[] = ['en', 'am', 'ti'];
 
-// Locale map
+type LocaleMessages = Record<string, string>;
+
 const locales: Record<Language, LocaleMessages> = {
   en: en as LocaleMessages,
   am: am as LocaleMessages,
-  ti: ti as LocaleMessages,
+  ti: ti as LocaleMessages
 };
 
-// Get all message keys recursively
-type PathsToStringProps<T> = T extends string
-  ? []
-  : {
-      [K in Extract<keyof T, string>]: [K, ...PathsToStringProps<T[K]>];
-    }[Extract<keyof T, string>];
+/**
+ * Get translated message by key
+ * Supports placeholder replacement with {key} syntax
+ */
+export function t(
+  language: Language,
+  key: string,
+  params?: Record<string, string | number>
+): string {
+  const messages = locales[language] || locales.en;
+  let message = messages[key];
 
-type Join<T extends string[], D extends string> = T extends []
-  ? never
-  : T extends [infer F]
-  ? F
-  : T extends [infer F, ...infer R]
-  ? F extends string
-    ? `${F}${D}${Join<Extract<R, string[]>, D>}`
-    : never
-  : string;
+  // Fallback to English if key not found
+  if (!message && language !== 'en') {
+    message = locales.en[key];
+  }
 
-export type MessageKey = Join<PathsToStringProps<LocaleMessages>, '.'>;
+  // Return key if message not found
+  if (!message) {
+    return key;
+  }
 
-// Get nested value from object using dot notation
-function getNestedValue(obj: Record<string, unknown>, path: string): string {
-  const keys = path.split('.');
-  let current: unknown = obj;
-  
-  for (const key of keys) {
-    if (current && typeof current === 'object' && key in current) {
-      current = (current as Record<string, unknown>)[key];
-    } else {
-      return path; // Return the key if not found
+  // Replace placeholders
+  if (params) {
+    for (const [paramKey, value] of Object.entries(params)) {
+      message = message.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(value));
     }
   }
-  
-  return typeof current === 'string' ? current : path;
+
+  return message;
 }
 
-// Replace placeholders in message
-function replacePlaceholders(message: string, params?: Record<string, string | number>): string {
-  if (!params) return message;
-  
-  let result = message;
-  for (const [key, value] of Object.entries(params)) {
-    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value));
-  }
-  return result;
+/**
+ * Get all message keys for a language
+ */
+export function getMessageKeys(language: Language): string[] {
+  return Object.keys(locales[language] || locales.en);
 }
 
-// i18n class for internationalization
-export class I18n {
-  private language: Language;
-  
-  constructor(language: Language = 'en') {
-    this.language = language;
-  }
-  
-  setLanguage(language: Language): void {
-    this.language = language;
-  }
-  
-  getLanguage(): Language {
-    return this.language;
-  }
-  
-  t(key: string, params?: Record<string, string | number>): string {
-    const messages = locales[this.language];
-    const message = getNestedValue(messages as unknown as Record<string, unknown>, key);
-    return replacePlaceholders(message, params);
-  }
-  
-  // Get all messages for current language
-  getMessages(): LocaleMessages {
-    return locales[this.language];
-  }
+/**
+ * Check if a message key exists
+ */
+export function hasMessage(language: Language, key: string): boolean {
+  const messages = locales[language] || locales.en;
+  return key in messages;
 }
 
-// Default i18n instance
-export const i18n = new I18n();
-
-// Helper function to get translation
-export function t(key: string, language: Language = 'en', params?: Record<string, string | number>): string {
-  const messages = locales[language];
-  const message = getNestedValue(messages as unknown as Record<string, unknown>, key);
-  return replacePlaceholders(message, params);
+/**
+ * Get all messages for a language
+ */
+export function getMessages(language: Language): LocaleMessages {
+  return { ...locales[language] } || { ...locales.en };
 }
 
-// Get all supported languages
-export function getSupportedLanguages(): Language[] {
-  return ['en', 'am', 'ti'];
-}
-
-// Check if language is supported
-export function isLanguageSupported(lang: string): lang is Language {
-  return ['en', 'am', 'ti'].includes(lang);
-}
-
-// Get language display name
-export function getLanguageDisplayName(lang: Language, inLanguage: Language = 'en'): string {
-  const names: Record<Language, Record<Language, string>> = {
-    en: { en: 'English', am: 'English', ti: 'English' },
-    am: { en: 'Amharic', am: 'አማርኛ', ti: 'አማርኛ' },
-    ti: { en: 'Tigrigna', am: 'ትግርኛ', ti: 'ትግርኛ' },
+/**
+ * Check if all languages have the same keys
+ */
+export function validateLocaleCompleteness(): { complete: boolean; missing: Record<Language, string[]> } {
+  const englishKeys = new Set(Object.keys(locales.en));
+  const missing: Record<Language, string[]> = {
+    en: [],
+    am: [],
+    ti: []
   };
-  return names[lang][inLanguage];
+
+  for (const lang of SUPPORTED_LANGUAGES) {
+    if (lang === 'en') continue;
+    
+    const langKeys = new Set(Object.keys(locales[lang]));
+    
+    for (const key of englishKeys) {
+      if (!langKeys.has(key)) {
+        missing[lang].push(key);
+      }
+    }
+  }
+
+  const complete = Object.values(missing).every(arr => arr.length === 0);
+  return { complete, missing };
 }
 
-// Export locales for testing
-export { locales };
+export default { t, getMessageKeys, hasMessage, getMessages, validateLocaleCompleteness, SUPPORTED_LANGUAGES };
