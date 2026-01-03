@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: efayda-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: efayda
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - efayda-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: efayda-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - efayda-network
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: efayda-bot
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+      - redis
+    environment:
+      - NODE_ENV=production
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - MONGODB_URI=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/efayda?authSource=admin
+      - REDIS_URI=redis://redis:6379
+      - TELEBIRR_MERCHANT_PHONE=${TELEBIRR_MERCHANT_PHONE}
+      - CBE_MERCHANT_ACCOUNT=${CBE_MERCHANT_ACCOUNT}
+      - SERVICE_FEE=${SERVICE_FEE:-50}
+    volumes:
+      - ./temp:/app/temp
+    networks:
+      - efayda-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  efayda-network:
+    driver: bridge
