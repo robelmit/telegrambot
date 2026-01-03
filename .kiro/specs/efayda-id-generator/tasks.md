@@ -58,42 +58,42 @@ This implementation plan breaks down the eFayda ID Card Generator into discrete,
 - [x] 4. Checkpoint - Database and Localization
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. PDF Service Implementation
-  - [ ] 5.1 Implement PDF validator
+- [x] 5. PDF Service Implementation
+  - [x] 5.1 Implement PDF validator
     - Create file extension validation (accept only .pdf)
     - Implement PDF structure validation using pdf-parse
     - Create eFayda document structure detection
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-  - [ ] 5.2 Write property test for file extension validation
+  - [x] 5.2 Write property test for file extension validation
     - **Property 1: File Extension Validation**
     - **Validates: Requirements 1.1**
 
-  - [ ] 5.3 Write property test for invalid PDF rejection
+  - [x] 5.3 Write property test for invalid PDF rejection
     - **Property 2: Invalid PDF Rejection**
     - **Validates: Requirements 1.3**
 
-  - [ ] 5.4 Implement PDF parser for text extraction
+  - [x] 5.4 Implement PDF parser for text extraction
     - Extract full name in Ethiopic and Latin scripts
     - Extract dates (DOB, issue, expiry) in both calendar formats
     - Extract identifiers (FCN, FIN, FAN, serial number)
     - Extract contact info (phone, address components)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.9_
 
-  - [ ] 5.5 Implement PDF parser for image extraction
+  - [x] 5.5 Implement PDF parser for image extraction
     - Extract embedded photo image
     - Extract QR code image
     - Extract barcode data
     - _Requirements: 2.6, 2.7, 2.8_
 
-  - [ ] 5.6 Implement data normalizer
+  - [x] 5.6 Implement data normalizer
     - Normalize extracted text fields
     - Validate and format phone numbers
     - Normalize address components
     - Create EfaydaData object from parsed data
     - _Requirements: 2.1-2.10_
 
-- [ ] 6. Checkpoint - PDF Service
+- [x] 6. Checkpoint - PDF Service
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 7. Payment Service Implementation
