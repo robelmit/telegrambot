@@ -3,11 +3,11 @@ dotenv.config();
 
 import { createBot, startBot, stopBot } from './bot';
 import { connectDatabase, disconnectDatabase } from './utils/database';
-import { connectRedis, disconnectRedis } from './utils/redis';
 import { initializeJobQueue, shutdownJobQueue } from './services/queue';
 import { PDFService } from './services/pdf';
 import { IDGeneratorService } from './services/generator';
-import { WalletService, FileDeliveryService } from './services/payment';
+import { WalletService } from './services/payment';
+import { FileDeliveryService } from './services/delivery';
 import { registerShutdownHandlers } from './utils/shutdown';
 import logger from './utils/logger';
 import config from './config';
@@ -16,12 +16,9 @@ async function main() {
   logger.info('Starting eFayda ID Generator Bot...');
 
   try {
-    // Connect to databases
+    // Connect to MongoDB
     logger.info('Connecting to MongoDB...');
     await connectDatabase();
-    
-    logger.info('Connecting to Redis...');
-    await connectRedis();
 
     // Create bot instance
     const bot = createBot(config.telegramBotToken);
@@ -32,17 +29,15 @@ async function main() {
     const walletService = new WalletService();
     const deliveryService = new FileDeliveryService(bot);
 
-    // Initialize job queue with processor
-    const { queue } = initializeJobQueue({
+    // Initialize job queue (in-memory, no Redis needed)
+    initializeJobQueue({
       pdfService,
       idGenerator,
       walletService,
       onComplete: async (job, files) => {
-        // Deliver files to user
-        const { chatId, telegramId } = job.data;
+        const { chatId } = job.data;
         
         try {
-          // Get extracted data for filename
           const JobModel = (await import('./models/Job')).default;
           const jobDoc = await JobModel.findById(job.data.jobId);
           const userName = jobDoc?.extractedData?.fullNameEnglish || 'User';
@@ -54,7 +49,7 @@ async function main() {
             grayscaleMirroredPdf: files[3]
           }, userName);
 
-          // Cleanup files after delivery
+          // Cleanup files after 1 minute
           setTimeout(async () => {
             await deliveryService.cleanupJobFiles({
               colorMirroredPng: files[0],
@@ -62,13 +57,12 @@ async function main() {
               colorMirroredPdf: files[2],
               grayscaleMirroredPdf: files[3]
             });
-          }, 60000); // Cleanup after 1 minute
+          }, 60000);
         } catch (error) {
           logger.error('File delivery failed:', error);
         }
       },
       onFailed: async (job, error) => {
-        // Notify user of failure
         const { chatId } = job.data;
         try {
           await bot.telegram.sendMessage(
@@ -82,14 +76,13 @@ async function main() {
     });
 
     // Start file cleanup scheduler
-    deliveryService.startCleanupScheduler(60 * 60 * 1000); // Every hour
+    deliveryService.startCleanupScheduler(60 * 60 * 1000);
 
     // Register shutdown handlers
     registerShutdownHandlers(async () => {
       logger.info('Shutting down...');
       await stopBot(bot);
-      await shutdownJobQueue();
-      await disconnectRedis();
+      shutdownJobQueue();
       await disconnectDatabase();
       logger.info('Shutdown complete');
     });

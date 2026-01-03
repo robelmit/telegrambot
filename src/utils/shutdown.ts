@@ -1,5 +1,4 @@
 import { disconnectDatabase } from './database';
-import { closeRedisConnection } from './redis';
 import { logger } from './logger';
 
 type ShutdownCallback = () => Promise<void>;
@@ -39,10 +38,6 @@ export async function gracefulShutdown(signal: string): Promise<void> {
     // Close database connection
     await disconnectDatabase();
     logger.info('Database connection closed');
-
-    // Close Redis connection
-    await closeRedisConnection();
-    logger.info('Redis connection closed');
 
     clearTimeout(forceShutdownTimeout);
     logger.info('Graceful shutdown completed');

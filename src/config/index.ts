@@ -10,9 +10,6 @@ export interface Config {
   // MongoDB
   mongodbUri: string;
   
-  // Redis
-  redisUri: string;
-  
   // Payment - Telebirr
   telebirrMerchantPhone: string;
   telebirrMerchantName: string;
@@ -69,9 +66,6 @@ export const config: Config = {
   
   // MongoDB
   mongodbUri: validateEnv('MONGODB_URI', 'mongodb://localhost:27017/efayda'),
-  
-  // Redis
-  redisUri: validateEnv('REDIS_URI', 'redis://localhost:6379'),
   
   // Payment - Telebirr
   telebirrMerchantPhone: validateEnv('TELEBIRR_MERCHANT_PHONE', ''),

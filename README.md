@@ -24,7 +24,7 @@ Each successful conversion produces 4 files:
 - **Runtime**: Node.js 18+ with TypeScript
 - **Bot Framework**: Telegraf
 - **Database**: MongoDB
-- **Queue**: Bull with Redis
+- **Queue**: In-memory job queue
 - **Image Processing**: Sharp
 - **PDF**: PDFKit, pdf-parse
 - **Payment**: telebirr-receipt, @jvhaile/cbe-verifier
@@ -35,7 +35,6 @@ Each successful conversion produces 4 files:
 
 - Node.js 18+
 - MongoDB
-- Redis
 - Telegram Bot Token (from @BotFather)
 
 ### Installation
@@ -61,7 +60,6 @@ Edit `.env` file with your settings:
 ```env
 TELEGRAM_BOT_TOKEN=your_bot_token
 MONGODB_URI=mongodb://localhost:27017/efayda
-REDIS_URI=redis://localhost:6379
 TELEBIRR_RECEIVER_PHONE=09XXXXXXXX
 CBE_RECEIVER_ACCOUNT=1000XXXXXXXX
 SERVICE_PRICE=50
@@ -176,7 +174,6 @@ npm test -- --testPathPattern=wallet
 | `NODE_ENV` | Environment | development |
 | `TELEGRAM_BOT_TOKEN` | Bot token from BotFather | required |
 | `MONGODB_URI` | MongoDB connection string | required |
-| `REDIS_URI` | Redis connection string | required |
 | `TELEBIRR_RECEIVER_PHONE` | Telebirr receiver phone | required |
 | `CBE_RECEIVER_ACCOUNT` | CBE account number | required |
 | `SERVICE_PRICE` | Price per ID generation | 50 |

@@ -139,7 +139,7 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
 
     // Add to queue
     const jobQueue = getJobQueue();
-    await jobQueue.addJob({
+    await jobQueue.add(job._id.toString(), {
       jobId: job._id.toString(),
       userId: user._id.toString(),
       telegramId,

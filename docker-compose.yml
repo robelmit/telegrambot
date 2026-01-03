@@ -9,12 +9,10 @@ services:
     restart: unless-stopped
     depends_on:
       - mongodb
-      - redis
     environment:
       - NODE_ENV=production
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - MONGODB_URI=mongodb://mongodb:27017/efayda
-      - REDIS_URI=redis://redis:6379
       - TELEBIRR_RECEIVER_PHONE=${TELEBIRR_RECEIVER_PHONE}
       - CBE_RECEIVER_ACCOUNT=${CBE_RECEIVER_ACCOUNT}
       - PAYMENT_RECIPIENT_NAME=${PAYMENT_RECIPIENT_NAME}
@@ -41,23 +39,8 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: efayda-redis
-    restart: unless-stopped
-    volumes:
-      - redis-data:/data
-    networks:
-      - efayda-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 volumes:
   mongodb-data:
-  redis-data:
   bot-temp:
 
 networks:
