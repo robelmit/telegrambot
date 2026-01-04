@@ -1,5 +1,6 @@
 {
   "welcome": "🇪🇹 Welcome to eFayda ID Generator, {name}!\n\nI can convert your official eFayda PDF document into print-ready National ID cards.",
+  "welcome_referred": "🎁 You joined through a referral link!",
   "available_commands": "Available Commands",
   
   "btn_upload": "📄 Upload PDF",
@@ -8,6 +9,7 @@
   "btn_pricing": "💵 Pricing",
   "btn_language": "🌍 Language",
   "btn_help": "❓ Help",
+  "btn_agent": "👥 Agent",
   
   "cmd_upload_desc": "Upload eFayda PDF document",
   "cmd_balance_desc": "Check wallet balance",
@@ -17,6 +19,7 @@
   "cmd_settings_desc": "Bot settings",
   "cmd_help_desc": "Get help",
   "cmd_start_desc": "Start the bot",
+  "cmd_agent_desc": "Agent/Referral program",
   
   "select_language": "🌍 Select your preferred language:",
   "language_changed": "Language changed successfully!",
@@ -89,6 +92,24 @@
   "faq_a3": "If a job fails after payment, your wallet will be automatically refunded.",
   "support": "Support",
   "contact_support": "Contact",
+  
+  "agent_become_prompt": "👥 <b>Become an Agent!</b>\n\nEarn {commission}% commission on every purchase made by users you refer.\n\nShare your unique link and start earning!",
+  "agent_btn_become": "✅ Become an Agent",
+  "agent_btn_referrals": "👥 My Referrals",
+  "agent_btn_withdraw": "💰 Earnings Info",
+  "agent_btn_share": "📤 Share Link",
+  "agent_dashboard": "👥 <b>Agent Dashboard</b>\n\n🔑 Your Code: <code>{code}</code>\n🔗 Your Link: {link}\n\n📊 <b>Statistics:</b>\n👥 Total Referrals: {referrals}\n💰 Total Earnings: {earnings} ETB\n💳 Wallet Balance: {balance} ETB\n\n💵 Commission Rate: {commission}%",
+  "agent_registered": "🎉 <b>Congratulations!</b>\n\nYou are now an agent!\n\n🔑 Your Code: <code>{code}</code>\n🔗 Your Link: {link}\n\n💵 Commission: {commission}% on every purchase\n\nShare your link and start earning!",
+  "agent_already_registered": "You are already registered as an agent!",
+  "agent_cancelled": "Agent registration cancelled.",
+  "agent_no_referrals": "You don't have any referrals yet.\n\nShare your link to start earning!",
+  "agent_referrals_title": "👥 Your Referrals",
+  "agent_total_referrals": "Total: {count} referrals",
+  "agent_share_message": "📤 <b>Share Your Referral Link</b>\n\n🔗 {link}\n\nShare this link with friends and earn {commission}% on their purchases!",
+  "agent_withdraw_info": "💰 <b>Earnings Information</b>\n\n💳 Wallet Balance: {balance} ETB\n📈 Total Earnings: {earnings} ETB\n\nYour commission earnings are automatically added to your wallet balance. Use your balance to generate IDs or contact support for withdrawal.",
+  "agent_new_referral": "🎉 New Referral!\n\nUser #...{userId} joined using your link!",
+  "back": "⬅️ Back",
+  "error_not_agent": "You are not registered as an agent. Use /agent to register.",
   
   "error_no_document": "Please send a PDF document.",
   "error_not_pdf": "❌ Please upload a PDF file. Other file types are not supported.",

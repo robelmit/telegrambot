@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 import { Language, UserSettings } from '../types';
 
 export interface IUser extends Document {
@@ -6,6 +6,13 @@ export interface IUser extends Document {
   language: Language;
   walletBalance: number;
   settings: UserSettings;
+  // Agent/Referral fields
+  isAgent: boolean;
+  agentCode: string | null;
+  referredBy: Types.ObjectId | null;
+  referredByTelegramId: number | null;
+  totalEarnings: number;
+  totalReferrals: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +44,36 @@ const UserSchema = new Schema<IUser>({
       type: Boolean, 
       default: true 
     }
+  },
+  // Agent/Referral fields
+  isAgent: {
+    type: Boolean,
+    default: false
+  },
+  agentCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  },
+  referredBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  referredByTelegramId: {
+    type: Number,
+    default: null
+  },
+  totalEarnings: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  totalReferrals: {
+    type: Number,
+    default: 0,
+    min: 0
   }
 }, {
   timestamps: true
@@ -44,6 +81,7 @@ const UserSchema = new Schema<IUser>({
 
 // Index for faster lookups
 UserSchema.index({ telegramId: 1 });
+UserSchema.index({ agentCode: 1 });
 
 export const User = mongoose.model<IUser>('User', UserSchema);
 export default User;

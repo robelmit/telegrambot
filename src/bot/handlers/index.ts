@@ -13,3 +13,13 @@ export {
 export { handlePricing } from './pricingHandler';
 export { handleSettings, handleSettingsCallback } from './settingsHandler';
 export { handleHelp } from './helpHandler';
+export {
+  handleAgent,
+  handleAgentRegister,
+  handleAgentCancel,
+  handleAgentReferrals,
+  handleAgentShare,
+  handleAgentWithdraw,
+  handleAgentBack,
+  creditAgentCommission
+} from './agentHandler';

@@ -1,5 +1,6 @@
 {
   "welcome": "🇪🇹 ናብ eFayda ID Generator እንቋዕ ብደሓን መጻእኩም፣ {name}!\n\nወግዓዊ ናይ eFayda PDF ሰነድኩም ናብ ንምሕታም ድሉው ዝኾነ ሃገራዊ መንነት ካርድ ክቕይሮ እኽእል።",
+  "welcome_referred": "🎁 ብሪፈራል ሊንክ ተጸንቢርኩም!",
   "available_commands": "ዘለዉ ትእዛዛት",
   
   "btn_upload": "📄 PDF ጸዓን",
@@ -8,6 +9,7 @@
   "btn_pricing": "💵 ዋጋ",
   "btn_language": "🌍 ቋንቋ",
   "btn_help": "❓ ሓገዝ",
+  "btn_agent": "👥 ወኪል",
   
   "cmd_upload_desc": "ናይ eFayda PDF ሰነድ ጸዓን",
   "cmd_balance_desc": "ናይ ዋሌት ተረፍ ርአ",
@@ -17,6 +19,7 @@
   "cmd_settings_desc": "ናይ ቦት ቅንብሮች",
   "cmd_help_desc": "ሓገዝ ርኸብ",
   "cmd_start_desc": "ቦት ጀምር",
+  "cmd_agent_desc": "ናይ ወኪል/ሪፈራል ፕሮግራም",
   
   "select_language": "🌍 ዝደልዮ ቋንቋ ምረጽ:",
   "language_changed": "ቋንቋ ብዓወት ተቐይሩ!",
@@ -89,6 +92,24 @@
   "faq_a3": "ድሕሪ ክፍሊት ስራሕ እንተ ዘይተዓዊቱ ዋሌትካ ብኣውቶማቲክ ይምለስ።",
   "support": "ደገፍ",
   "contact_support": "ርኸቡና",
+  
+  "agent_become_prompt": "👥 <b>ወኪል ኩን!</b>\n\nብሪፈራል ሊንክኻ ብዝጽንበሩ ተጠቀምቲ ኣብ ዝገዝእዎ ኩሉ {commission}% ኮሚሽን ርኸብ።\n\nፍሉይ ሊንክኻ ኣካፍል እሞ ምርካብ ጀምር!",
+  "agent_btn_become": "✅ ወኪል ኩን",
+  "agent_btn_referrals": "👥 ሪፈራላተይ",
+  "agent_btn_withdraw": "💰 ናይ ኣታዊ ሓበሬታ",
+  "agent_btn_share": "📤 ሊንክ ኣካፍል",
+  "agent_dashboard": "👥 <b>ናይ ወኪል ዳሽቦርድ</b>\n\n🔑 ኮድካ: <code>{code}</code>\n🔗 ሊንክኻ: {link}\n\n📊 <b>ስታቲስቲክስ:</b>\n👥 ጠቕላላ ሪፈራላት: {referrals}\n💰 ጠቕላላ ኣታዊ: {earnings} ብር\n💳 ናይ ዋሌት ተረፍ: {balance} ብር\n\n💵 ናይ ኮሚሽን መጠን: {commission}%",
+  "agent_registered": "🎉 <b>እንቋዕ ሓጎሰካ!</b>\n\nሕጂ ወኪል ኢኻ!\n\n🔑 ኮድካ: <code>{code}</code>\n🔗 ሊንክኻ: {link}\n\n💵 ኮሚሽን: ኣብ ነፍሲ ወከፍ ግዢ {commission}%\n\nሊንክኻ ኣካፍል እሞ ምርካብ ጀምር!",
+  "agent_already_registered": "ድሮ ከም ወኪል ተመዝጊብካ ኣለኻ!",
+  "agent_cancelled": "ናይ ወኪል ምዝገባ ተሰሪዙ።",
+  "agent_no_referrals": "ክሳብ ሕጂ ሪፈራላት የብልካን።\n\nምርካብ ንምጅማር ሊንክኻ ኣካፍል!",
+  "agent_referrals_title": "👥 ሪፈራላትካ",
+  "agent_total_referrals": "ጠቕላላ: {count} ሪፈራላት",
+  "agent_share_message": "📤 <b>ናይ ሪፈራል ሊንክኻ ኣካፍል</b>\n\n🔗 {link}\n\nእዚ ሊንክ ምስ ኣዕሩኽ ኣካፍል እሞ ኣብ ግዢታቶም {commission}% ርኸብ!",
+  "agent_withdraw_info": "💰 <b>ናይ ኣታዊ ሓበሬታ</b>\n\n💳 ናይ ዋሌት ተረፍ: {balance} ብር\n📈 ጠቕላላ ኣታዊ: {earnings} ብር\n\nናይ ኮሚሽን ኣታዊኻ ብኣውቶማቲክ ናብ ናይ ዋሌት ተረፍካ ይውሰኽ። ተረፍካ መንነት ንምፍጣር ተጠቐም ወይ ንምውጻእ ደገፍ ርኸብ።",
+  "agent_new_referral": "🎉 ሓድሽ ሪፈራል!\n\nተጠቃሚ #...{userId} ብሊንክኻ ተጸንቢሩ!",
+  "back": "⬅️ ተመለስ",
+  "error_not_agent": "ከም ወኪል ኣይተመዝገብካን። ንምምዝጋብ /agent ተጠቐም።",
   
   "error_no_document": "በጃኻ PDF ሰነድ ስደድ።",
   "error_not_pdf": "❌ በጃኻ PDF ፋይል ጸዓን። ካልኦት ናይ ፋይል ዓይነታት ኣይድገፉን።",

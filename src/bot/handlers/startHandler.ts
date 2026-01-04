@@ -14,19 +14,55 @@ export async function handleStart(ctx: BotContext): Promise<void> {
   }
 
   try {
+    // Check for referral code in start parameter
+    const startPayload = (ctx.message as any)?.text?.split(' ')[1] || '';
+    let referralCode: string | null = null;
+    let referringAgent: any = null;
+
+    if (startPayload.startsWith('ref_')) {
+      referralCode = startPayload.replace('ref_', '');
+      // Find the referring agent
+      referringAgent = await User.findOne({ agentCode: referralCode, isAgent: true });
+    }
+
     // Find or create user
     let user = await User.findOne({ telegramId });
+    let isNewUser = false;
     
     if (!user) {
-      user = await User.create({
+      isNewUser = true;
+      const userData: any = {
         telegramId,
         language: 'en',
         walletBalance: 0,
         settings: { language: 'en', notifications: true }
-      });
+      };
+
+      // If valid referral, link the user to the agent
+      if (referringAgent && referringAgent.telegramId !== telegramId) {
+        userData.referredBy = referringAgent._id;
+        userData.referredByTelegramId = referringAgent.telegramId;
+        logger.info(`New user ${telegramId} referred by agent ${referringAgent.telegramId}`);
+      }
+
+      user = await User.create(userData);
       
       getAuditLogger().logAuth('session_created', telegramId, true);
       logger.info(`New user created: ${telegramId}`);
+
+      // Notify agent of new referral
+      if (referringAgent) {
+        try {
+          await ctx.telegram.sendMessage(
+            referringAgent.telegramId,
+            t(referringAgent.language || 'en', 'agent_new_referral', {
+              userId: telegramId.toString().slice(-4)
+            })
+          );
+        } catch (notifyError) {
+          logger.warn(`Failed to notify agent ${referringAgent.telegramId} of new referral`);
+        }
+      }
     }
 
     // Set session data
@@ -37,13 +73,19 @@ export async function handleStart(ctx: BotContext): Promise<void> {
     const firstName = ctx.from?.first_name || 'User';
 
     // Welcome message
-    const welcomeMessage = t(lang, 'welcome', { name: firstName });
+    let welcomeMessage = t(lang, 'welcome', { name: firstName });
+    
+    // Add referral welcome if new user was referred
+    if (isNewUser && referringAgent) {
+      welcomeMessage += '\n\n' + t(lang, 'welcome_referred');
+    }
     
     // Main menu keyboard
     const keyboard = Markup.keyboard([
       [t(lang, 'btn_upload'), t(lang, 'btn_balance')],
       [t(lang, 'btn_topup'), t(lang, 'btn_pricing')],
-      [t(lang, 'btn_language'), t(lang, 'btn_help')]
+      [t(lang, 'btn_agent'), t(lang, 'btn_language')],
+      [t(lang, 'btn_help')]
     ]).resize();
 
     await ctx.reply(welcomeMessage, keyboard);
@@ -56,6 +98,7 @@ export async function handleStart(ctx: BotContext): Promise<void> {
 /balance - ${t(lang, 'cmd_balance_desc')}
 /topup - ${t(lang, 'cmd_topup_desc')}
 /pricing - ${t(lang, 'cmd_pricing_desc')}
+/agent - ${t(lang, 'cmd_agent_desc')}
 /language - ${t(lang, 'cmd_language_desc')}
 /help - ${t(lang, 'cmd_help_desc')}
 `;

@@ -8,6 +8,7 @@ import User from '../../models/User';
 import logger from '../../utils/logger';
 import { getAuditLogger } from '../../utils/auditLogger';
 import { getRateLimiter } from '../../utils/rateLimiter';
+import { creditAgentCommission } from './agentHandler';
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -142,6 +143,9 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
       amount: SERVICE_PRICE,
       success: true
     });
+
+    // Credit agent commission if user was referred
+    await creditAgentCommission(user._id.toString(), SERVICE_PRICE);
 
     // Update message
     await ctx.telegram.editMessageText(

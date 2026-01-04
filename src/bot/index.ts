@@ -15,7 +15,14 @@ import {
   handlePricing,
   handleSettings,
   handleSettingsCallback,
-  handleHelp
+  handleHelp,
+  handleAgent,
+  handleAgentRegister,
+  handleAgentCancel,
+  handleAgentReferrals,
+  handleAgentShare,
+  handleAgentWithdraw,
+  handleAgentBack
 } from './handlers';
 import { t } from '../locales';
 import logger from '../utils/logger';
@@ -67,6 +74,7 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.command('pricing', handlePricing);
   bot.command('settings', handleSettings);
   bot.command('help', handleHelp);
+  bot.command('agent', handleAgent);
 
   // Callback query handlers
   bot.action(/^lang_/, handleLanguageCallback);
@@ -74,6 +82,14 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.action(/^topup_provider_/, handleTopupProviderCallback);
   bot.action('topup_cancel', handleTopupCancel);
   bot.action(/^settings_/, handleSettingsCallback);
+  
+  // Agent callback handlers
+  bot.action('agent_register', handleAgentRegister);
+  bot.action('agent_cancel', handleAgentCancel);
+  bot.action('agent_referrals', handleAgentReferrals);
+  bot.action('agent_share', handleAgentShare);
+  bot.action('agent_withdraw', handleAgentWithdraw);
+  bot.action('agent_back', handleAgentBack);
 
   // Document handler (PDF uploads)
   bot.on('document', handleDocument);
@@ -97,7 +113,8 @@ export function createBot(token: string): Telegraf<BotContext> {
       [t(lang, 'btn_topup')]: () => handleTopup(ctx),
       [t(lang, 'btn_pricing')]: () => handlePricing(ctx),
       [t(lang, 'btn_language')]: () => handleLanguage(ctx),
-      [t(lang, 'btn_help')]: () => handleHelp(ctx)
+      [t(lang, 'btn_help')]: () => handleHelp(ctx),
+      [t(lang, 'btn_agent')]: () => handleAgent(ctx)
     };
 
     const handler = buttonMap[text];
@@ -117,6 +134,7 @@ export async function startBot(bot: Telegraf<BotContext>): Promise<void> {
     { command: 'balance', description: 'Check wallet balance' },
     { command: 'topup', description: 'Top up wallet' },
     { command: 'pricing', description: 'View pricing' },
+    { command: 'agent', description: 'Agent/Referral program' },
     { command: 'language', description: 'Change language' },
     { command: 'settings', description: 'Bot settings' },
     { command: 'help', description: 'Get help' }

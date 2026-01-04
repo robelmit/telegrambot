@@ -22,6 +22,9 @@ export interface Config {
   serviceFee: number;
   nodeEnv: string;
   
+  // Agent/Referral
+  agentCommissionPercent: number;
+  
   // Rate Limiting
   rateLimitMax: number;
   rateLimitWindowMs: number;
@@ -78,6 +81,9 @@ export const config: Config = {
   // Service
   serviceFee: validateEnvNumber('SERVICE_PRICE', 50),
   nodeEnv: validateEnv('NODE_ENV', 'development'),
+  
+  // Agent/Referral
+  agentCommissionPercent: validateEnvNumber('AGENT_COMMISSION_PERCENT', 40),
   
   // Rate Limiting
   rateLimitMax: validateEnvNumber('RATE_LIMIT_MAX', 10),
