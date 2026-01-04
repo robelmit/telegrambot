@@ -1,5 +1,5 @@
 import { Context } from 'telegraf';
-import { Update, Message } from 'telegraf/types';
+import { Update } from 'telegraf/types';
 import { Language } from '../../types';
 
 export interface SessionData {

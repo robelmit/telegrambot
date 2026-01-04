@@ -7,7 +7,6 @@ import { EfaydaData, GeneratedFiles } from '../../types';
 import { CardVariantGenerator } from './cardVariantGenerator';
 import { PDFGenerator } from './pdfGenerator';
 import logger from '../../utils/logger';
-import path from 'path';
 import fs from 'fs/promises';
 
 /**
@@ -22,7 +21,7 @@ export class IDGeneratorService {
   constructor(outputDir?: string) {
     this.outputDir = outputDir || process.env.TEMP_DIR || 'temp';
     this.cardGenerator = new CardVariantGenerator(this.outputDir);
-    this.pdfGenerator = new PDFGenerator(this.outputDir);
+    this.pdfGenerator = new PDFGenerator();
   }
 
   /**

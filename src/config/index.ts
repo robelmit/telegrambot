@@ -68,15 +68,15 @@ export const config: Config = {
   mongodbUri: validateEnv('MONGODB_URI', 'mongodb://localhost:27017/efayda'),
   
   // Payment - Telebirr
-  telebirrMerchantPhone: validateEnv('TELEBIRR_MERCHANT_PHONE', ''),
-  telebirrMerchantName: validateEnv('TELEBIRR_MERCHANT_NAME', 'eFayda ID Service'),
+  telebirrMerchantPhone: validateEnv('TELEBIRR_RECEIVER_PHONE', ''),
+  telebirrMerchantName: validateEnv('PAYMENT_RECIPIENT_NAME', 'eFayda ID Service'),
   
   // Payment - CBE
-  cbeMerchantAccount: validateEnv('CBE_MERCHANT_ACCOUNT', ''),
-  cbeMerchantName: validateEnv('CBE_MERCHANT_NAME', 'eFayda ID Service'),
+  cbeMerchantAccount: validateEnv('CBE_RECEIVER_ACCOUNT', ''),
+  cbeMerchantName: validateEnv('PAYMENT_RECIPIENT_NAME', 'eFayda ID Service'),
   
   // Service
-  serviceFee: validateEnvNumber('SERVICE_FEE', 50),
+  serviceFee: validateEnvNumber('SERVICE_PRICE', 50),
   nodeEnv: validateEnv('NODE_ENV', 'development'),
   
   // Rate Limiting

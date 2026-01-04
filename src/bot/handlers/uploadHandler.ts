@@ -83,24 +83,13 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
     const pdfBuffer = Buffer.from(await response.arrayBuffer());
 
     // Validate PDF
-    const validation = await pdfService.validate(pdfBuffer);
+    const validation = await pdfService.validateDocument(pdfBuffer, fileName);
     if (!validation.isValid) {
       await ctx.telegram.editMessageText(
         ctx.chat!.id,
         processingMsg.message_id,
         undefined,
         t(lang, 'error_invalid_pdf', { errors: validation.errors.join(', ') })
-      );
-      return;
-    }
-
-    // Check if it's an eFayda document
-    if (!validation.isEfayda) {
-      await ctx.telegram.editMessageText(
-        ctx.chat!.id,
-        processingMsg.message_id,
-        undefined,
-        t(lang, 'error_not_efayda')
       );
       return;
     }
@@ -132,6 +121,7 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
     // Create job
     const job = await JobModel.create({
       userId: user._id,
+      chatId: ctx.chat!.id,
       status: 'pending',
       pdfPath,
       attempts: 0

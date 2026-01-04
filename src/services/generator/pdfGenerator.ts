@@ -1,6 +1,5 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
-import path from 'path';
 import logger from '../../utils/logger';
 
 // A4 dimensions at 300 DPI
@@ -19,10 +18,8 @@ export interface A4PDFOptions {
 }
 
 export class PDFGenerator {
-  private outputDir: string;
-
-  constructor(outputDir?: string) {
-    this.outputDir = outputDir || process.env.TEMP_DIR || 'temp';
+  constructor() {
+    // No initialization needed
   }
 
   /**

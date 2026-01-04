@@ -64,7 +64,7 @@ export function hasMessage(language: Language, key: string): boolean {
  * Get all messages for a language
  */
 export function getMessages(language: Language): LocaleMessages {
-  return { ...locales[language] } || { ...locales.en };
+  return { ...(locales[language] ?? locales.en) };
 }
 
 /**

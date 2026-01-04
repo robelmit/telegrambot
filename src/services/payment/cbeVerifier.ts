@@ -11,10 +11,14 @@ try {
 }
 
 export class CBEVerifier implements PaymentVerifier {
-  private expectedReceiver: string;
+  private receiverAccount: string;
 
   constructor(expectedReceiver?: string) {
-    this.expectedReceiver = expectedReceiver || process.env.CBE_RECEIVER_ACCOUNT || '';
+    this.receiverAccount = expectedReceiver || process.env.CBE_RECEIVER_ACCOUNT || '';
+  }
+
+  getReceiverAccount(): string {
+    return this.receiverAccount;
   }
 
   async verify(transactionId: string): Promise<TransactionVerification> {

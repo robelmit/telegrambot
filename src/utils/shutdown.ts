@@ -68,3 +68,8 @@ export function setupShutdownHandlers(): void {
     gracefulShutdown('unhandledRejection');
   });
 }
+
+export function registerShutdownHandlers(callback: ShutdownCallback): void {
+  registerShutdownCallback(callback);
+  setupShutdownHandlers();
+}

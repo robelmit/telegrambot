@@ -1,11 +1,10 @@
 import sharp from 'sharp';
-import { EfaydaData, GeneratedFiles, CardGeneratorOptions } from '../../types';
+import { EfaydaData, GeneratedFiles } from '../../types';
 import { CardRenderer } from './cardRenderer';
 import { ImageProcessor } from './imageProcessor';
 import logger from '../../utils/logger';
 import path from 'path';
 import fs from 'fs/promises';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface CardVariant {
   front: Buffer;
@@ -166,7 +165,6 @@ export class CardVariantGenerator {
 
       // Generate safe filename from user name
       const safeName = this.sanitizeFilename(data.fullNameEnglish);
-      const timestamp = Date.now();
 
       // Define file paths
       const colorMirroredPngPath = path.join(this.outputDir, `${jobId}_${safeName}_color_mirrored.png`);

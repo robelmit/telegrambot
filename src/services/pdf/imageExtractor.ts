@@ -154,7 +154,7 @@ export class PDFImageExtractor {
    * Extract barcode data from image
    * This would typically use a barcode scanning library
    */
-  async extractBarcodeData(imageBuffer: Buffer): Promise<string | null> {
+  async extractBarcodeData(_imageBuffer: Buffer): Promise<string | null> {
     // Placeholder - would use a library like zxing-js or quagga
     logger.warn('Barcode extraction not implemented');
     return null;
@@ -164,7 +164,7 @@ export class PDFImageExtractor {
    * Extract QR code data from image
    * This would typically use a QR code scanning library
    */
-  async extractQRCodeData(imageBuffer: Buffer): Promise<string | null> {
+  async extractQRCodeData(_imageBuffer: Buffer): Promise<string | null> {
     // Placeholder - would use a library like jsqr or qrcode-reader
     logger.warn('QR code extraction not implemented');
     return null;

@@ -20,8 +20,6 @@ export class PDFService {
     buffer: Buffer, 
     filename: string
   ): Promise<{ isValid: boolean; data?: EfaydaData; errors: string[] }> {
-    const errors: string[] = [];
-
     // Step 1: Validate file extension
     const extensionResult = pdfValidator.validateFileExtension(filename);
     if (!extensionResult.isValid) {

@@ -8,7 +8,6 @@ export interface ImageProcessorOptions {
 }
 
 export class ImageProcessor {
-  private defaultDpi: number = 300;
 
   /**
    * Mirror an image horizontally (flip)

@@ -22,7 +22,7 @@ export class PDFParserImpl implements PDFParser {
    * Note: pdf-parse doesn't directly support image extraction
    * This is a placeholder that would need a more sophisticated library
    */
-  async extractImages(buffer: Buffer): Promise<ExtractedImages> {
+  async extractImages(_buffer: Buffer): Promise<ExtractedImages> {
     // For now, return null values - image extraction requires
     // more sophisticated PDF parsing (e.g., pdf.js, pdf-lib, or external tools)
     logger.warn('Image extraction from PDF is not fully implemented');

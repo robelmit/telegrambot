@@ -121,9 +121,17 @@ export async function startBot(bot: Telegraf<BotContext>): Promise<void> {
     { command: 'settings', description: 'Bot settings' },
     { command: 'help', description: 'Get help' }
   ]);
+  logger.info('Bot commands set');
 
-  // Start polling
-  await bot.launch();
+  // Start polling (don't await - it runs forever)
+  bot.launch({
+    dropPendingUpdates: true
+  }).then(() => {
+    logger.info('Bot polling started');
+  }).catch((err) => {
+    logger.error('Bot launch error:', err);
+  });
+  
   logger.info('Bot started successfully');
 }
 

@@ -12,10 +12,14 @@ try {
 }
 
 export class TelebirrVerifier implements PaymentVerifier {
-  private expectedReceiver: string;
+  private receiverPhone: string;
 
   constructor(expectedReceiver?: string) {
-    this.expectedReceiver = expectedReceiver || process.env.TELEBIRR_RECEIVER_PHONE || '';
+    this.receiverPhone = expectedReceiver || process.env.TELEBIRR_RECEIVER_PHONE || '';
+  }
+
+  getReceiverPhone(): string {
+    return this.receiverPhone;
   }
 
   async verify(transactionId: string): Promise<TransactionVerification> {

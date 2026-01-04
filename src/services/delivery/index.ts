@@ -1,8 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Telegraf, Context } from 'telegraf';
+import { Telegraf } from 'telegraf';
 import { GeneratedFiles } from '../../types';
-import JobModel from '../../models/Job';
 import logger from '../../utils/logger';
 
 export interface DeliveryResult {
@@ -19,11 +18,11 @@ export interface FileInfo {
 }
 
 export class FileDeliveryService {
-  private bot: Telegraf;
+  private bot: Telegraf<any>;
   private tempDir: string;
   private fileTTL: number; // Time to live in milliseconds
 
-  constructor(bot: Telegraf, tempDir?: string, fileTTL?: number) {
+  constructor(bot: Telegraf<any>, tempDir?: string, fileTTL?: number) {
     this.bot = bot;
     this.tempDir = tempDir || process.env.TEMP_DIR || 'temp';
     this.fileTTL = fileTTL || 24 * 60 * 60 * 1000; // 24 hours default

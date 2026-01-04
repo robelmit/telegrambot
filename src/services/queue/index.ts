@@ -41,7 +41,7 @@ export function initializeJobQueue(
 
   // Register processor
   jobQueue.process(async (job) => {
-    const { jobId, userId, pdfPath } = job.data;
+    const { jobId, pdfPath } = job.data;
     
     logger.info(`Processing job ${jobId} for user ${job.data.telegramId}`);
 
@@ -56,7 +56,7 @@ export function initializeJobQueue(
     const pdfBuffer = await fs.readFile(pdfPath);
 
     // Parse PDF and extract data
-    const parseResult = await deps.pdfService.parseAndExtract(pdfBuffer);
+    const parseResult = await deps.pdfService.processDocument(pdfBuffer, 'document.pdf');
     
     if (!parseResult.isValid || !parseResult.data) {
       throw new Error(parseResult.errors?.join(', ') || 'Failed to parse PDF');
@@ -79,7 +79,12 @@ export function initializeJobQueue(
     // Update job with output files
     await JobModel.findByIdAndUpdate(jobId, {
       status: 'completed',
-      outputFiles: generatedFiles,
+      outputFiles: [
+        { type: 'colorMirroredPng', path: generatedFiles.colorMirroredPng },
+        { type: 'grayscaleMirroredPng', path: generatedFiles.grayscaleMirroredPng },
+        { type: 'colorMirroredPdf', path: generatedFiles.colorMirroredPdf },
+        { type: 'grayscaleMirroredPdf', path: generatedFiles.grayscaleMirroredPdf }
+      ],
       completedAt: new Date()
     });
 
@@ -91,13 +96,8 @@ export function initializeJobQueue(
     if (deps.onComplete) {
       try {
         const jobDoc = await JobModel.findById(job.data.jobId);
-        if (jobDoc?.outputFiles) {
-          const files = [
-            jobDoc.outputFiles.colorMirroredPng,
-            jobDoc.outputFiles.grayscaleMirroredPng,
-            jobDoc.outputFiles.colorMirroredPdf,
-            jobDoc.outputFiles.grayscaleMirroredPdf
-          ];
+        if (jobDoc?.outputFiles && jobDoc.outputFiles.length > 0) {
+          const files = jobDoc.outputFiles.map(f => f.path);
           await deps.onComplete(job, files);
         }
       } catch (error) {

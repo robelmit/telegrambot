@@ -46,128 +46,99 @@ export class WalletService implements IWalletService {
       throw new Error('Transaction ID has already been used');
     }
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    // Mark transaction as used first (to prevent double-spending)
+    await UsedTransaction.create({
+      transactionId: transactionId.trim().toUpperCase(),
+      provider,
+      userId: new mongoose.Types.ObjectId(userId),
+      amount
+    });
 
-    try {
-      // Update user balance
-      const user = await User.findByIdAndUpdate(
-        userId,
-        { $inc: { walletBalance: amount } },
-        { new: true, session }
-      );
+    // Update user balance
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { walletBalance: amount } },
+      { new: true }
+    );
 
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Create transaction record
-      await Transaction.create([{
-        userId: new mongoose.Types.ObjectId(userId),
-        type: 'credit',
-        amount,
-        provider,
-        externalTransactionId: transactionId,
-        status: 'completed'
-      }], { session });
-
-      // Mark transaction as used
-      await UsedTransaction.create([{
-        transactionId,
-        provider,
-        userId: new mongoose.Types.ObjectId(userId),
-        amount
-      }], { session });
-
-      await session.commitTransaction();
-      logger.info(`Wallet credited: userId=${userId}, amount=${amount}, provider=${provider}`);
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
+    if (!user) {
+      throw new Error('User not found');
     }
+
+    // Create transaction record
+    await Transaction.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      type: 'credit',
+      amount,
+      provider,
+      externalTransactionId: transactionId,
+      status: 'completed'
+    });
+
+    logger.info(`Wallet credited: userId=${userId}, amount=${amount}, provider=${provider}`);
   }
 
   async debit(userId: string, amount: number, jobId: string): Promise<boolean> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      // Check current balance
-      const user = await User.findById(userId).session(session);
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      if (user.walletBalance < amount) {
-        await session.abortTransaction();
-        return false; // Insufficient balance
-      }
-
-      // Deduct from balance
-      await User.findByIdAndUpdate(
-        userId,
-        { $inc: { walletBalance: -amount } },
-        { session }
-      );
-
-      // Create transaction record
-      await Transaction.create([{
-        userId: new mongoose.Types.ObjectId(userId),
-        type: 'debit',
-        amount,
-        provider: 'system',
-        reference: jobId,
-        status: 'completed'
-      }], { session });
-
-      await session.commitTransaction();
-      logger.info(`Wallet debited: userId=${userId}, amount=${amount}, jobId=${jobId}`);
-      return true;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
+    // Check current balance first
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
     }
+
+    if (user.walletBalance < amount) {
+      return false; // Insufficient balance
+    }
+
+    // Use findOneAndUpdate with balance check to prevent race conditions
+    const result = await User.findOneAndUpdate(
+      { _id: userId, walletBalance: { $gte: amount } },
+      { $inc: { walletBalance: -amount } },
+      { new: true }
+    );
+
+    if (!result) {
+      return false; // Balance changed, insufficient now
+    }
+
+    // Create transaction record
+    await Transaction.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      type: 'debit',
+      amount,
+      provider: 'system',
+      reference: jobId,
+      status: 'completed'
+    });
+
+    logger.info(`Wallet debited: userId=${userId}, amount=${amount}, jobId=${jobId}`);
+    return true;
   }
 
+
   async refund(userId: string, amount: number, jobId: string): Promise<void> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    // Update user balance
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { walletBalance: amount } },
+      { new: true }
+    );
 
-    try {
-      // Update user balance
-      const user = await User.findByIdAndUpdate(
-        userId,
-        { $inc: { walletBalance: amount } },
-        { new: true, session }
-      );
-
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Create refund transaction record
-      await Transaction.create([{
-        userId: new mongoose.Types.ObjectId(userId),
-        type: 'credit',
-        amount,
-        provider: 'system',
-        reference: `refund_${jobId}`,
-        status: 'completed',
-        metadata: { refundFor: jobId }
-      }], { session });
-
-      await session.commitTransaction();
-      logger.info(`Wallet refunded: userId=${userId}, amount=${amount}, jobId=${jobId}`);
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
+    if (!user) {
+      throw new Error('User not found');
     }
+
+    // Create refund transaction record
+    await Transaction.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      type: 'credit',
+      amount,
+      provider: 'system',
+      reference: `refund_${jobId}`,
+      status: 'completed',
+      metadata: { refundFor: jobId }
+    });
+
+    logger.info(`Wallet refunded: userId=${userId}, amount=${amount}, jobId=${jobId}`);
   }
 
   async getTransactionHistory(userId: string, limit: number = 20): Promise<WalletTransactionRecord[]> {

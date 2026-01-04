@@ -77,6 +77,7 @@ async function main() {
 
     // Start file cleanup scheduler
     deliveryService.startCleanupScheduler(60 * 60 * 1000);
+    logger.info('File cleanup scheduler started');
 
     // Register shutdown handlers
     registerShutdownHandlers(async () => {
@@ -86,8 +87,10 @@ async function main() {
       await disconnectDatabase();
       logger.info('Shutdown complete');
     });
+    logger.info('Shutdown handlers registered');
 
     // Start the bot
+    logger.info('Starting Telegram bot...');
     await startBot(bot);
     
     logger.info('eFayda ID Generator Bot is running!');

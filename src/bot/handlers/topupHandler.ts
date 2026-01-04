@@ -166,9 +166,9 @@ export async function handleTransactionIdMessage(ctx: BotContext): Promise<void>
         provider,
         transactionId,
         success: false,
-        error: verification.error
+        error: verification.error || 'Verification failed'
       });
-      await ctx.reply(t(lang, 'error_verification_failed', { error: verification.error }));
+      await ctx.reply(t(lang, 'error_verification_failed', { error: verification.error || 'Verification failed' }));
       return;
     }
 
