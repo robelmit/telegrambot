@@ -12,7 +12,10 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write src/**/*.ts"
+    "format": "prettier --write src/**/*.ts",
+    "mongodb:start": "cd mongodb-local && start-mongodb.bat",
+    "mongodb:stop": "cd mongodb-local && stop-mongodb.bat",
+    "mongodb:connect": "cd mongodb-local && connect-mongodb.bat"
   },
   "keywords": [
     "telegram",

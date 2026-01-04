@@ -5,12 +5,26 @@ import logger from '../../utils/logger';
 import path from 'path';
 import fs from 'fs';
 
-const CARD_WIDTH = 1344;
-const CARD_HEIGHT = 768;
-const PHOTO_WIDTH = 200;
-const PHOTO_HEIGHT = 260;
-const PHOTO_X = 55;
-const PHOTO_Y = 180;
+// Card dimensions - 1012x638 as per template
+const CARD_WIDTH = 1012;
+const CARD_HEIGHT = 638;
+
+// Front card positioning
+const PHOTO_WIDTH = 148;
+const PHOTO_HEIGHT = 185;
+const PHOTO_X = 68;
+const PHOTO_Y = 168;
+
+// Small photo (bottom right on front)
+const SMALL_PHOTO_WIDTH = 80;
+const SMALL_PHOTO_HEIGHT = 100;
+const SMALL_PHOTO_X = 900;
+const SMALL_PHOTO_Y = 480;
+
+// Back card QR code positioning
+const QR_X = 590;
+const QR_Y = 28;
+const QR_SIZE = 320;
 
 export interface CardRenderOptions {
   variant: 'color' | 'grayscale';
@@ -24,33 +38,65 @@ export class CardRenderer {
 
   constructor() {
     this.imageProcessor = new ImageProcessor();
-    this.frontTemplatePath = path.join(__dirname, '../../assets/front_template.png');
-    this.backTemplatePath = path.join(__dirname, '../../assets/back_template.png');
+    this.frontTemplatePath = path.join(__dirname, '../../assets/front_template.JPG');
+    this.backTemplatePath = path.join(__dirname, '../../assets/back_template.JPG');
   }
 
   async renderFront(data: EfaydaData, options: CardRenderOptions = { variant: 'color' }): Promise<Buffer> {
     try {
+      // Load template or create fallback
       let card: Buffer;
       if (fs.existsSync(this.frontTemplatePath)) {
-        card = await sharp(this.frontTemplatePath).resize(CARD_WIDTH, CARD_HEIGHT).png().toBuffer();
+        card = await sharp(this.frontTemplatePath)
+          .resize(CARD_WIDTH, CARD_HEIGHT)
+          .png()
+          .toBuffer();
       } else {
         card = await this.createFrontBackground();
       }
 
+      // Add main photo
       if (data.photo) {
-        const photoBuffer = typeof data.photo === 'string' ? Buffer.from(data.photo, 'base64') : data.photo;
-        const photoBg = await this.createPhotoFrame();
-        card = await sharp(card).composite([{ input: photoBg, left: PHOTO_X - 5, top: PHOTO_Y - 5 }]).toBuffer();
-        const processedPhoto = await this.imageProcessor.resizeExact(photoBuffer, PHOTO_WIDTH, PHOTO_HEIGHT);
-        card = await sharp(card).composite([{ input: processedPhoto, left: PHOTO_X, top: PHOTO_Y }]).toBuffer();
-      } else {
-        const placeholder = await this.createPhotoPlaceholder();
-        card = await sharp(card).composite([{ input: placeholder, left: PHOTO_X, top: PHOTO_Y }]).toBuffer();
+        const photoBuffer = typeof data.photo === 'string' 
+          ? Buffer.from(data.photo, 'base64') 
+          : data.photo;
+        
+        const processedPhoto = await this.imageProcessor.resizeExact(
+          photoBuffer, 
+          PHOTO_WIDTH, 
+          PHOTO_HEIGHT
+        );
+        
+        card = await sharp(card)
+          .composite([{ input: processedPhoto, left: PHOTO_X, top: PHOTO_Y }])
+          .toBuffer();
+
+        // Add small photo (bottom right)
+        const smallPhoto = await this.imageProcessor.resizeExact(
+          photoBuffer,
+          SMALL_PHOTO_WIDTH,
+          SMALL_PHOTO_HEIGHT
+        );
+        
+        card = await sharp(card)
+          .composite([{ input: smallPhoto, left: SMALL_PHOTO_X, top: SMALL_PHOTO_Y }])
+          .toBuffer();
       }
 
+      // Add text overlays
       card = await this.addFrontText(card, data);
-      if (options.variant === 'grayscale') { card = await this.imageProcessor.grayscale(card); }
+
+      // Add barcode
+      card = await this.addBarcode(card, data.fan);
+
+      // Apply grayscale if needed
+      if (options.variant === 'grayscale') {
+        card = await this.imageProcessor.grayscale(card);
+      }
+
+      // Set DPI
       card = await this.imageProcessor.setDpi(card, options.dpi || 300);
+
       return card;
     } catch (error) {
       logger.error('Front card render failed:', error);
@@ -58,47 +104,79 @@ export class CardRenderer {
     }
   }
 
-  private async createPhotoPlaceholder(): Promise<Buffer> {
-    const svg = `<svg width="${PHOTO_WIDTH}" height="${PHOTO_HEIGHT}"><rect width="${PHOTO_WIDTH}" height="${PHOTO_HEIGHT}" fill="#f5f5f5" stroke="#ccc" stroke-width="2" rx="5"/><circle cx="${PHOTO_WIDTH/2}" cy="80" r="45" fill="#ddd"/><ellipse cx="${PHOTO_WIDTH/2}" cy="200" rx="70" ry="50" fill="#ddd"/></svg>`;
-    return await sharp(Buffer.from(svg)).png().toBuffer();
-  }
-
-  private async createPhotoFrame(): Promise<Buffer> {
-    const w = PHOTO_WIDTH + 10, h = PHOTO_HEIGHT + 10;
-    const svg = `<svg width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="white" stroke="#078930" stroke-width="2" rx="5"/></svg>`;
-    return await sharp(Buffer.from(svg)).png().toBuffer();
-  }
-
   private async addFrontText(card: Buffer, data: EfaydaData): Promise<Buffer> {
-    const c = '#000000';
+    // Format FAN with spaces: XXXX XXXX XXXX XXXX
+    const formattedFan = this.formatFan(data.fan);
+    
     const svg = `<svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}">
-      <text x="590" y="112" font-family="Nyala,Ebrima,Arial" font-size="20" fill="${c}">${this.escapeXml(data.fullNameAmharic)}</text>
-      <text x="590" y="138" font-family="Arial" font-size="22" font-weight="bold" fill="${c}">${this.escapeXml(data.fullNameEnglish)}</text>
-      <text x="630" y="268" font-family="Arial" font-size="18" fill="${c}">${this.escapeXml(data.dateOfBirthEthiopian)}</text>
-      <text x="630" y="292" font-family="Arial" font-size="16" fill="#333">${this.escapeXml(data.dateOfBirthGregorian)}</text>
-      <text x="460" y="368" font-family="Arial" font-size="18" fill="${c}">${this.escapeXml(data.sex)}</text>
-      <text x="690" y="468" font-family="Arial" font-size="18" fill="${c}">${this.escapeXml(data.expiryDate || 'N/A')}</text>
-      <text x="450" y="560" font-family="Consolas,monospace" font-size="24" font-weight="bold" fill="${c}">${this.escapeXml(data.fan)}</text>
+      <!-- Full Name Amharic -->
+      <text x="285" y="195" font-family="Nyala,Ebrima,Arial" font-size="26" font-weight="bold" fill="#1a1a1a">${this.escapeXml(data.fullNameAmharic)}</text>
+      
+      <!-- Full Name English -->
+      <text x="285" y="225" font-family="Arial" font-size="22" fill="#1a1a1a">${this.escapeXml(data.fullNameEnglish)}</text>
+      
+      <!-- Date of Birth -->
+      <text x="285" y="305" font-family="Arial" font-size="20" font-weight="bold" fill="#1a1a1a">${this.escapeXml(data.dateOfBirthGregorian)} | ${this.escapeXml(data.dateOfBirthEthiopian)}</text>
+      
+      <!-- Sex -->
+      <text x="285" y="385" font-family="Nyala,Ebrima,Arial" font-size="20" fill="#1a1a1a">${data.sex === 'Female' ? 'ሴት' : 'ወንድ'}</text>
+      <text x="340" y="385" font-family="Arial" font-size="20" fill="#1a1a1a">| ${this.escapeXml(data.sex)}</text>
+      
+      <!-- Date of Expiry -->
+      <text x="285" y="465" font-family="Arial" font-size="20" font-weight="bold" fill="#1a1a1a">${this.escapeXml(data.expiryDate || 'N/A')}</text>
+      
+      <!-- FAN Number -->
+      <text x="285" y="530" font-family="Arial,Consolas" font-size="22" font-weight="bold" fill="#1a1a1a">${formattedFan}</text>
     </svg>`;
-    return await sharp(card).composite([{ input: Buffer.from(svg), left: 0, top: 0 }]).toBuffer();
+
+    return await sharp(card)
+      .composite([{ input: Buffer.from(svg), left: 0, top: 0 }])
+      .toBuffer();
+  }
+
+  private async addBarcode(card: Buffer, _fan: string): Promise<Buffer> {
+    // Barcode is already part of the template, just return the card
+    // The template has the barcode area, we overlay the FAN number text above it
+    return card;
   }
 
   async renderBack(data: EfaydaData, options: CardRenderOptions = { variant: 'color' }): Promise<Buffer> {
     try {
+      // Load template or create fallback
       let card: Buffer;
       if (fs.existsSync(this.backTemplatePath)) {
-        card = await sharp(this.backTemplatePath).resize(CARD_WIDTH, CARD_HEIGHT).png().toBuffer();
+        card = await sharp(this.backTemplatePath)
+          .resize(CARD_WIDTH, CARD_HEIGHT)
+          .png()
+          .toBuffer();
       } else {
         card = await this.createBackBackground();
       }
+
+      // Add text overlays
       card = await this.addBackText(card, data);
+
+      // Add QR code
       if (data.qrCode) {
-        const qrBuffer = typeof data.qrCode === 'string' ? Buffer.from(data.qrCode, 'base64') : data.qrCode;
-        const resizedQr = await this.imageProcessor.resize(qrBuffer, 180, 180);
-        card = await sharp(card).composite([{ input: resizedQr, left: CARD_WIDTH - 220, top: CARD_HEIGHT - 220 }]).toBuffer();
+        const qrBuffer = typeof data.qrCode === 'string' 
+          ? Buffer.from(data.qrCode, 'base64') 
+          : data.qrCode;
+        
+        const resizedQr = await this.imageProcessor.resizeExact(qrBuffer, QR_SIZE, QR_SIZE);
+        
+        card = await sharp(card)
+          .composite([{ input: resizedQr, left: QR_X, top: QR_Y }])
+          .toBuffer();
       }
-      if (options.variant === 'grayscale') { card = await this.imageProcessor.grayscale(card); }
+
+      // Apply grayscale if needed
+      if (options.variant === 'grayscale') {
+        card = await this.imageProcessor.grayscale(card);
+      }
+
+      // Set DPI
       card = await this.imageProcessor.setDpi(card, options.dpi || 300);
+
       return card;
     } catch (error) {
       logger.error('Back card render failed:', error);
@@ -107,40 +185,138 @@ export class CardRenderer {
   }
 
   private async addBackText(card: Buffer, data: EfaydaData): Promise<Buffer> {
-    const l = '#555', v = '#1a1a1a';
+    // Format FIN with spaces: XXXX XXXX XXXX XXXX
+    const formattedFin = this.formatFan(data.fin);
+    
     const svg = `<svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}">
-      <text x="60" y="100" font-family="Arial" font-size="14" fill="${l}">Phone / ስልክ</text>
-      <text x="60" y="122" font-family="Arial" font-size="18" fill="${v}">${this.escapeXml(data.phoneNumber)}</text>
-      <text x="60" y="165" font-family="Arial" font-size="14" fill="${l}">Nationality / ዜግነት</text>
-      <text x="60" y="187" font-family="Arial" font-size="18" fill="${v}">${this.escapeXml(data.nationality)}</text>
-      <text x="60" y="230" font-family="Arial" font-size="14" fill="${l}">Region / ክልል</text>
-      <text x="60" y="252" font-family="Arial" font-size="18" fill="${v}">${this.escapeXml(data.region)} - ${this.escapeXml(data.city)}</text>
-      <text x="60" y="295" font-family="Arial" font-size="14" fill="${l}">Subcity / ክፍለ ከተማ</text>
-      <text x="60" y="317" font-family="Arial" font-size="18" fill="${v}">${this.escapeXml(data.subcity)}</text>
-      <text x="60" y="370" font-family="Arial" font-size="14" fill="${l}">FIN</text>
-      <text x="60" y="392" font-family="Consolas" font-size="18" font-weight="bold" fill="${v}">${this.escapeXml(data.fin)}</text>
-      <text x="60" y="435" font-family="Arial" font-size="14" fill="${l}">FCN</text>
-      <text x="60" y="457" font-family="Consolas" font-size="16" fill="${v}">${this.escapeXml(data.fcn)}</text>
-      <text x="500" y="100" font-family="Arial" font-size="14" fill="${l}">Issue Date / የተሰጠበት</text>
-      <text x="500" y="122" font-family="Arial" font-size="18" fill="${v}">${this.escapeXml(data.issueDate || 'N/A')}</text>
-      <text x="500" y="165" font-family="Arial" font-size="14" fill="${l}">Expiry / ያበቃበት</text>
-      <text x="500" y="187" font-family="Arial" font-size="18" fill="${v}">${this.escapeXml(data.expiryDate || 'N/A')}</text>
-      <text x="60" y="${CARD_HEIGHT - 50}" font-family="Arial" font-size="11" fill="#888">This card is the property of the Federal Democratic Republic of Ethiopia.</text>
+      <!-- Phone Number -->
+      <text x="42" y="68" font-family="Arial" font-size="22" font-weight="bold" fill="#1a1a1a">${this.escapeXml(data.phoneNumber)}</text>
+      
+      <!-- Nationality Amharic & English -->
+      <text x="42" y="155" font-family="Nyala,Ebrima,Arial" font-size="24" font-weight="bold" fill="#1a1a1a">ኢትዮጵያ</text>
+      <text x="130" y="155" font-family="Arial" font-size="22" fill="#1a1a1a">| ET</text>
+      
+      <!-- Region Amharic -->
+      <text x="42" y="235" font-family="Nyala,Ebrima,Arial" font-size="22" font-weight="bold" fill="#1a1a1a">${this.escapeXml(this.getRegionAmharic(data.region))}</text>
+      <!-- Region English -->
+      <text x="42" y="265" font-family="Arial" font-size="20" fill="#1a1a1a">${this.escapeXml(data.region)}</text>
+      
+      <!-- City Amharic -->
+      <text x="42" y="310" font-family="Nyala,Ebrima,Arial" font-size="22" font-weight="bold" fill="#1a1a1a">${this.escapeXml(this.getCityAmharic(data.city))}</text>
+      <!-- City English -->
+      <text x="42" y="340" font-family="Arial" font-size="20" fill="#1a1a1a">${this.escapeXml(data.city)}</text>
+      
+      <!-- Subcity Amharic -->
+      <text x="42" y="385" font-family="Nyala,Ebrima,Arial" font-size="22" font-weight="bold" fill="#1a1a1a">${this.escapeXml(this.getSubcityAmharic(data.subcity))} ክ/ከተማ</text>
+      <!-- Subcity English -->
+      <text x="42" y="415" font-family="Arial" font-size="20" fill="#1a1a1a">${this.escapeXml(data.subcity)} Sub City</text>
+      
+      <!-- FIN Label and Number -->
+      <text x="95" y="505" font-family="Arial,Consolas" font-size="24" font-weight="bold" fill="#1a1a1a">${formattedFin}</text>
+      
+      <!-- Serial Number -->
+      <text x="870" y="590" font-family="Arial" font-size="20" font-weight="bold" fill="#1a1a1a">${this.escapeXml(data.serialNumber || '')}</text>
     </svg>`;
-    return await sharp(card).composite([{ input: Buffer.from(svg), left: 0, top: 0 }]).toBuffer();
+
+    return await sharp(card)
+      .composite([{ input: Buffer.from(svg), left: 0, top: 0 }])
+      .toBuffer();
+  }
+
+  private formatFan(fan: string): string {
+    if (!fan) return '';
+    const clean = fan.replace(/\s/g, '');
+    return clean.match(/.{1,4}/g)?.join(' ') || clean;
+  }
+
+  private getRegionAmharic(region: string): string {
+    const regionMap: Record<string, string> = {
+      'Tigray': 'ትግራይ',
+      'Amhara': 'አማራ',
+      'Oromia': 'ኦሮሚያ',
+      'SNNPR': 'ደቡብ ብሔሮች',
+      'Addis Ababa': 'አዲስ አበባ',
+      'Dire Dawa': 'ድሬዳዋ',
+      'Harari': 'ሐረሪ',
+      'Somali': 'ሶማሌ',
+      'Afar': 'አፋር',
+      'Benishangul-Gumuz': 'ቤንሻንጉል-ጉሙዝ',
+      'Gambela': 'ጋምቤላ',
+      'Sidama': 'ሲዳማ'
+    };
+    return regionMap[region] || region;
+  }
+
+  private getCityAmharic(city: string): string {
+    const cityMap: Record<string, string> = {
+      'Mekelle': 'መቐለ',
+      'Addis Ababa': 'አዲስ አበባ',
+      'Bahir Dar': 'ባህር ዳር',
+      'Gondar': 'ጎንደር',
+      'Hawassa': 'ሀዋሳ',
+      'Dire Dawa': 'ድሬዳዋ',
+      'Jimma': 'ጅማ',
+      'Adama': 'አዳማ',
+      'Harar': 'ሐረር',
+      'Dessie': 'ደሴ'
+    };
+    return cityMap[city] || city;
+  }
+
+  private getSubcityAmharic(subcity: string): string {
+    const subcityMap: Record<string, string> = {
+      'Hadnet Sub City': 'ሓድነት',
+      'Hadnet': 'ሓድነት',
+      'Bole': 'ቦሌ',
+      'Kirkos': 'ቂርቆስ',
+      'Yeka': 'የካ',
+      'Arada': 'አራዳ',
+      'Lideta': 'ልደታ',
+      'Kolfe Keranio': 'ኮልፌ ቀራኒዮ',
+      'Gulele': 'ጉለሌ',
+      'Addis Ketema': 'አዲስ ከተማ',
+      'Akaky Kaliti': 'አቃቂ ቃሊቲ',
+      'Nifas Silk-Lafto': 'ንፋስ ስልክ-ላፍቶ'
+    };
+    return subcityMap[subcity] || subcity.replace(' Sub City', '');
   }
 
   private async createFrontBackground(): Promise<Buffer> {
-    return await sharp(Buffer.from(`<svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}"><rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="#e8f5e9"/></svg>`)).png().toBuffer();
+    // Fallback gradient background if template not found
+    const svg = `<svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#b8e6d4"/>
+          <stop offset="100%" style="stop-color:#7dd3c0"/>
+        </linearGradient>
+      </defs>
+      <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#bg)"/>
+      <text x="300" y="60" font-family="Arial" font-size="24" fill="#333">Ethiopian Digital ID Card</text>
+    </svg>`;
+    return await sharp(Buffer.from(svg)).png().toBuffer();
   }
 
   private async createBackBackground(): Promise<Buffer> {
-    return await sharp(Buffer.from(`<svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}"><rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="#e8f5e9"/></svg>`)).png().toBuffer();
+    const svg = `<svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#b8e6d4"/>
+          <stop offset="100%" style="stop-color:#7dd3c0"/>
+        </linearGradient>
+      </defs>
+      <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#bg)"/>
+    </svg>`;
+    return await sharp(Buffer.from(svg)).png().toBuffer();
   }
 
   private escapeXml(text: string): string {
     if (!text) return '';
-    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
   }
 
   getCardDimensions(): { width: number; height: number } {

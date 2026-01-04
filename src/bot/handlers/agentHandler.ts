@@ -5,6 +5,7 @@ import User from '../../models/User';
 import logger from '../../utils/logger';
 import config from '../../config';
 import { v4 as uuidv4 } from 'uuid';
+import { Language } from '../../types';
 
 // Generate a unique agent code
 function generateAgentCode(): string {
@@ -13,7 +14,7 @@ function generateAgentCode(): string {
 
 // Handle /agent command - show agent dashboard or register as agent
 export async function handleAgent(ctx: BotContext): Promise<void> {
-  const lang = ctx.session.language || 'en';
+  const lang = (ctx.session.language || 'en') as Language;
   const telegramId = ctx.from?.id;
 
   if (!telegramId) {
@@ -51,7 +52,7 @@ export async function handleAgent(ctx: BotContext): Promise<void> {
 }
 
 // Show agent dashboard with stats
-async function showAgentDashboard(ctx: BotContext, user: any, lang: string): Promise<void> {
+async function showAgentDashboard(ctx: BotContext, user: any, lang: Language): Promise<void> {
   const botInfo = await ctx.telegram.getMe();
   const referralLink = `https://t.me/${botInfo.username}?start=ref_${user.agentCode}`;
   
@@ -81,7 +82,7 @@ async function showAgentDashboard(ctx: BotContext, user: any, lang: string): Pro
 
 // Handle agent registration callback
 export async function handleAgentRegister(ctx: BotContext): Promise<void> {
-  const lang = ctx.session.language || 'en';
+  const lang = (ctx.session.language || 'en') as Language;
   const telegramId = ctx.from?.id;
 
   if (!telegramId) {
@@ -136,14 +137,14 @@ export async function handleAgentRegister(ctx: BotContext): Promise<void> {
 
 // Handle agent cancel callback
 export async function handleAgentCancel(ctx: BotContext): Promise<void> {
-  const lang = ctx.session.language || 'en';
+  const lang = (ctx.session.language || 'en') as Language;
   await ctx.answerCbQuery();
   await ctx.editMessageText(t(lang, 'agent_cancelled'));
 }
 
 // Handle view referrals callback
 export async function handleAgentReferrals(ctx: BotContext): Promise<void> {
-  const lang = ctx.session.language || 'en';
+  const lang = (ctx.session.language || 'en') as Language;
   const telegramId = ctx.from?.id;
 
   if (!telegramId) {
@@ -196,7 +197,7 @@ export async function handleAgentReferrals(ctx: BotContext): Promise<void> {
 
 // Handle share referral link
 export async function handleAgentShare(ctx: BotContext): Promise<void> {
-  const lang = ctx.session.language || 'en';
+  const lang = (ctx.session.language || 'en') as Language;
   const telegramId = ctx.from?.id;
 
   if (!telegramId) {
@@ -230,7 +231,7 @@ export async function handleAgentShare(ctx: BotContext): Promise<void> {
 
 // Handle withdraw (shows balance info)
 export async function handleAgentWithdraw(ctx: BotContext): Promise<void> {
-  const lang = ctx.session.language || 'en';
+  const lang = (ctx.session.language || 'en') as Language;
   const telegramId = ctx.from?.id;
 
   if (!telegramId) {
@@ -265,7 +266,7 @@ export async function handleAgentWithdraw(ctx: BotContext): Promise<void> {
 
 // Handle back to agent dashboard
 export async function handleAgentBack(ctx: BotContext): Promise<void> {
-  const lang = ctx.session.language || 'en';
+  const lang = (ctx.session.language || 'en') as Language;
   const telegramId = ctx.from?.id;
 
   if (!telegramId) {
