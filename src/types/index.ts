@@ -34,7 +34,10 @@ export interface EfaydaData {
   
   // Dates
   issueDate: string;
+  issueDateEthiopian?: string;
   expiryDate: string;
+  expiryDateGregorian?: string;
+  expiryDateEthiopian?: string;
   
   // Images (Base64 or Buffer)
   photo?: string | Buffer;

@@ -1,5 +1,5 @@
 export { ImageProcessor } from './imageProcessor';
-export { CardRenderer, CardRenderOptions } from './cardRenderer';
+export { CardRenderer, CardRenderOptions, registerFonts } from './cardRenderer';
 export { CardVariantGenerator, CardVariant } from './cardVariantGenerator';
 export { PDFGenerator, A4PDFOptions } from './pdfGenerator';
 

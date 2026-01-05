@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { createCanvas, loadImage } from 'canvas';
 import logger from '../../utils/logger';
 
 export interface ImageProcessorOptions {
@@ -10,12 +11,33 @@ export interface ImageProcessorOptions {
 export class ImageProcessor {
 
   /**
-   * Mirror an image horizontally (flip)
+   * Mirror an image horizontally (flip) using canvas
    */
   async mirror(input: Buffer): Promise<Buffer> {
     try {
+      const img = await loadImage(input);
+      const canvas = createCanvas(img.width, img.height);
+      const ctx = canvas.getContext('2d');
+
+      // Flip horizontally
+      ctx.translate(img.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, 0, 0);
+
+      return canvas.toBuffer('image/png');
+    } catch (error) {
+      logger.error('Image mirror failed:', error);
+      throw new Error('Failed to mirror image');
+    }
+  }
+
+  /**
+   * Mirror using Sharp (alternative, faster for large images)
+   */
+  async mirrorSharp(input: Buffer): Promise<Buffer> {
+    try {
       return await sharp(input)
-        .flop() // Horizontal flip (mirror)
+        .flop()
         .toBuffer();
     } catch (error) {
       logger.error('Image mirror failed:', error);
