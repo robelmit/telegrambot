@@ -167,10 +167,10 @@
       "fontFamily": "Inter"
     },
     "qrCode": {
-      "x": 464,
-      "y": 48,
-      "width": 500,
-      "height": 500
+      "x": 450,
+      "y": 37,
+      "width": 525,
+      "height": 525
     }
   },
   "fonts": {
