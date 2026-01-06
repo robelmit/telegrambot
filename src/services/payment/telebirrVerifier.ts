@@ -50,8 +50,8 @@ export class TelebirrVerifier implements PaymentVerifier {
       const receipt = await this.verifyWithAPI(cleanedId);
       
       if (receipt) {
-        // Validate that the receiver matches our expected receiver
-        if (!this.validateReceiverMatch(receipt.receiver)) {
+        // Validate that the receiver matches our expected receiver (skip if not configured)
+        if (this.receiverPhone && !this.validateReceiverMatch(receipt.receiver)) {
           return {
             isValid: false,
             error: 'Payment was not sent to the correct receiver'
@@ -141,16 +141,29 @@ export class TelebirrVerifier implements PaymentVerifier {
   }
 
   private validateReceiverMatch(receiver: string): boolean {
-    if (!receiver || !this.receiverPhone) {
+    if (!this.receiverPhone) {
+      return true; // Skip validation if no expected receiver configured
+    }
+    if (!receiver) {
       return false;
     }
     
     const normalizePhone = (phone: string): string => {
-      return phone.replace(/[\s\-\+]/g, '').replace(/^251/, '').replace(/^0/, '');
+      // Remove masking asterisks and normalize
+      return phone.replace(/[\s\-\+\*]/g, '').replace(/^251/, '').replace(/^0/, '');
     };
     
     const actualReceiver = normalizePhone(receiver);
     const expected = normalizePhone(this.receiverPhone);
+    
+    // Check if last 4 digits match (for masked numbers)
+    if (actualReceiver.length >= 4 && expected.length >= 4) {
+      const actualLast4 = actualReceiver.slice(-4);
+      const expectedLast4 = expected.slice(-4);
+      if (actualLast4 === expectedLast4) {
+        return true;
+      }
+    }
     
     return actualReceiver === expected;
   }
