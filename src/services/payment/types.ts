@@ -50,6 +50,7 @@ export interface CBEReceiptData {
   amount: number;
   sender: string;
   receiver: string;
+  receiverName?: string;
   timestamp: Date;
   status: string;
 }
