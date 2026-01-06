@@ -84,7 +84,7 @@ async function render() {
 
   // Name Amharic
   fctx.fillStyle = front.nameAmharic.color;
-  fctx.font = `bold ${front.nameAmharic.fontSize}px Ebrima, Arial`;
+  fctx.font = `bold ${front.nameAmharic.fontSize}px Ebrima`;
   fctx.fillText(sampleData.fullNameAmharic, front.nameAmharic.x, front.nameAmharic.y);
 
   // Name English
@@ -99,7 +99,7 @@ async function render() {
 
   // Sex
   fctx.fillStyle = front.sex.color;
-  fctx.font = `bold ${front.sex.fontSize}px Ebrima, Arial`;
+  fctx.font = `bold ${front.sex.fontSize}px Ebrima`;
   const sexAmharic = sampleData.sex === 'Female' ? 'ሴት' : 'ወንድ';
   fctx.fillText(sexAmharic, front.sex.x, front.sex.y);
   const sexWidth = fctx.measureText(sexAmharic).width;
@@ -113,7 +113,7 @@ async function render() {
 
   // FAN
   fctx.fillStyle = front.fan.color;
-  fctx.font = `bold ${front.fan.fontSize}px Consolas, monospace`;
+  fctx.font = `bold ${front.fan.fontSize}px Consolas`;
   fctx.fillText(sampleData.fan, front.fan.x, front.fan.y);
 
   // Barcode
@@ -170,7 +170,7 @@ async function render() {
 
   // Region Amharic
   bctx.fillStyle = back.regionAmharic.color;
-  bctx.font = `bold ${back.regionAmharic.fontSize}px Ebrima, Arial`;
+  bctx.font = `bold ${back.regionAmharic.fontSize}px Ebrima`;
   bctx.fillText('ትግራይ', back.regionAmharic.x, back.regionAmharic.y);
 
   // Region English
@@ -180,7 +180,7 @@ async function render() {
 
   // Zone Amharic
   bctx.fillStyle = back.zoneAmharic.color;
-  bctx.font = `bold ${back.zoneAmharic.fontSize}px Ebrima, Arial`;
+  bctx.font = `bold ${back.zoneAmharic.fontSize}px Ebrima`;
   bctx.fillText('መቐለ', back.zoneAmharic.x, back.zoneAmharic.y);
 
   // Zone English
@@ -190,7 +190,7 @@ async function render() {
 
   // Woreda Amharic
   bctx.fillStyle = back.woredaAmharic.color;
-  bctx.font = `bold ${back.woredaAmharic.fontSize}px Ebrima, Arial`;
+  bctx.font = `bold ${back.woredaAmharic.fontSize}px Ebrima`;
   bctx.fillText('ሓድነት', back.woredaAmharic.x, back.woredaAmharic.y);
 
   // Woreda English
@@ -200,7 +200,7 @@ async function render() {
 
   // FIN
   bctx.fillStyle = back.fin.color;
-  bctx.font = `bold ${back.fin.fontSize}px Consolas, monospace`;
+  bctx.font = `bold ${back.fin.fontSize}px Consolas`;
   bctx.fillText(sampleData.fin, back.fin.x, back.fin.y);
 
   // Serial
