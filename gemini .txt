@@ -1,0 +1,42 @@
+his analysis provides a precise specification for generating an Ethiopian National ID card, based on a reference image of $1012 \times 638$ pixels.Technical ObservationsColor Profile: The primary text color is a very dark charcoal/black, but not pure black ($RGB(30, 30, 30)$).Dual Calendars: Dates (Birth/Expiry) include both Gregorian and Ethiopian calendars separated by a pipe (|).Alignment: Most text fields are Left-Aligned, but the FAN/ID number at the bottom center is grouped with the barcode.JSON SpecificationJSON{
+  "front": {
+    "dimensions": { "width": 1012, "height": 638 },
+    "fields": {
+      "nameAmharic": { "x": 402, "y": 192, "fontSize": 32, "fontWeight": "700", "color": "rgb(33, 33, 33)", "align": "left", "fontFamily": "Nyala" },
+      "nameEnglish": { "x": 402, "y": 228, "fontSize": 28, "fontWeight": "500", "color": "rgb(33, 33, 33)", "align": "left", "fontFamily": "Inter" },
+      "dateOfBirth": { "x": 402, "y": 344, "fontSize": 26, "fontWeight": "600", "color": "rgb(0, 0, 0)", "fontFamily": "Inter" },
+      "sex": { "x": 402, "y": 408, "fontSize": 26, "fontWeight": "600", "color": "rgb(0, 0, 0)", "fontFamily": "Inter" },
+      "expiryDate": { "x": 402, "y": 472, "fontSize": 26, "fontWeight": "600", "color": "rgb(0, 0, 0)", "fontFamily": "Inter" },
+      "dateOfIssue": { "x": 30, "y": 320, "fontSize": 22, "fontWeight": "500", "color": "rgb(60, 60, 60)", "rotation": -90 },
+      "fan": { "x": 455, "y": 510, "fontSize": 30, "fontWeight": "700", "color": "rgb(0, 0, 0)", "fontFamily": "OCR-B" },
+      "mainPhoto": { "x": 67, "y": 275, "width": 315, "height": 400 },
+      "smallPhoto": { "x": 828, "y": 458, "width": 120, "height": 128 },
+      "barcode": { "x": 435, "y": 525, "width": 365, "height": 85, "type": "Code128" }
+    }
+  },
+  "back": {
+    "dimensions": { "width": 1012, "height": 638 },
+    "fields": {
+      "phoneNumber": { "x": 42, "y": 112, "fontSize": 26, "fontWeight": "600", "color": "rgb(33, 33, 33)" },
+      "nationality": { "x": 42, "y": 204, "fontSize": 28, "fontWeight": "700", "color": "rgb(0, 0, 0)" },
+      "region": { "x": 42, "y": 296, "fontSize": 24, "fontWeight": "600", "color": "rgb(0, 0, 0)" },
+      "zone": { "x": 42, "y": 352, "fontSize": 24, "fontWeight": "600", "color": "rgb(0, 0, 0)" },
+      "woreda": { "x": 42, "y": 408, "fontSize": 24, "fontWeight": "600", "color": "rgb(0, 0, 0)" },
+      "fin": { "x": 80, "y": 560, "fontSize": 24, "fontWeight": "700", "color": "rgb(0, 0, 0)", "fontFamily": "OCR-B" },
+      "sn": { "x": 815, "y": 560, "fontSize": 24, "fontWeight": "700", "color": "rgb(0, 0, 0)" },
+      "qrCode": { "x": 450, "y": 80, "width": 510, "height": 510 }
+    }
+  },
+  "fonts": {
+    "amharic": { "recommended": "Nyala", "fallback": "Noto Sans Ethiopic" },
+    "english": { "recommended": "Inter Medium", "fallback": "Helvetica" },
+    "idNumbers": { "recommended": "OCR-B", "fallback": "Consolas" }
+  },
+  "notes": [
+    "Date of Issue is vertically oriented on the left edge of the front card.",
+    "FAN and FIN numbers use a monospaced font for machine readability.",
+    "The small photo (thumbnail) has a slight transparency or 'ghosting' effect compared to the main photo.",
+    "Gold-colored holographic text exists above the small photo on the front."
+  ]
+}
+Font Details & IdentificationAmharic/Ethiopic: The font is Nyala (standard with Windows). It is a high-quality sans-serif Ethiopic font.Weight: Bold ($700$) for the name; Medium ($500$) for labels.English/Latin: This appears to be Inter or Roboto. It is a modern geometric sans-serif.Weight: Medium ($500$) for names; Semi-bold ($600$) for data values.Number Font (FAN/FIN): This is a specialized font for ID cards, specifically OCR-B. It is monospaced and designed for optical character recognition.Characteristic: All digits have uniform width and distinct shapes (especially the 0 and 8).Critical Formatting NotesVertical Text: The "Date of Issue" on the front is rotated $-90^\circ$ (counter-clockwise).Date Format: Use a double format: DD/MM/YYYY | YYYY/Mon/DD. Note that the second part is the Ethiopian Calendar, which is roughly 7–8 years behind the Gregorian.Holographic Overlay: There is a gold-colored Ge'ez script watermark (ቴዎድሮስ) near the bottom right that should be treated as a static image asset rather than a text field.Would you like me to generate a CSS snippet or a Python script using Pillow to help you render these fields onto the template?
