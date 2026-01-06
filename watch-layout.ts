@@ -11,7 +11,7 @@ import JsBarcode from 'jsbarcode';
 const LAYOUT_PATH = 'src/config/cardLayout.json';
 const TEMPLATE_DIR = 'template/assets';
 const OUTPUT_DIR = 'test-output';
-const FONTS_DIR = 'src/assets/fonts';
+const FONTS_DIR = path.resolve(__dirname, 'src/assets/fonts');
 const PERSON_IMAGE = 'template/person.png';
 
 // Sample data
@@ -35,9 +35,26 @@ const sampleData = {
 };
 
 // Register fonts once
-registerFont(path.join(FONTS_DIR, 'nyala.ttf'), { family: 'Nyala' });
-registerFont(path.join(FONTS_DIR, 'ARIAL.TTF'), { family: 'Arial' });
-registerFont(path.join(FONTS_DIR, 'ARIALBD.TTF'), { family: 'Arial', weight: 'bold' });
+const fontsToRegister = [
+  { file: 'Inter-Medium.otf', family: 'InterMedium', weight: 'normal' },
+  { file: 'Inter-SemiBold.otf', family: 'InterSemiBold', weight: 'normal' },
+  { file: 'Inter-Bold.otf', family: 'InterBold', weight: 'normal' },
+  { file: 'OCR.ttf', family: 'OCRB', weight: 'normal' },
+];
+
+for (const font of fontsToRegister) {
+  const fontPath = path.join(FONTS_DIR, font.file);
+  if (fs.existsSync(fontPath)) {
+    try {
+      registerFont(fontPath, { family: font.family, weight: font.weight });
+      console.log(`✓ Registered: ${font.file} as ${font.family}`);
+    } catch (err) {
+      console.log(`✗ Failed to register: ${font.file} - ${err}`);
+    }
+  } else {
+    console.log(`✗ Missing: ${font.file}`);
+  }
+}
 
 function loadLayout() {
   delete require.cache[require.resolve('./' + LAYOUT_PATH)];
@@ -45,14 +62,9 @@ function loadLayout() {
   return JSON.parse(content);
 }
 
-function getFontString(size: number, weight: string, family: string, fallback: string): string {
-  const w = weight === '700' ? 'bold' : weight === '600' ? '600' : 'normal';
-  return `${w} ${size}px ${family}, ${fallback}`;
-}
-
 async function render() {
   const layout = loadLayout();
-  const { dimensions, front, back, fonts } = layout;
+  const { dimensions, front, back } = layout;
 
   // Render front
   const frontCanvas = createCanvas(dimensions.width, dimensions.height);
@@ -72,36 +84,36 @@ async function render() {
 
   // Name Amharic
   fctx.fillStyle = front.nameAmharic.color;
-  fctx.font = getFontString(front.nameAmharic.fontSize, front.nameAmharic.fontWeight, front.nameAmharic.fontFamily, fonts.amharic.fallback);
+  fctx.font = `bold ${front.nameAmharic.fontSize}px Ebrima, Arial`;
   fctx.fillText(sampleData.fullNameAmharic, front.nameAmharic.x, front.nameAmharic.y);
 
   // Name English
   fctx.fillStyle = front.nameEnglish.color;
-  fctx.font = getFontString(front.nameEnglish.fontSize, front.nameEnglish.fontWeight, 'Arial', fonts.english.fallback);
+  fctx.font = `bold ${front.nameEnglish.fontSize}px Arial`;
   fctx.fillText(sampleData.fullNameEnglish, front.nameEnglish.x, front.nameEnglish.y);
 
   // DOB
   fctx.fillStyle = front.dateOfBirth.color;
-  fctx.font = getFontString(front.dateOfBirth.fontSize, front.dateOfBirth.fontWeight, 'Arial', fonts.english.fallback);
+  fctx.font = `bold ${front.dateOfBirth.fontSize}px Arial`;
   fctx.fillText(`${sampleData.dateOfBirthGregorian} | ${sampleData.dateOfBirthEthiopian}`, front.dateOfBirth.x, front.dateOfBirth.y);
 
   // Sex
   fctx.fillStyle = front.sex.color;
-  fctx.font = getFontString(front.sex.fontSize, front.sex.fontWeight, 'Nyala', fonts.amharic.fallback);
+  fctx.font = `bold ${front.sex.fontSize}px Ebrima, Arial`;
   const sexAmharic = sampleData.sex === 'Female' ? 'ሴት' : 'ወንድ';
   fctx.fillText(sexAmharic, front.sex.x, front.sex.y);
   const sexWidth = fctx.measureText(sexAmharic).width;
-  fctx.font = getFontString(front.sex.fontSize, front.sex.fontWeight, 'Arial', fonts.english.fallback);
+  fctx.font = `bold ${front.sex.fontSize}px Arial`;
   fctx.fillText(`  |  ${sampleData.sex}`, front.sex.x + sexWidth, front.sex.y);
 
   // Expiry
   fctx.fillStyle = front.expiryDate.color;
-  fctx.font = getFontString(front.expiryDate.fontSize, front.expiryDate.fontWeight, 'Arial', fonts.english.fallback);
+  fctx.font = `bold ${front.expiryDate.fontSize}px Arial`;
   fctx.fillText(`${sampleData.expiryDateGregorian} | ${sampleData.expiryDateEthiopian}`, front.expiryDate.x, front.expiryDate.y);
 
   // FAN
   fctx.fillStyle = front.fan.color;
-  fctx.font = getFontString(front.fan.fontSize, front.fan.fontWeight, 'Consolas', fonts.monospace.fallback);
+  fctx.font = `bold ${front.fan.fontSize}px Consolas, monospace`;
   fctx.fillText(sampleData.fan, front.fan.x, front.fan.y);
 
   // Barcode
@@ -118,7 +130,7 @@ async function render() {
 
   // Issue date Ethiopian (rotated)
   fctx.fillStyle = front.dateOfIssueEthiopian.color;
-  fctx.font = getFontString(front.dateOfIssueEthiopian.fontSize, front.dateOfIssueEthiopian.fontWeight, 'Arial', fonts.english.fallback);
+  fctx.font = `bold ${front.dateOfIssueEthiopian.fontSize}px Arial`;
   fctx.save();
   fctx.translate(front.dateOfIssueEthiopian.x, front.dateOfIssueEthiopian.y);
   fctx.rotate((front.dateOfIssueEthiopian.rotation * Math.PI) / 180);
@@ -127,7 +139,7 @@ async function render() {
 
   // Issue date Gregorian (rotated)
   fctx.fillStyle = front.dateOfIssueGregorian.color;
-  fctx.font = getFontString(front.dateOfIssueGregorian.fontSize, front.dateOfIssueGregorian.fontWeight, 'Arial', fonts.english.fallback);
+  fctx.font = `bold ${front.dateOfIssueGregorian.fontSize}px Arial`;
   fctx.save();
   fctx.translate(front.dateOfIssueGregorian.x, front.dateOfIssueGregorian.y);
   fctx.rotate((front.dateOfIssueGregorian.rotation * Math.PI) / 180);
@@ -153,47 +165,47 @@ async function render() {
 
   // Phone
   bctx.fillStyle = back.phoneNumber.color;
-  bctx.font = getFontString(back.phoneNumber.fontSize, back.phoneNumber.fontWeight, 'Arial', fonts.english.fallback);
+  bctx.font = `bold ${back.phoneNumber.fontSize}px Arial`;
   bctx.fillText(sampleData.phoneNumber, back.phoneNumber.x, back.phoneNumber.y);
 
   // Region Amharic
   bctx.fillStyle = back.regionAmharic.color;
-  bctx.font = getFontString(back.regionAmharic.fontSize, back.regionAmharic.fontWeight, 'Nyala', fonts.amharic.fallback);
+  bctx.font = `bold ${back.regionAmharic.fontSize}px Ebrima, Arial`;
   bctx.fillText('ትግራይ', back.regionAmharic.x, back.regionAmharic.y);
 
   // Region English
   bctx.fillStyle = back.regionEnglish.color;
-  bctx.font = getFontString(back.regionEnglish.fontSize, back.regionEnglish.fontWeight, 'Arial', fonts.english.fallback);
+  bctx.font = `bold ${back.regionEnglish.fontSize}px Arial`;
   bctx.fillText(sampleData.region, back.regionEnglish.x, back.regionEnglish.y);
 
   // Zone Amharic
   bctx.fillStyle = back.zoneAmharic.color;
-  bctx.font = getFontString(back.zoneAmharic.fontSize, back.zoneAmharic.fontWeight, 'Nyala', fonts.amharic.fallback);
+  bctx.font = `bold ${back.zoneAmharic.fontSize}px Ebrima, Arial`;
   bctx.fillText('መቐለ', back.zoneAmharic.x, back.zoneAmharic.y);
 
   // Zone English
   bctx.fillStyle = back.zoneEnglish.color;
-  bctx.font = getFontString(back.zoneEnglish.fontSize, back.zoneEnglish.fontWeight, 'Arial', fonts.english.fallback);
+  bctx.font = `bold ${back.zoneEnglish.fontSize}px Arial`;
   bctx.fillText(sampleData.city, back.zoneEnglish.x, back.zoneEnglish.y);
 
   // Woreda Amharic
   bctx.fillStyle = back.woredaAmharic.color;
-  bctx.font = getFontString(back.woredaAmharic.fontSize, back.woredaAmharic.fontWeight, 'Nyala', fonts.amharic.fallback);
+  bctx.font = `bold ${back.woredaAmharic.fontSize}px Ebrima, Arial`;
   bctx.fillText('ሓድነት', back.woredaAmharic.x, back.woredaAmharic.y);
 
   // Woreda English
   bctx.fillStyle = back.woredaEnglish.color;
-  bctx.font = getFontString(back.woredaEnglish.fontSize, back.woredaEnglish.fontWeight, 'Arial', fonts.english.fallback);
+  bctx.font = `bold ${back.woredaEnglish.fontSize}px Arial`;
   bctx.fillText(sampleData.subcity, back.woredaEnglish.x, back.woredaEnglish.y);
 
   // FIN
   bctx.fillStyle = back.fin.color;
-  bctx.font = getFontString(back.fin.fontSize, back.fin.fontWeight, 'Consolas', fonts.monospace.fallback);
+  bctx.font = `bold ${back.fin.fontSize}px Consolas, monospace`;
   bctx.fillText(sampleData.fin, back.fin.x, back.fin.y);
 
   // Serial
   bctx.fillStyle = back.serialNumber.color;
-  bctx.font = getFontString(back.serialNumber.fontSize, back.serialNumber.fontWeight, 'Arial', fonts.english.fallback);
+  bctx.font = `bold ${back.serialNumber.fontSize}px Arial`;
   bctx.fillText(sampleData.serialNumber, back.serialNumber.x, back.serialNumber.y);
 
   fs.writeFileSync(path.join(OUTPUT_DIR, 'back_color.png'), backCanvas.toBuffer('image/png'));

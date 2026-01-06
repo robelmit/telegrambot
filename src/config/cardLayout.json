@@ -97,15 +97,15 @@
     "phoneNumber": {
       "x": 30,
       "y": 80,
-      "fontSize": 32,
-      "fontWeight": "700",
+      "fontSize": 30,
+      "fontWeight": "500",
       "color": "rgb(33, 33, 33)",
       "fontFamily": "Inter"
     },
     "regionAmharic": {
       "x": 30,
       "y": 230,
-      "fontSize": 32,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
@@ -113,7 +113,7 @@
     "regionEnglish": {
       "x": 30,
       "y": 270,
-      "fontSize": 32,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
@@ -121,7 +121,7 @@
     "zoneAmharic": {
       "x": 30,
       "y": 305,
-      "fontSize": 32,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
@@ -129,7 +129,7 @@
     "zoneEnglish": {
       "x": 30,
       "y": 340,
-      "fontSize": 32,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
@@ -137,7 +137,7 @@
     "woredaAmharic": {
       "x": 30,
       "y": 370,
-      "fontSize": 32,
+      "fontSize": 28,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
@@ -145,8 +145,8 @@
     "woredaEnglish": {
       "x": 30,
       "y": 406,
-      "fontSize": 32,
-      "fontWeight": "700",
+      "fontSize": 30,
+      "fontWeight": "500",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
     },
