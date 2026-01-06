@@ -6,6 +6,8 @@ export interface IUser extends Document {
   language: Language;
   walletBalance: number;
   settings: UserSettings;
+  // Admin field
+  isAdmin: boolean;
   // Agent/Referral fields
   isAgent: boolean;
   agentCode: string | null;
@@ -13,6 +15,10 @@ export interface IUser extends Document {
   referredByTelegramId: number | null;
   totalEarnings: number;
   totalReferrals: number;
+  // Stats
+  totalOrders: number;
+  isBanned: boolean;
+  banReason: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +51,11 @@ const UserSchema = new Schema<IUser>({
       default: true 
     }
   },
+  // Admin field
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
   // Agent/Referral fields
   isAgent: {
     type: Boolean,
@@ -74,6 +85,20 @@ const UserSchema = new Schema<IUser>({
     type: Number,
     default: 0,
     min: 0
+  },
+  // Stats
+  totalOrders: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  isBanned: {
+    type: Boolean,
+    default: false
+  },
+  banReason: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true

@@ -23,3 +23,21 @@ export {
   handleAgentBack,
   creditAgentCommission
 } from './agentHandler';
+export {
+  handleAdmin,
+  handleAdminStats,
+  handleAdminUsers,
+  handleAdminTransactions,
+  handleAdminPendingTx,
+  handleAdminApproveTx,
+  handleAdminRejectTx,
+  handleAdminJobs,
+  handleAdminFindUser,
+  handleAdminAddBalance,
+  handleAdminBan,
+  handleAdminUnban,
+  handleAdminMakeAdmin,
+  handleAdminBroadcast,
+  handleAdminBack,
+  handleAdminTextInput
+} from './adminHandler';

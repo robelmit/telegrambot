@@ -3,12 +3,16 @@ import { TransactionType, PaymentProvider } from '../types';
 
 export interface ITransaction extends Document {
   userId: Types.ObjectId;
+  telegramId: number;  // For quick lookup without join
   type: TransactionType;
   amount: number;
   provider: PaymentProvider | 'system';
   externalTransactionId?: string;
+  transactionId?: string;  // User-provided transaction ID for verification
   reference?: string;  // jobId for debits
   status: 'pending' | 'completed' | 'failed';
+  verifiedAt?: Date;
+  verifiedBy?: number;  // Admin telegramId who verified
   metadata?: Record<string, unknown>;
   createdAt: Date;
 }
@@ -19,6 +23,11 @@ const TransactionSchema = new Schema<ITransaction>({
     ref: 'User', 
     required: true, 
     index: true 
+  },
+  telegramId: {
+    type: Number,
+    required: true,
+    index: true
   },
   type: { 
     type: String, 
@@ -40,6 +49,10 @@ const TransactionSchema = new Schema<ITransaction>({
     sparse: true,
     index: true
   },
+  transactionId: {
+    type: String,
+    sparse: true
+  },
   reference: { 
     type: String 
   },
@@ -47,6 +60,12 @@ const TransactionSchema = new Schema<ITransaction>({
     type: String, 
     enum: ['pending', 'completed', 'failed'], 
     default: 'completed' 
+  },
+  verifiedAt: {
+    type: Date
+  },
+  verifiedBy: {
+    type: Number
   },
   metadata: { 
     type: Schema.Types.Mixed 

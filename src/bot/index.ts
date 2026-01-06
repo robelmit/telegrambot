@@ -22,7 +22,24 @@ import {
   handleAgentReferrals,
   handleAgentShare,
   handleAgentWithdraw,
-  handleAgentBack
+  handleAgentBack,
+  // Admin handlers
+  handleAdmin,
+  handleAdminStats,
+  handleAdminUsers,
+  handleAdminTransactions,
+  handleAdminPendingTx,
+  handleAdminApproveTx,
+  handleAdminRejectTx,
+  handleAdminJobs,
+  handleAdminFindUser,
+  handleAdminAddBalance,
+  handleAdminBan,
+  handleAdminUnban,
+  handleAdminMakeAdmin,
+  handleAdminBroadcast,
+  handleAdminBack,
+  handleAdminTextInput
 } from './handlers';
 import { t } from '../locales';
 import logger from '../utils/logger';
@@ -75,6 +92,7 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.command('settings', handleSettings);
   bot.command('help', handleHelp);
   bot.command('agent', handleAgent);
+  bot.command('admin', handleAdmin);
 
   // Callback query handlers
   bot.action(/^lang_/, handleLanguageCallback);
@@ -91,11 +109,39 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.action('agent_withdraw', handleAgentWithdraw);
   bot.action('agent_back', handleAgentBack);
 
+  // Admin callback handlers
+  bot.action('admin_stats', handleAdminStats);
+  bot.action('admin_users', handleAdminUsers);
+  bot.action('admin_transactions', handleAdminTransactions);
+  bot.action('admin_pending_tx', handleAdminPendingTx);
+  bot.action(/^admin_approve_(.+)$/, async (ctx) => {
+    const txId = ctx.match[1];
+    await handleAdminApproveTx(ctx, txId);
+  });
+  bot.action(/^admin_reject_(.+)$/, async (ctx) => {
+    const txId = ctx.match[1];
+    await handleAdminRejectTx(ctx, txId);
+  });
+  bot.action('admin_jobs', handleAdminJobs);
+  bot.action('admin_find_user', handleAdminFindUser);
+  bot.action('admin_add_balance', handleAdminAddBalance);
+  bot.action('admin_ban', handleAdminBan);
+  bot.action('admin_unban', handleAdminUnban);
+  bot.action('admin_make_admin', handleAdminMakeAdmin);
+  bot.action('admin_broadcast', handleAdminBroadcast);
+  bot.action('admin_back', handleAdminBack);
+
   // Document handler (PDF uploads)
   bot.on('document', handleDocument);
 
-  // Text message handler (for transaction IDs)
+  // Text message handler (for transaction IDs and admin input)
   bot.on('text', async (ctx) => {
+    // Check if admin action is pending
+    if (ctx.session.adminAction) {
+      const handled = await handleAdminTextInput(ctx);
+      if (handled) return;
+    }
+
     // Check if awaiting transaction ID
     if (ctx.session.awaitingTransactionId) {
       await handleTransactionIdMessage(ctx);

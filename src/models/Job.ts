@@ -9,6 +9,7 @@ export interface IOutputFile {
 
 export interface IJob extends Document {
   userId: Types.ObjectId;
+  telegramId: number;  // For quick lookup without join
   chatId: number;
   status: JobStatus;
   pdfPath?: string;
@@ -33,6 +34,11 @@ const JobSchema = new Schema<IJob>({
     ref: 'User', 
     required: true, 
     index: true 
+  },
+  telegramId: {
+    type: Number,
+    required: true,
+    index: true
   },
   chatId: { 
     type: Number, 

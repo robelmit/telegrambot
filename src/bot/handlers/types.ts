@@ -9,6 +9,8 @@ export interface SessionData {
   selectedProvider?: 'telebirr' | 'cbe';
   selectedAmount?: number;
   awaitingPdf?: boolean;
+  // Admin
+  adminAction?: 'find_user' | 'add_balance' | 'ban_user' | 'unban_user' | 'make_admin' | 'broadcast';
 }
 
 export interface BotContext extends Context<Update> {
