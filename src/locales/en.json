@@ -29,8 +29,8 @@
   "upload_prompt": "📄 Please upload your eFayda PDF document.",
   "upload_instructions": "Send the PDF file you downloaded from the official eFayda website. Make sure it's the original document.",
   "processing_upload": "⏳ Processing your document...",
-  "job_queued": "✅ Your request has been queued!\n\nJob ID: {jobId}\n\nYou will receive your ID cards shortly.",
-  "job_processing": "🔄 Your ID cards are being generated. This usually takes less than 30 seconds.",
+  "job_queued": "✅ Your request has been started!",
+  "job_processing": "",
   
   "your_balance": "Wallet Balance",
   "current_balance": "Current Balance",

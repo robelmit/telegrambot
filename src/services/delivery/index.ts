@@ -65,13 +65,6 @@ export class FileDeliveryService {
 
       // Send completion message
       if (result.deliveredFiles.length === fileInfos.length) {
-        await this.bot.telegram.sendMessage(
-          chatId,
-          '📋 All files delivered successfully!\n\n' +
-          '• PNG files: For digital use\n' +
-          '• PDF files: For printing (A4 size, 300 DPI)\n\n' +
-          'Print at 100% scale for best results.'
-        );
         result.success = true;
       } else {
         await this.bot.telegram.sendMessage(

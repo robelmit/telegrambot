@@ -21,15 +21,21 @@ export interface EfaydaData {
   nationality: string;
   phoneNumber: string;
   
-  // Address
+  // Address (English)
   region: string;
   city: string;
   subcity: string;
   
+  // Address (Amharic) - for rendering
+  regionAmharic?: string;
+  zoneAmharic?: string;
+  woredaAmharic?: string;
+  sexAmharic?: string;
+  
   // Identifiers
-  fcn: string;  // Fayda Card Number
-  fin: string;  // Fayda Identification Number
-  fan: string;  // Fayda Account Number
+  fcn: string;  // Fayda Card Number (16 digits) - same as FAN
+  fin: string;  // Fayda Identification Number (12 digits)
+  fan: string;  // Fayda Account Number (16 digits) - same as FCN
   serialNumber: string;
   
   // Dates

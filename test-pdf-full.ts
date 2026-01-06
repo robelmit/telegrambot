@@ -4,7 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import pdfParse from 'pdf-parse';
-import { createCanvas, loadImage, registerFont } from 'canvas';
+import { createCanvas, loadImage } from 'canvas';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 
@@ -76,8 +76,6 @@ async function extractImagesFromPdf(buffer: Buffer): Promise<{ photo?: Buffer; q
 }
 
 function parsePdfText(text: string): ParsedData {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  
   const data: ParsedData = {
     fullNameAmharic: '',
     fullNameEnglish: '',
@@ -103,8 +101,8 @@ function parsePdfText(text: string): ParsedData {
   const dates1 = text.match(datePattern1) || [];
   const dates2 = text.match(datePattern2) || [];
   
-  if (dates1.length > 0) data.dateOfBirthGregorian = dates1[0];
-  if (dates2.length > 0) data.dateOfBirthEthiopian = dates2[0];
+  if (dates1.length > 0) data.dateOfBirthGregorian = dates1[0] || '';
+  if (dates2.length > 0) data.dateOfBirthEthiopian = dates2[0] || '';
   
   // Extract phone number
   const phonePattern = /(09\d{8})/;

@@ -1,7 +1,6 @@
 import sharp from 'sharp';
 import { EfaydaData, GeneratedFiles } from '../../types';
 import { CardRenderer } from './cardRenderer';
-import { ImageProcessor } from './imageProcessor';
 import logger from '../../utils/logger';
 import path from 'path';
 import fs from 'fs/promises';
@@ -14,17 +13,16 @@ export interface CardVariant {
 
 export class CardVariantGenerator {
   private cardRenderer: CardRenderer;
-  private imageProcessor: ImageProcessor;
   private outputDir: string;
 
   constructor(outputDir?: string) {
     this.cardRenderer = new CardRenderer();
-    this.imageProcessor = new ImageProcessor();
     this.outputDir = outputDir || process.env.TEMP_DIR || 'temp';
   }
 
   /**
    * Generate all card variants (color/grayscale, normal/mirrored)
+   * NOTE: "Mirrored" variants are now the same as normal (no flipping)
    */
   async generateAllVariants(data: EfaydaData): Promise<{
     colorNormal: CardVariant;
@@ -41,17 +39,9 @@ export class CardVariantGenerator {
       const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale' });
       const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale' });
 
-      // Create mirrored versions
-      const colorFrontMirrored = await this.imageProcessor.mirror(colorFront);
-      const colorBackMirrored = await this.imageProcessor.mirror(colorBack);
-      const grayscaleFrontMirrored = await this.imageProcessor.mirror(grayscaleFront);
-      const grayscaleBackMirrored = await this.imageProcessor.mirror(grayscaleBack);
-
-      // Combine front and back into single images
+      // Combine front and back into single images (NO mirroring)
       const colorNormalCombined = await this.combineCards(colorFront, colorBack);
-      const colorMirroredCombined = await this.combineCards(colorFrontMirrored, colorBackMirrored);
       const grayscaleNormalCombined = await this.combineCards(grayscaleFront, grayscaleBack);
-      const grayscaleMirroredCombined = await this.combineCards(grayscaleFrontMirrored, grayscaleBackMirrored);
 
       return {
         colorNormal: {
@@ -60,9 +50,9 @@ export class CardVariantGenerator {
           combined: colorNormalCombined
         },
         colorMirrored: {
-          front: colorFrontMirrored,
-          back: colorBackMirrored,
-          combined: colorMirroredCombined
+          front: colorFront,
+          back: colorBack,
+          combined: colorNormalCombined
         },
         grayscaleNormal: {
           front: grayscaleFront,
@@ -70,9 +60,9 @@ export class CardVariantGenerator {
           combined: grayscaleNormalCombined
         },
         grayscaleMirrored: {
-          front: grayscaleFrontMirrored,
-          back: grayscaleBackMirrored,
-          combined: grayscaleMirroredCombined
+          front: grayscaleFront,
+          back: grayscaleBack,
+          combined: grayscaleNormalCombined
         }
       };
     } catch (error) {
@@ -83,6 +73,7 @@ export class CardVariantGenerator {
 
   /**
    * Generate mirrored variants only (as per requirements)
+   * NOTE: Changed to generate NORMAL (non-mirrored) variants based on user feedback
    */
   async generateMirroredVariants(data: EfaydaData): Promise<{
     colorMirrored: Buffer;
@@ -97,16 +88,13 @@ export class CardVariantGenerator {
       const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale' });
       const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale' });
 
-      // Combine and mirror
+      // Combine front and back (NO mirroring - return normal images)
       const colorCombined = await this.combineCards(colorFront, colorBack);
       const grayscaleCombined = await this.combineCards(grayscaleFront, grayscaleBack);
 
-      const colorMirrored = await this.imageProcessor.mirror(colorCombined);
-      const grayscaleMirrored = await this.imageProcessor.mirror(grayscaleCombined);
-
       return {
-        colorMirrored,
-        grayscaleMirrored
+        colorMirrored: colorCombined,
+        grayscaleMirrored: grayscaleCombined
       };
     } catch (error) {
       logger.error('Failed to generate mirrored variants:', error);

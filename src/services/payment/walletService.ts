@@ -68,6 +68,7 @@ export class WalletService implements IWalletService {
     // Create transaction record
     await Transaction.create({
       userId: new mongoose.Types.ObjectId(userId),
+      telegramId: user.telegramId,
       type: 'credit',
       amount,
       provider,
@@ -103,6 +104,7 @@ export class WalletService implements IWalletService {
     // Create transaction record
     await Transaction.create({
       userId: new mongoose.Types.ObjectId(userId),
+      telegramId: result.telegramId,
       type: 'debit',
       amount,
       provider: 'system',
@@ -130,6 +132,7 @@ export class WalletService implements IWalletService {
     // Create refund transaction record
     await Transaction.create({
       userId: new mongoose.Types.ObjectId(userId),
+      telegramId: user.telegramId,
       type: 'credit',
       amount,
       provider: 'system',

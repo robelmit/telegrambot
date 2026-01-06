@@ -122,6 +122,7 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
     // Create job
     const job = await JobModel.create({
       userId: user._id,
+      telegramId,
       chatId: ctx.chat!.id,
       status: 'pending',
       pdfPath,
@@ -154,8 +155,6 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
       undefined,
       t(lang, 'job_queued', { jobId: job._id.toString().slice(-8) })
     );
-
-    await ctx.reply(t(lang, 'job_processing'));
 
     logger.info(`Job created for user ${telegramId}: ${job._id}`);
   } catch (error) {

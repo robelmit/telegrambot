@@ -45,6 +45,8 @@ describe('Job Queue Property Tests', () => {
   async function createTestJob(userId: string, status: string = 'pending'): Promise<string> {
     const job = await JobModel.create({
       userId: new mongoose.Types.ObjectId(userId),
+      telegramId: Math.floor(Math.random() * 1000000000), // Random telegram ID for tests
+      chatId: Math.floor(Math.random() * 1000000000), // Random chat ID for tests
       status,
       pdfPath: '/tmp/test.pdf',
       attempts: 0

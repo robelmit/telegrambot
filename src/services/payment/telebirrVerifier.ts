@@ -2,20 +2,15 @@ import { PaymentVerifier, TelebirrReceiptData } from './types';
 import { TransactionVerification } from '../../types';
 import logger from '../../utils/logger';
 
-// Import telebirr-receipt package
-// Note: The package may have different export structure
-let telebirrReceipt: any;
-try {
-  telebirrReceipt = require('telebirr-receipt');
-} catch (error) {
-  logger.warn('telebirr-receipt package not available, using mock implementation');
-}
+const VERIFIER_API_BASE = 'https://verifyapi.leulzenebe.pro';
 
 export class TelebirrVerifier implements PaymentVerifier {
   private receiverPhone: string;
+  private apiKey: string;
 
   constructor(expectedReceiver?: string) {
     this.receiverPhone = expectedReceiver || process.env.TELEBIRR_RECEIVER_PHONE || '';
+    this.apiKey = process.env.VERIFIER_API_KEY || '';
   }
 
   getReceiverPhone(): string {
@@ -34,26 +29,7 @@ export class TelebirrVerifier implements PaymentVerifier {
       // Clean the transaction ID
       const cleanedId = transactionId.trim().toUpperCase();
 
-      // Try to verify using telebirr-receipt package
-      if (telebirrReceipt) {
-        try {
-          const receipt = await this.verifyWithPackage(cleanedId);
-          if (receipt) {
-            return {
-              isValid: true,
-              amount: receipt.amount,
-              receiver: receipt.receiver,
-              sender: receipt.sender,
-              timestamp: receipt.timestamp
-            };
-          }
-        } catch (packageError) {
-          logger.error('Telebirr package verification failed:', packageError);
-        }
-      }
-
-      // Fallback: Basic validation of transaction ID format
-      // Telebirr transaction IDs typically follow certain patterns
+      // Basic format validation first
       if (!this.isValidTransactionIdFormat(cleanedId)) {
         return {
           isValid: false,
@@ -61,8 +37,36 @@ export class TelebirrVerifier implements PaymentVerifier {
         };
       }
 
-      // In production, this would call Telebirr API
-      // For now, return a pending verification that needs manual check
+      // Check if API key is configured
+      if (!this.apiKey) {
+        logger.error('VERIFIER_API_KEY not configured');
+        return {
+          isValid: false,
+          error: 'Payment verification service not configured'
+        };
+      }
+
+      // Verify using the verify.leul.et API
+      const receipt = await this.verifyWithAPI(cleanedId);
+      
+      if (receipt) {
+        // Validate that the receiver matches our expected receiver
+        if (!this.validateReceiverMatch(receipt.receiver)) {
+          return {
+            isValid: false,
+            error: 'Payment was not sent to the correct receiver'
+          };
+        }
+
+        return {
+          isValid: true,
+          amount: receipt.amount,
+          receiver: receipt.receiver,
+          sender: receipt.sender,
+          timestamp: receipt.timestamp
+        };
+      }
+
       return {
         isValid: false,
         error: 'Unable to verify transaction. Please ensure the transaction ID is correct.'
@@ -76,26 +80,79 @@ export class TelebirrVerifier implements PaymentVerifier {
     }
   }
 
-  private async verifyWithPackage(transactionId: string): Promise<TelebirrReceiptData | null> {
+  private async verifyWithAPI(transactionId: string): Promise<TelebirrReceiptData | null> {
     try {
-      // The telebirr-receipt package API
-      // Adjust based on actual package interface
-      const result = await telebirrReceipt.verify(transactionId);
+      const response = await fetch(`${VERIFIER_API_BASE}/verify-telebirr`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey
+        },
+        body: JSON.stringify({ reference: transactionId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(`Telebirr API error: ${response.status} - ${errorText}`);
+        
+        if (response.status === 401) {
+          throw new Error('Invalid API key');
+        }
+        if (response.status === 404) {
+          return null; // Transaction not found
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json() as Record<string, any>;
       
-      if (result && result.success) {
+      // Handle successful response
+      if (data && data.success === true) {
+        const responseData = data.data || data;
         return {
-          transactionId: result.transactionId || transactionId,
-          amount: parseFloat(result.amount) || 0,
-          sender: result.sender || result.from || '',
-          receiver: result.receiver || result.to || '',
-          timestamp: result.date ? new Date(result.date) : new Date(),
-          status: result.status || 'completed'
+          transactionId: transactionId,
+          amount: this.parseAmount(responseData.totalPaidAmount || responseData.amount || '0'),
+          sender: responseData.payerName || responseData.payer || '',
+          receiver: responseData.creditedPartyAccountNo || responseData.receiverAccount || '',
+          timestamp: responseData.paymentDate ? new Date(responseData.paymentDate) : 
+                    (responseData.date ? new Date(responseData.date) : new Date()),
+          status: responseData.transactionStatus || responseData.status || 'completed'
         };
       }
+
+      // Handle error response from API
+      if (data && data.error) {
+        logger.warn(`Telebirr verification failed: ${data.error}`);
+      }
+
       return null;
     } catch (error) {
+      logger.error('Telebirr API request failed:', error);
       throw error;
     }
+  }
+
+  private parseAmount(amountStr: string): number {
+    if (!amountStr) return 0;
+    
+    // Handle formats like "101.00 Birr", "3,000.00 ETB", etc.
+    const cleanAmount = amountStr.replace(/[^\d.,]/g, '').replace(/,/g, '');
+    return parseFloat(cleanAmount) || 0;
+  }
+
+  private validateReceiverMatch(receiver: string): boolean {
+    if (!receiver || !this.receiverPhone) {
+      return false;
+    }
+    
+    const normalizePhone = (phone: string): string => {
+      return phone.replace(/[\s\-\+]/g, '').replace(/^251/, '').replace(/^0/, '');
+    };
+    
+    const actualReceiver = normalizePhone(receiver);
+    const expected = normalizePhone(this.receiverPhone);
+    
+    return actualReceiver === expected;
   }
 
   private isValidTransactionIdFormat(transactionId: string): boolean {
@@ -110,7 +167,6 @@ export class TelebirrVerifier implements PaymentVerifier {
       return false;
     }
     
-    // Normalize phone numbers for comparison
     const normalizePhone = (phone: string): string => {
       return phone.replace(/[\s\-\+]/g, '').replace(/^251/, '').replace(/^0/, '');
     };
