@@ -98,6 +98,6 @@ export interface WalletTransaction {
   timestamp: Date;
 }
 
-// Top-up amounts (exactly 8 options)
-export const TOPUP_AMOUNTS = [100, 200, 300, 400, 500, 600, 800, 1000] as const;
+// Top-up amounts (exactly 6 options)
+export const TOPUP_AMOUNTS = [100, 500, 1000, 3000, 5000, 10000] as const;
 export type TopupAmount = typeof TOPUP_AMOUNTS[number];
