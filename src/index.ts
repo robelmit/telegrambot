@@ -13,23 +13,31 @@ import logger from './utils/logger';
 import config from './config';
 
 async function main() {
-  logger.info('Starting eFayda ID Generator Bot...');
-
   try {
+    logger.info('Starting eFayda ID Generator Bot...');
+    logger.info(`Node.js version: ${process.version}`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
     // Connect to MongoDB
     logger.info('Connecting to MongoDB...');
     await connectDatabase();
+    logger.info('MongoDB connected successfully');
 
     // Create bot instance
+    logger.info('Creating bot instance...');
     const bot = createBot(config.telegramBotToken);
+    logger.info('Bot instance created');
 
     // Initialize services
+    logger.info('Initializing services...');
     const pdfService = new PDFService();
     const idGenerator = new IDGeneratorService();
     const walletService = new WalletService();
     const deliveryService = new FileDeliveryService(bot);
+    logger.info('Services initialized');
 
     // Initialize job queue (in-memory, no Redis needed)
+    logger.info('Initializing job queue...');
     initializeJobQueue({
       pdfService,
       idGenerator,
@@ -74,6 +82,7 @@ async function main() {
         }
       }
     });
+    logger.info('Job queue initialized');
 
     // Start file cleanup scheduler
     deliveryService.startCleanupScheduler(60 * 60 * 1000);
@@ -93,12 +102,25 @@ async function main() {
     logger.info('Starting Telegram bot...');
     await startBot(bot);
     
-    logger.info('eFayda ID Generator Bot is running!');
+    logger.info('✅ eFayda ID Generator Bot is running successfully!');
     logger.info(`Environment: ${config.nodeEnv}`);
+    logger.info(`Bot token: ${config.telegramBotToken.substring(0, 10)}...`);
   } catch (error) {
-    logger.error('Failed to start bot:', error);
+    logger.error('❌ Failed to start bot:', error);
+    logger.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     process.exit(1);
   }
 }
 
 main();
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});

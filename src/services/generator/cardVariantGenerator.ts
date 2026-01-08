@@ -103,19 +103,19 @@ export class CardVariantGenerator {
   }
 
   /**
-   * Combine front and back cards into a single image (stacked vertically for better printing)
+   * Combine front and back cards into a single image (side by side like the example PNG)
    */
   private async combineCards(front: Buffer, back: Buffer): Promise<Buffer> {
     try {
       const { width, height } = this.cardRenderer.getCardDimensions();
       const gap = 30; // Gap between cards
-      const totalHeight = height * 2 + gap;
+      const totalWidth = width * 2 + gap;
 
-      // Create canvas (vertical layout for A4 printing)
+      // Create canvas (horizontal layout like the example PNG)
       const canvas = await sharp({
         create: {
-          width: width,
-          height: totalHeight,
+          width: totalWidth,
+          height: height,
           channels: 4,
           background: { r: 255, g: 255, b: 255, alpha: 1 }
         }
@@ -123,11 +123,11 @@ export class CardVariantGenerator {
       .png()
       .toBuffer();
 
-      // Composite front and back (stacked)
+      // Composite front and back (side by side)
       return await sharp(canvas)
         .composite([
-          { input: front, left: 0, top: 0 },
-          { input: back, left: 0, top: height + gap }
+          { input: back, left: 0, top: 0 },  // Back card on left
+          { input: front, left: width + gap, top: 0 }  // Front card on right
         ])
         .png()
         .toBuffer();

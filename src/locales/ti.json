@@ -1,5 +1,5 @@
 {
-  "welcome": "🇪🇹 ናብ eFayda ID Generator እንቋዕ ብደሓን መጻእኩም፣ {name}!\n\nወግዓዊ ናይ eFayda PDF ሰነድኩም ናብ ንምሕታም ድሉው ዝኾነ ሃገራዊ መንነት ካርድ ክቕይሮ እኽእል።",
+  "welcome": "🇪🇹 ናብ eFayda ID Generator እንቋዕ ብደሓን መጻእኩም፣ {name}!\n\nናብ ሃገራዊ መንነት ፋይዳ ካርድ ንምሕታም ዝኽእል መቐይሪ ኣገልግሎት እንቋዕ ብደሓን መጻእኩም! 🎉🪪\n\nንምሕታም ዝኽእል መንነት ካርድኩም ንምርካብ:\n\n1. መጀመርታ ወግዓዊ ናይ ፋይዳ ኣፕሊኬሽን ኣውርዱ:\n   • ንኣንድሮይድ: https://play.google.com/store/apps/details?id=et.fayda.nidfaydaApp\n   • ንኣይፎን: https://apps.apple.com/us/app/fayda-id/id6740314990\n\n2. FCN/FAN ኣእትዉ እሞ ብSMS OTP ዝተቐበልኩሞ ኣረጋግጹ።\n\n3. \"Download Printable PDF\" ዝብል ጠውቑ እሞ ናይ PDF ፋይልኩም ኣውርዱ።\n\n4. ዝወረደ PDF ፋይል ቀጥታ ናብዚ ቦት ስደዱ።\n\n🤖 ቦት ብኣውቶማቲክ PDF ኩም ናብ ንምሕታም ዝኽእል ሃገራዊ መንነት ካርድ ይቕይሮ ወዲያውን ይሰድደልኩም።",
   "welcome_referred": "🎁 ብሪፈራል ሊንክ ተጸንቢርኩም!",
   "available_commands": "ዘለዉ ትእዛዛት",
   

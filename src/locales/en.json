@@ -1,5 +1,5 @@
 {
-  "welcome": "🇪🇹 Welcome to eFayda ID Generator, {name}!\n\nI can convert your official eFayda PDF document into print-ready National ID cards.",
+  "welcome": "🇪🇹 Welcome to eFayda ID Generator, {name}!\n\nWelcome to the National ID Fayda Printable Converter Service! 🎉🪪\n\nTo get your printable ID card:\n\n1. Download the official Fayda Application:\n   • Android: https://play.google.com/store/apps/details?id=et.fayda.nidfaydaApp\n   • iPhone: https://apps.apple.com/us/app/fayda-id/id6740314990\n\n2. Enter your FCN/FAN and verify using the SMS OTP you receive.\n\n3. Tap \"Download Printable PDF\" and download your PDF file.\n\n4. Send the downloaded PDF file here to this bot.\n\n🤖 The bot will automatically convert your PDF into a print-ready National ID card.",
   "welcome_referred": "🎁 You joined through a referral link!",
   "available_commands": "Available Commands",
   

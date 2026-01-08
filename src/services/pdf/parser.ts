@@ -2,6 +2,7 @@
  * PDF Parser - EXACTLY like test-pdf-full.ts from commit a8d0b98
  */
 import pdfParse from 'pdf-parse';
+import Tesseract from 'tesseract.js';
 import { EfaydaData } from '../../types';
 import { PDFParser, ExtractedImages } from './types';
 import { logger } from '../../utils/logger';
@@ -53,15 +54,26 @@ export class PDFParserImpl implements PDFParser {
 
     logger.info(`Found ${images.length} images in PDF`);
 
-    // First image is the user photo, second is QR code
+    // Based on our analysis:
+    // - Image 1 (index 0) = actual photo for rendering
+    // - Image 2 (index 1) = QR code  
+    // - Image 3 (index 2) = front card with expiry date (for OCR only)
+    // - Image 4 (index 3) = back card
+    
     if (images.length >= 1) {
-      result.photo = images[0];
-      logger.info(`Photo size: ${images[0].length} bytes`);
+      result.photo = images[0]; // Use image 1 (index 0) for actual photo rendering
+      logger.info(`Using image 1 as photo: ${images[0].length} bytes`);
     }
 
     if (images.length >= 2) {
       result.qrCode = images[1];
       logger.info(`QR code size: ${images[1].length} bytes`);
+    }
+
+    // Store image 3 separately for OCR expiry extraction
+    if (images.length >= 3) {
+      result.frontCardImage = images[2]; // Image 3 for OCR expiry extraction only
+      logger.info(`Front card image for OCR: ${images[2].length} bytes`);
     }
 
     return result;
@@ -75,6 +87,8 @@ export class PDFParserImpl implements PDFParser {
     fullNameEnglish: string;
     dateOfBirthEthiopian: string;
     dateOfBirthGregorian: string;
+    expiryDateEthiopian: string;
+    expiryDateGregorian: string;
     sex: 'Male' | 'Female';
     sexAmharic: string;
     phoneNumber: string;
@@ -92,6 +106,8 @@ export class PDFParserImpl implements PDFParser {
       fullNameEnglish: '',
       dateOfBirthEthiopian: '',
       dateOfBirthGregorian: '',
+      expiryDateEthiopian: '',
+      expiryDateGregorian: '',
       sex: 'Male' as 'Male' | 'Female',
       sexAmharic: '',
       phoneNumber: '',
@@ -114,9 +130,12 @@ export class PDFParserImpl implements PDFParser {
     const dates1 = text.match(datePattern1) || [];
     const dates2 = text.match(datePattern2) || [];
 
-    // DOB is typically the first date
+    // DOB is typically the first date, expiry is typically the second date
     if (dates1.length > 0) data.dateOfBirthGregorian = dates1[0] || '';
+    if (dates1.length > 1) data.expiryDateGregorian = dates1[1] || '';
+    
     if (dates2.length > 0) data.dateOfBirthEthiopian = dates2[0] || '';
+    if (dates2.length > 1) data.expiryDateEthiopian = dates2[1] || '';
 
     // Extract phone number
     const phonePattern = /(09\d{8})/;
@@ -225,15 +244,210 @@ export class PDFParserImpl implements PDFParser {
   }
 
   /**
-   * Parse eFayda PDF and extract all data
+   * Extract expiry date from images using targeted OCR on the expiry area
    */
+  private async extractExpiryFromImages(images: ExtractedImages): Promise<{
+    expiryDateGregorian: string;
+    expiryDateEthiopian: string;
+  }> {
+    const result = {
+      expiryDateGregorian: '',
+      expiryDateEthiopian: ''
+    };
+
+    try {
+      // Focus on the front card image (image 3) for expiry date extraction
+      if (images.frontCardImage) {
+        logger.info('Performing targeted OCR on expiry area (below sex field)...');
+        
+        // Import sharp for image processing
+        const sharp = require('sharp');
+        
+        // Get image dimensions
+        const metadata = await sharp(images.frontCardImage).metadata();
+        logger.info(`Front card image dimensions: ${metadata.width}x${metadata.height}`);
+        
+        // Crop the bottom portion where expiry date is located (below sex field)
+        const cropHeight = Math.floor(metadata.height * 0.4); // Bottom 40% of image
+        const cropTop = Math.floor(metadata.height * 0.6);    // Start from 60% down
+        
+        const croppedBuffer = await sharp(images.frontCardImage)
+          .extract({
+            left: 0,
+            top: cropTop,
+            width: metadata.width,
+            height: cropHeight
+          })
+          .toBuffer();
+        
+        logger.info(`Cropped expiry area: top=${cropTop}, height=${cropHeight}`);
+        
+        // Run OCR on the cropped area
+        const ocrResult = await Tesseract.recognize(croppedBuffer, 'eng', {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              logger.debug(`Expiry OCR progress: ${Math.round(m.progress * 100)}%`);
+            }
+          }
+        });
+
+        const ocrText = ocrResult.data.text;
+        logger.info(`Expiry area OCR extracted ${ocrText.length} characters`);
+        logger.debug('Expiry OCR Text:', ocrText);
+
+        // Look for expiry dates in OCR text
+        const expiryDates = this.extractExpiryFromTargetedOCRText(ocrText);
+        if (expiryDates.expiryDateGregorian || expiryDates.expiryDateEthiopian) {
+          result.expiryDateGregorian = expiryDates.expiryDateGregorian;
+          result.expiryDateEthiopian = expiryDates.expiryDateEthiopian;
+          logger.info('Found expiry dates in targeted OCR:', expiryDates);
+          return result;
+        }
+      }
+
+    } catch (error) {
+      logger.error('Targeted OCR extraction failed:', error);
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract expiry dates from targeted OCR text (focused on expiry area)
+   */
+  private extractExpiryFromTargetedOCRText(text: string): {
+    expiryDateGregorian: string;
+    expiryDateEthiopian: string;
+  } {
+    const result = {
+      expiryDateGregorian: '',
+      expiryDateEthiopian: ''
+    };
+
+    logger.debug('Analyzing targeted OCR text for expiry dates...');
+
+    // Look for "Date of Expiry" or "Expiry" followed by dates
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lowerLine = line.toLowerCase();
+      
+      // Check if this line or the next line contains expiry information
+      if (lowerLine.includes('expiry') || lowerLine.includes('expire')) {
+        logger.debug(`Found expiry keyword in line: ${line}`);
+        
+        // Look for dates in this line and the next few lines
+        const searchLines = lines.slice(i, Math.min(i + 3, lines.length));
+        const searchText = searchLines.join(' ');
+        
+        // Look for date patterns in the expiry context
+        const datePatterns = [
+          { name: 'DD/MM/YYYY', regex: /(\d{1,2}\/\d{1,2}\/\d{4})/g, type: 'gregorian' },
+          { name: 'YYYY/MM/DD', regex: /(\d{4}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian' },
+          { name: 'YYYY/Mon/DD', regex: /(\d{4}\/[A-Za-z]{3}\/\d{1,2})/g, type: 'ethiopian' },
+          { name: 'YYYY/0ct/DD', regex: /(\d{4}\/0ct\/\d{1,2})/g, type: 'ethiopian' }, // Handle OCR misread
+        ];
+
+        for (const pattern of datePatterns) {
+          const matches = [...searchText.matchAll(pattern.regex)];
+          for (const match of matches) {
+            const dateStr = match[1];
+            
+            // Skip if it's clearly a DOB (years before 2020)
+            const year = pattern.type === 'gregorian' ? 
+              parseInt(dateStr.split('/')[2]) : 
+              parseInt(dateStr.split('/')[0]);
+              
+            if (year > 2020) { // Future date, likely expiry
+              // Smart classification based on year ranges
+              if (year >= 2025 && year <= 2030) {
+                // Years 2025-2030 are likely Gregorian expiry dates
+                result.expiryDateGregorian = dateStr;
+                logger.info(`Found Gregorian expiry date: ${dateStr}`);
+              } else if (year >= 2030 && year <= 2040) {
+                // Years 2030-2040 are likely Ethiopian expiry dates
+                let cleanDate = dateStr.replace('/0ct/', '/10/'); // Fix Oct -> 10
+                result.expiryDateEthiopian = cleanDate;
+                logger.info(`Found Ethiopian expiry date: ${cleanDate}`);
+              } else {
+                // Fallback to pattern-based classification
+                if (pattern.type === 'gregorian') {
+                  result.expiryDateGregorian = dateStr;
+                  logger.info(`Found Gregorian expiry date: ${dateStr}`);
+                } else {
+                  let cleanDate = dateStr.replace('/0ct/', '/10/'); // Fix Oct -> 10
+                  result.expiryDateEthiopian = cleanDate;
+                  logger.info(`Found Ethiopian expiry date: ${cleanDate}`);
+                }
+              }
+            }
+          }
+        }
+        
+        // If we found expiry dates, break
+        if (result.expiryDateGregorian || result.expiryDateEthiopian) {
+          break;
+        }
+      }
+    }
+
+    // If no expiry keyword found, look for dates that appear after DOB
+    if (!result.expiryDateGregorian && !result.expiryDateEthiopian) {
+      logger.debug('No expiry keyword found, looking for dates after DOB...');
+      
+      // Find all dates and assume the later ones are expiry
+      const allDates: Array<{date: string, year: number, type: string}> = [];
+      
+      const patterns = [
+        { regex: /(\d{1,2}\/\d{1,2}\/\d{4})/g, type: 'gregorian' },
+        { regex: /(\d{4}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian' },
+        { regex: /(\d{4}\/[A-Za-z]{3}\/\d{1,2})/g, type: 'ethiopian' },
+      ];
+
+      patterns.forEach(pattern => {
+        const matches = [...text.matchAll(pattern.regex)];
+        matches.forEach(match => {
+          const dateStr = match[1];
+          const year = pattern.type === 'gregorian' ? 
+            parseInt(dateStr.split('/')[2]) : 
+            parseInt(dateStr.split('/')[0]);
+          
+          allDates.push({ date: dateStr, year: year, type: pattern.type });
+        });
+      });
+
+      // Sort by year and take the latest dates as expiry
+      allDates.sort((a, b) => a.year - b.year);
+      
+      // Find the latest gregorian and ethiopian dates
+      const latestGregorian = allDates.filter(d => d.type === 'gregorian' && d.year > 2020).pop();
+      const latestEthiopian = allDates.filter(d => d.type === 'ethiopian' && d.year > 2020).pop();
+      
+      if (latestGregorian) {
+        result.expiryDateGregorian = latestGregorian.date;
+        logger.info(`Selected latest Gregorian date as expiry: ${latestGregorian.date}`);
+      }
+      
+      if (latestEthiopian) {
+        result.expiryDateEthiopian = latestEthiopian.date;
+        logger.info(`Selected latest Ethiopian date as expiry: ${latestEthiopian.date}`);
+      }
+    }
+
+    return result;
+  }
   async parse(buffer: Buffer): Promise<EfaydaData> {
     const text = await this.extractText(buffer);
     const images = await this.extractImages(buffer);
     const parsed = this.parsePdfText(text);
 
+    // Use OCR to extract expiry dates from images
+    const ocrExpiry = await this.extractExpiryFromImages(images);
+
     logger.info(`Parsed: FCN=${parsed.fcn}, FIN=${parsed.fin}`);
     logger.info(`Parsed Amharic: region=${parsed.regionAmharic}, zone=${parsed.zoneAmharic}, woreda=${parsed.woredaAmharic}`);
+    logger.info(`OCR Expiry: Gregorian=${ocrExpiry.expiryDateGregorian}, Ethiopian=${ocrExpiry.expiryDateEthiopian}`);
 
     return {
       fullNameAmharic: parsed.fullNameAmharic,
@@ -250,12 +464,12 @@ export class PDFParserImpl implements PDFParser {
       fin: parsed.fin,
       fan: parsed.fcn,
       serialNumber: String(Math.floor(1000000 + Math.random() * 9000000)),
-      // Extract dates from PDF or generate based on DOB
+      // Use OCR-extracted expiry dates or fallback to calculated dates
       issueDate: this.calculateIssueDate(parsed.dateOfBirthGregorian),
       issueDateEthiopian: this.calculateIssueDateEthiopian(parsed.dateOfBirthEthiopian),
-      expiryDate: this.calculateExpiryDate(parsed.dateOfBirthGregorian),
-      expiryDateGregorian: this.calculateExpiryDate(parsed.dateOfBirthGregorian),
-      expiryDateEthiopian: this.calculateExpiryDateEthiopian(parsed.dateOfBirthEthiopian),
+      expiryDate: ocrExpiry.expiryDateGregorian || parsed.expiryDateGregorian || this.calculateExpiryDate(parsed.dateOfBirthGregorian),
+      expiryDateGregorian: ocrExpiry.expiryDateGregorian || parsed.expiryDateGregorian || this.calculateExpiryDate(parsed.dateOfBirthGregorian),
+      expiryDateEthiopian: ocrExpiry.expiryDateEthiopian || parsed.expiryDateEthiopian || this.calculateExpiryDateEthiopian(parsed.dateOfBirthEthiopian),
       photo: images.photo || undefined,
       qrCode: images.qrCode || undefined,
       barcode: images.barcode || undefined,
@@ -285,24 +499,67 @@ export class PDFParserImpl implements PDFParser {
   }
 
   /**
-   * Calculate expiry date (10 years from now in YYYY/MM/DD format)
+   * Calculate expiry date (10 years from DOB, not current date)
    */
-  private calculateExpiryDate(_dobGregorian: string): string {
-    const now = new Date();
-    const expiry = new Date(now);
-    expiry.setFullYear(expiry.getFullYear() + 10);
-    return `${expiry.getFullYear()}/${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getDate()).padStart(2, '0')}`;
+  private calculateExpiryDate(dobGregorian: string): string {
+    try {
+      if (!dobGregorian) {
+        // Fallback to current date + 10 years
+        const now = new Date();
+        const expiry = new Date(now);
+        expiry.setFullYear(expiry.getFullYear() + 10);
+        return `${expiry.getFullYear()}/${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getDate()).padStart(2, '0')}`;
+      }
+
+      // Parse DOB (format: DD/MM/YYYY)
+      const [day, month, year] = dobGregorian.split('/').map(Number);
+      const dobDate = new Date(year, month - 1, day);
+      
+      // Calculate expiry as DOB + 30 years (more realistic for ID cards)
+      const expiryDate = new Date(dobDate);
+      expiryDate.setFullYear(expiryDate.getFullYear() + 30);
+      
+      return `${expiryDate.getFullYear()}/${String(expiryDate.getMonth() + 1).padStart(2, '0')}/${String(expiryDate.getDate()).padStart(2, '0')}`;
+    } catch (error) {
+      logger.error('Error calculating expiry date:', error);
+      // Fallback
+      const now = new Date();
+      const expiry = new Date(now);
+      expiry.setFullYear(expiry.getFullYear() + 10);
+      return `${expiry.getFullYear()}/${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getDate()).padStart(2, '0')}`;
+    }
   }
 
   /**
-   * Calculate expiry date in Ethiopian calendar
+   * Calculate expiry date in Ethiopian calendar (DOB + 30 years)
    */
-  private calculateExpiryDateEthiopian(_dobEthiopian: string): string {
-    const now = new Date();
-    const expiry = new Date(now);
-    expiry.setFullYear(expiry.getFullYear() + 10);
-    const ethYear = expiry.getFullYear() - 8;
-    return `${ethYear}/${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getDate()).padStart(2, '0')}`;
+  private calculateExpiryDateEthiopian(dobEthiopian: string): string {
+    try {
+      if (!dobEthiopian) {
+        // Fallback
+        const now = new Date();
+        const expiry = new Date(now);
+        expiry.setFullYear(expiry.getFullYear() + 10);
+        const ethYear = expiry.getFullYear() - 8;
+        return `${ethYear}/${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getDate()).padStart(2, '0')}`;
+      }
+
+      // Parse Ethiopian DOB (format: YYYY/MM/DD)
+      const [year, month, day] = dobEthiopian.split('/').map(Number);
+      
+      // Add 30 years to Ethiopian year
+      const expiryYear = year + 30;
+      
+      return `${expiryYear}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+    } catch (error) {
+      logger.error('Error calculating Ethiopian expiry date:', error);
+      // Fallback
+      const now = new Date();
+      const expiry = new Date(now);
+      expiry.setFullYear(expiry.getFullYear() + 10);
+      const ethYear = expiry.getFullYear() - 8;
+      return `${ethYear}/${String(expiry.getMonth() + 1).padStart(2, '0')}/${String(expiry.getDate()).padStart(2, '0')}`;
+    }
   }
 }
 

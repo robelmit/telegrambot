@@ -1,0 +1,190 @@
+{
+  "dimensions": {
+    "width": 1012,
+    "height": 638
+  },
+  "front": {
+    "mainPhoto": {
+      "x": 67,
+      "y": 178,
+      "width": 315,
+      "height": 400
+    },
+    "smallPhoto": {
+      "x": 828,
+      "y": 458,
+      "width": 120,
+      "height": 128
+    },
+    "nameAmharic": {
+      "x": 402,
+      "y": 170,
+      "fontSize": 32,
+      "fontWeight": "700",
+      "color": "rgb(33, 33, 33)",
+      "fontFamily": "Inter"
+    },
+    "nameEnglish": {
+      "x": 402,
+      "y": 208,
+      "fontSize": 32,
+      "fontWeight": "700",
+      "color": "rgb(33, 33, 33)",
+      "fontFamily": "Inter"
+    },
+    "dateOfBirth": {
+      "x": 402,
+      "y": 308,
+      "fontSize": 32,
+      "fontWeight": "600",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "sex": {
+      "x": 402,
+      "y": 375,
+      "fontSize": 32,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "expiryDate": {
+      "x": 402,
+      "y": 450,
+      "fontSize": 32,
+      "fontWeight": "600",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "dateOfIssueEthiopian": {
+       "x": 20,
+      "y":510,
+      "fontSize": 22,
+      "fontWeight": "700",
+      "color": "rgb(60, 60, 60)",
+      "rotation": -90,
+      "fontFamily": "Inter"
+
+    },
+    "dateOfIssueGregorian": {
+      "x": 20,
+      "y": 250,
+      "fontSize": 22,
+      "fontWeight": "700",
+      "color": "rgb(60, 60, 60)",
+      "rotation": -90,
+      "fontFamily": "Inter"
+
+     
+    },
+    "fan": {
+      "x": 455,
+      "y": 500,
+      "fontSize": 30,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "OCR-B"
+    },
+    "barcode": {
+      "x": 448,
+      "y": 528,
+      "width": 350,
+      "height": 65,
+      "type": "Code128"
+    }
+  },
+  "back": {
+    "phoneNumber": {
+      "x": 30,
+      "y": 80,
+      "fontSize": 30,
+      "fontWeight": "500",
+      "color": "rgb(33, 33, 33)",
+      "fontFamily": "Inter"
+    },
+    "regionAmharic": {
+      "x": 30,
+      "y": 230,
+      "fontSize": 30,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "regionEnglish": {
+      "x": 30,
+      "y": 270,
+      "fontSize": 30,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "zoneAmharic": {
+      "x": 30,
+      "y": 305,
+      "fontSize": 30,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "zoneEnglish": {
+      "x": 30,
+      "y": 340,
+      "fontSize": 30,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "woredaAmharic": {
+      "x": 30,
+      "y": 370,
+      "fontSize": 28,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "woredaEnglish": {
+      "x": 30,
+      "y": 406,
+      "fontSize": 30,
+      "fontWeight": "500",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "fin": {
+      "x": 130,
+      "y": 525,
+      "fontSize": 32,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "OCR-B"
+    },
+    "serialNumber": {
+      "x": 815,
+      "y": 580,
+      "fontSize": 32,
+      "fontWeight": "700",
+      "color": "rgb(0, 0, 0)",
+      "fontFamily": "Inter"
+    },
+    "qrCode": {
+      "x": 450,
+      "y": 37,
+      "width": 525,
+      "height": 525
+    }
+  },
+  "fonts": {
+    "amharic": {
+      "primary": "Nyala",
+      "fallback": "Ebrima, Arial"
+    },
+    "english": {
+      "primary": "Arial",
+      "fallback": "Helvetica, sans-serif"
+    },
+    "monospace": {
+      "primary": "Consolas",
+      "fallback": "monospace"
+    }
+  }
+}
