@@ -104,6 +104,7 @@ export class CardVariantGenerator {
 
   /**
    * Combine front and back cards into a single image (side by side like the example PNG)
+   * Output is scaled to a reasonable size for delivery
    */
   private async combineCards(front: Buffer, back: Buffer, template?: TemplateType): Promise<Buffer> {
     try {
@@ -111,11 +112,27 @@ export class CardVariantGenerator {
       const gap = 30; // Gap between cards
       const totalWidth = width * 2 + gap;
 
+      // Target output width (standard size for all templates)
+      const targetWidth = 2054; // Same as Template 1 combined width
+      const scale = targetWidth / totalWidth;
+      const targetHeight = Math.round(height * scale);
+      const scaledGap = Math.round(gap * scale);
+      const scaledWidth = Math.round(width * scale);
+
+      // Scale front and back images first
+      const scaledFront = await sharp(front)
+        .resize(scaledWidth, targetHeight)
+        .toBuffer();
+      
+      const scaledBack = await sharp(back)
+        .resize(scaledWidth, targetHeight)
+        .toBuffer();
+
       // Create canvas (horizontal layout like the example PNG)
       const canvas = await sharp({
         create: {
-          width: totalWidth,
-          height: height,
+          width: targetWidth,
+          height: targetHeight,
           channels: 4,
           background: { r: 255, g: 255, b: 255, alpha: 1 }
         }
@@ -126,8 +143,8 @@ export class CardVariantGenerator {
       // Composite front and back (side by side)
       return await sharp(canvas)
         .composite([
-          { input: back, left: 0, top: 0 },  // Back card on left
-          { input: front, left: width + gap, top: 0 }  // Front card on right
+          { input: scaledBack, left: 0, top: 0 },  // Back card on left
+          { input: scaledFront, left: scaledWidth + scaledGap, top: 0 }  // Front card on right
         ])
         .png()
         .toBuffer();

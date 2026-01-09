@@ -56,7 +56,8 @@ export function createBot(token: string): Telegraf<BotContext> {
     defaultSession: (): SessionData => ({
       language: 'en',
       awaitingTransactionId: false,
-      awaitingPdf: false
+      awaitingPdf: false,
+      selectedTemplate: 'template1'
     })
   }));
 
