@@ -1,11 +1,12 @@
 export { ImageProcessor } from './imageProcessor';
-export { CardRenderer, CardRenderOptions, registerFonts } from './cardRenderer';
+export { CardRenderer, CardRenderOptions, registerFonts, TemplateType, getAvailableTemplates } from './cardRenderer';
 export { CardVariantGenerator, CardVariant } from './cardVariantGenerator';
 export { PDFGenerator, A4PDFOptions } from './pdfGenerator';
 
 import { EfaydaData, GeneratedFiles } from '../../types';
 import { CardVariantGenerator } from './cardVariantGenerator';
 import { PDFGenerator } from './pdfGenerator';
+import { TemplateType } from './cardRenderer';
 import logger from '../../utils/logger';
 import fs from 'fs/promises';
 
@@ -28,15 +29,15 @@ export class IDGeneratorService {
    * Generate all output files for a job
    * Returns: 2 mirrored PNG images + 2 mirrored A4 PDFs
    */
-  async generateAll(data: EfaydaData, jobId: string): Promise<GeneratedFiles> {
+  async generateAll(data: EfaydaData, jobId: string, template?: TemplateType): Promise<GeneratedFiles> {
     try {
-      logger.info(`Starting ID generation for job: ${jobId}`);
+      logger.info(`Starting ID generation for job: ${jobId} with template: ${template || 'template0'}`);
 
       // Ensure output directory exists
       await fs.mkdir(this.outputDir, { recursive: true });
 
       // Generate PNG files
-      const pngFiles = await this.cardGenerator.saveToFiles(data, jobId);
+      const pngFiles = await this.cardGenerator.saveToFiles(data, jobId, template);
 
       // Generate A4 PDFs from the PNG files
       await this.pdfGenerator.generateA4PDF(

@@ -84,8 +84,8 @@ export async function handleStart(ctx: BotContext): Promise<void> {
     const keyboard = Markup.keyboard([
       [t(lang, 'btn_upload'), t(lang, 'btn_balance')],
       [t(lang, 'btn_topup'), t(lang, 'btn_pricing')],
-      [t(lang, 'btn_agent'), t(lang, 'btn_language')],
-      [t(lang, 'btn_help')]
+      [t(lang, 'btn_template'), t(lang, 'btn_agent')],
+      [t(lang, 'btn_language'), t(lang, 'btn_help')]
     ]).resize();
 
     await ctx.reply(welcomeMessage, keyboard);
@@ -98,6 +98,7 @@ export async function handleStart(ctx: BotContext): Promise<void> {
 /balance - ${t(lang, 'cmd_balance_desc')}
 /topup - ${t(lang, 'cmd_topup_desc')}
 /pricing - ${t(lang, 'cmd_pricing_desc')}
+/template - Select ID card template
 /agent - ${t(lang, 'cmd_agent_desc')}
 /language - ${t(lang, 'cmd_language_desc')}
 /help - ${t(lang, 'cmd_help_desc')}

@@ -16,6 +16,8 @@ import {
   handleSettings,
   handleSettingsCallback,
   handleHelp,
+  handleTemplate,
+  handleTemplateCallback,
   handleAgent,
   handleAgentRegister,
   handleAgentCancel,
@@ -92,10 +94,12 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.command('settings', handleSettings);
   bot.command('help', handleHelp);
   bot.command('agent', handleAgent);
+  bot.command('template', handleTemplate);
   bot.command('admin', handleAdmin);
 
   // Callback query handlers
   bot.action(/^lang_/, handleLanguageCallback);
+  bot.action(/^template_/, handleTemplateCallback);
   bot.action(/^topup_amount_/, handleTopupAmountCallback);
   bot.action(/^topup_provider_/, handleTopupProviderCallback);
   bot.action('topup_cancel', handleTopupCancel);
@@ -160,7 +164,8 @@ export function createBot(token: string): Telegraf<BotContext> {
       [t(lang, 'btn_pricing')]: () => handlePricing(ctx),
       [t(lang, 'btn_language')]: () => handleLanguage(ctx),
       [t(lang, 'btn_help')]: () => handleHelp(ctx),
-      [t(lang, 'btn_agent')]: () => handleAgent(ctx)
+      [t(lang, 'btn_agent')]: () => handleAgent(ctx),
+      [t(lang, 'btn_template')]: () => handleTemplate(ctx)
     };
 
     const handler = buttonMap[text];
@@ -180,6 +185,7 @@ export async function startBot(bot: Telegraf<BotContext>): Promise<void> {
     { command: 'balance', description: 'Check wallet balance' },
     { command: 'topup', description: 'Top up wallet' },
     { command: 'pricing', description: 'View pricing' },
+    { command: 'template', description: 'Select ID card template' },
     { command: 'agent', description: 'Agent/Referral program' },
     { command: 'language', description: 'Change language' },
     { command: 'settings', description: 'Bot settings' },

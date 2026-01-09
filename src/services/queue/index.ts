@@ -5,12 +5,15 @@ import { WalletService } from '../payment';
 import JobModel from '../../models/Job';
 import logger from '../../utils/logger';
 
+export type TemplateType = 'template0' | 'template1';
+
 export interface IDGenerationJobData {
   jobId: string;
   userId: string;
   telegramId: number;
   pdfPath: string;
   chatId: number;
+  template?: TemplateType;
 }
 
 export interface JobProcessorDependencies {
@@ -41,9 +44,9 @@ export function initializeJobQueue(
 
   // Register processor
   jobQueue.process(async (job) => {
-    const { jobId, pdfPath } = job.data;
+    const { jobId, pdfPath, template } = job.data;
     
-    logger.info(`Processing job ${jobId} for user ${job.data.telegramId}`);
+    logger.info(`Processing job ${jobId} for user ${job.data.telegramId} with template ${template || 'template0'}`);
 
     // Update job status to processing
     await JobModel.findByIdAndUpdate(jobId, { 
@@ -67,8 +70,8 @@ export function initializeJobQueue(
       extractedData: parseResult.data
     });
 
-    // Generate ID cards
-    const generatedFiles = await deps.idGenerator.generateAll(parseResult.data, jobId);
+    // Generate ID cards with selected template
+    const generatedFiles = await deps.idGenerator.generateAll(parseResult.data, jobId, template);
 
     // Verify all files exist
     const filesExist = await deps.idGenerator.verifyFiles(generatedFiles);

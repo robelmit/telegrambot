@@ -168,6 +168,17 @@ async function render() {
   bctx.font = `bold ${back.phoneNumber.fontSize}px Arial`;
   bctx.fillText(sampleData.phoneNumber, back.phoneNumber.x, back.phoneNumber.y);
 
+  // Nationality (Amharic | English in one line)
+  if (back.nationality) {
+    bctx.fillStyle = back.nationality.color;
+    bctx.font = `bold ${back.nationality.fontSize}px Ebrima`;
+    const nationalityAmharic = 'ኢትዮጵያዊ';
+    bctx.fillText(nationalityAmharic, back.nationality.x, back.nationality.y);
+    const amharicWidth = bctx.measureText(nationalityAmharic).width;
+    bctx.font = `bold ${back.nationality.fontSize}px Arial`;
+    bctx.fillText('  |  Ethiopian', back.nationality.x + amharicWidth, back.nationality.y);
+  }
+
   // Region Amharic
   bctx.fillStyle = back.regionAmharic.color;
   bctx.font = `bold ${back.regionAmharic.fontSize}px Ebrima`;

@@ -10,13 +10,23 @@ import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
 
-// Load layout config - Use relative path for production
-const layout = JSON.parse(fs.readFileSync(path.join(__dirname, '../../config/cardLayout.json'), 'utf-8'));
-const { dimensions, front, back } = layout;
+// Template type
+export type TemplateType = 'template0' | 'template1';
+
+// Load layout configs
+const layoutConfigs: Record<TemplateType, any> = {
+  template0: JSON.parse(fs.readFileSync(path.join(__dirname, '../../config/cardLayout.json'), 'utf-8')),
+  template1: JSON.parse(fs.readFileSync(path.join(__dirname, '../../config/cardLayout1.json'), 'utf-8'))
+};
+
+// Default layout for backward compatibility
+const layout = layoutConfigs.template0;
+const { dimensions } = layout;
 
 export interface CardRenderOptions {
   variant: 'color' | 'grayscale';
   dpi?: number;
+  template?: TemplateType;
 }
 
 const FONTS_DIR = path.join(process.cwd(), 'src/assets/fonts');
@@ -165,11 +175,16 @@ export class CardRenderer {
    * Render front card - EXACTLY like test script renderFrontCard function
    */
   async renderFront(data: EfaydaData, options: CardRenderOptions = { variant: 'color' }): Promise<Buffer> {
+    const templateType = options.template || 'template0';
+    const layout = layoutConfigs[templateType];
+    const { dimensions, front } = layout;
+    const templateFile = layout.templateFiles?.front || 'front_template.png';
+    
     const canvas = createCanvas(dimensions.width, dimensions.height);
     const ctx = canvas.getContext('2d');
 
     // Draw template
-    const template = await loadImage(path.join(TEMPLATE_DIR, 'front_template.png'));
+    const template = await loadImage(path.join(TEMPLATE_DIR, templateFile));
     ctx.drawImage(template, 0, 0, dimensions.width, dimensions.height);
 
     // Draw photo with transparent background (already grayscale from removeWhiteBackgroundSharp)
@@ -280,11 +295,16 @@ export class CardRenderer {
    * Render back card - EXACTLY like test script renderBackCard function
    */
   async renderBack(data: EfaydaData, options: CardRenderOptions = { variant: 'color' }): Promise<Buffer> {
+    const templateType = options.template || 'template0';
+    const layout = layoutConfigs[templateType];
+    const { dimensions, back } = layout;
+    const templateFile = layout.templateFiles?.back || 'back_template.png';
+    
     const canvas = createCanvas(dimensions.width, dimensions.height);
     const ctx = canvas.getContext('2d');
 
     // Draw template
-    const template = await loadImage(path.join(TEMPLATE_DIR, 'back_template.png'));
+    const template = await loadImage(path.join(TEMPLATE_DIR, templateFile));
     ctx.drawImage(template, 0, 0, dimensions.width, dimensions.height);
 
     // Draw QR code - EXACTLY like test script
@@ -312,6 +332,17 @@ export class CardRenderer {
     ctx.fillStyle = back.phoneNumber.color;
     ctx.font = `bold ${back.phoneNumber.fontSize}px Arial`;
     ctx.fillText(data.phoneNumber, back.phoneNumber.x, back.phoneNumber.y);
+
+    // Nationality (Amharic | English in one line)
+    if (back.nationality) {
+      ctx.fillStyle = back.nationality.color;
+      ctx.font = `bold ${back.nationality.fontSize}px Ebrima`;
+      const nationalityAmharic = 'ኢትዮጵያዊ';
+      ctx.fillText(nationalityAmharic, back.nationality.x, back.nationality.y);
+      const amharicWidth = ctx.measureText(nationalityAmharic).width;
+      ctx.font = `bold ${back.nationality.fontSize}px Arial`;
+      ctx.fillText(`  |  ${data.nationality || 'Ethiopian'}`, back.nationality.x + amharicWidth, back.nationality.y);
+    }
 
     // Region - EXACTLY like test script
     ctx.fillStyle = back.regionAmharic.color;
@@ -373,6 +404,14 @@ export class CardRenderer {
 
 export default CardRenderer;
 
-export function getCardDimensions(): { width: number; height: number } {
-  return { width: dimensions.width, height: dimensions.height };
+export function getCardDimensions(template: TemplateType = 'template0'): { width: number; height: number } {
+  const layout = layoutConfigs[template];
+  return { width: layout.dimensions.width, height: layout.dimensions.height };
+}
+
+export function getAvailableTemplates(): { id: TemplateType; name: string }[] {
+  return Object.entries(layoutConfigs).map(([id, config]) => ({
+    id: id as TemplateType,
+    name: config.templateName || id
+  }));
 }

@@ -13,6 +13,7 @@ export {
 export { handlePricing } from './pricingHandler';
 export { handleSettings, handleSettingsCallback } from './settingsHandler';
 export { handleHelp } from './helpHandler';
+export { handleTemplate, handleTemplateCallback } from './templateHandler';
 export {
   handleAgent,
   handleAgentRegister,

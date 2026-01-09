@@ -136,7 +136,8 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
       userId: user._id.toString(),
       telegramId,
       pdfPath,
-      chatId: ctx.chat!.id
+      chatId: ctx.chat!.id,
+      template: ctx.session.selectedTemplate || 'template0'
     });
 
     getAuditLogger().logJob('created', job._id.toString(), user._id.toString());

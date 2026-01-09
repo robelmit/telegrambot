@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { EfaydaData, GeneratedFiles } from '../../types';
-import { CardRenderer } from './cardRenderer';
+import { CardRenderer, TemplateType, getCardDimensions } from './cardRenderer';
 import logger from '../../utils/logger';
 import path from 'path';
 import fs from 'fs/promises';
@@ -24,7 +24,7 @@ export class CardVariantGenerator {
    * Generate all card variants (color/grayscale, normal/mirrored)
    * NOTE: "Mirrored" variants are now the same as normal (no flipping)
    */
-  async generateAllVariants(data: EfaydaData): Promise<{
+  async generateAllVariants(data: EfaydaData, template?: TemplateType): Promise<{
     colorNormal: CardVariant;
     colorMirrored: CardVariant;
     grayscaleNormal: CardVariant;
@@ -32,16 +32,16 @@ export class CardVariantGenerator {
   }> {
     try {
       // Generate color variants
-      const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color' });
-      const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color' });
+      const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color', template });
+      const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color', template });
 
       // Generate grayscale variants
-      const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale' });
-      const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale' });
+      const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale', template });
+      const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale', template });
 
       // Combine front and back into single images (NO mirroring)
-      const colorNormalCombined = await this.combineCards(colorFront, colorBack);
-      const grayscaleNormalCombined = await this.combineCards(grayscaleFront, grayscaleBack);
+      const colorNormalCombined = await this.combineCards(colorFront, colorBack, template);
+      const grayscaleNormalCombined = await this.combineCards(grayscaleFront, grayscaleBack, template);
 
       return {
         colorNormal: {
@@ -75,22 +75,22 @@ export class CardVariantGenerator {
    * Generate mirrored variants only (as per requirements)
    * NOTE: Changed to generate NORMAL (non-mirrored) variants based on user feedback
    */
-  async generateMirroredVariants(data: EfaydaData): Promise<{
+  async generateMirroredVariants(data: EfaydaData, template?: TemplateType): Promise<{
     colorMirrored: Buffer;
     grayscaleMirrored: Buffer;
   }> {
     try {
       // Generate color cards
-      const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color' });
-      const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color' });
+      const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color', template });
+      const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color', template });
 
       // Generate grayscale cards
-      const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale' });
-      const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale' });
+      const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale', template });
+      const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale', template });
 
       // Combine front and back (NO mirroring - return normal images)
-      const colorCombined = await this.combineCards(colorFront, colorBack);
-      const grayscaleCombined = await this.combineCards(grayscaleFront, grayscaleBack);
+      const colorCombined = await this.combineCards(colorFront, colorBack, template);
+      const grayscaleCombined = await this.combineCards(grayscaleFront, grayscaleBack, template);
 
       return {
         colorMirrored: colorCombined,
@@ -105,9 +105,9 @@ export class CardVariantGenerator {
   /**
    * Combine front and back cards into a single image (side by side like the example PNG)
    */
-  private async combineCards(front: Buffer, back: Buffer): Promise<Buffer> {
+  private async combineCards(front: Buffer, back: Buffer, template?: TemplateType): Promise<Buffer> {
     try {
-      const { width, height } = this.cardRenderer.getCardDimensions();
+      const { width, height } = getCardDimensions(template);
       const gap = 30; // Gap between cards
       const totalWidth = width * 2 + gap;
 
@@ -142,14 +142,15 @@ export class CardVariantGenerator {
    */
   async saveToFiles(
     data: EfaydaData,
-    jobId: string
+    jobId: string,
+    template?: TemplateType
   ): Promise<GeneratedFiles> {
     try {
       // Ensure output directory exists
       await fs.mkdir(this.outputDir, { recursive: true });
 
       // Generate mirrored variants
-      const { colorMirrored, grayscaleMirrored } = await this.generateMirroredVariants(data);
+      const { colorMirrored, grayscaleMirrored } = await this.generateMirroredVariants(data, template);
 
       // Generate safe filename from user name
       const safeName = this.sanitizeFilename(data.fullNameEnglish);
