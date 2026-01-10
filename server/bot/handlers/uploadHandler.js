@@ -108,7 +108,8 @@ async function handleDocument(ctx) {
             userId: user._id.toString(),
             telegramId,
             pdfPath,
-            chatId: ctx.chat.id
+            chatId: ctx.chat.id,
+            template: ctx.session.selectedTemplate || 'template0'
         });
         (0, auditLogger_1.getAuditLogger)().logJob('created', job._id.toString(), user._id.toString());
         (0, auditLogger_1.getAuditLogger)().logPayment('debit', user._id.toString(), {

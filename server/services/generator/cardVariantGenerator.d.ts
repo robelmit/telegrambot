@@ -1,4 +1,5 @@
 import { EfaydaData, GeneratedFiles } from '../../types';
+import { TemplateType } from './cardRenderer';
 export interface CardVariant {
     front: Buffer;
     back: Buffer;
@@ -12,7 +13,7 @@ export declare class CardVariantGenerator {
      * Generate all card variants (color/grayscale, normal/mirrored)
      * NOTE: "Mirrored" variants are now the same as normal (no flipping)
      */
-    generateAllVariants(data: EfaydaData): Promise<{
+    generateAllVariants(data: EfaydaData, template?: TemplateType): Promise<{
         colorNormal: CardVariant;
         colorMirrored: CardVariant;
         grayscaleNormal: CardVariant;
@@ -22,18 +23,19 @@ export declare class CardVariantGenerator {
      * Generate mirrored variants only (as per requirements)
      * NOTE: Changed to generate NORMAL (non-mirrored) variants based on user feedback
      */
-    generateMirroredVariants(data: EfaydaData): Promise<{
+    generateMirroredVariants(data: EfaydaData, template?: TemplateType): Promise<{
         colorMirrored: Buffer;
         grayscaleMirrored: Buffer;
     }>;
     /**
      * Combine front and back cards into a single image (side by side like the example PNG)
+     * Output is scaled to a reasonable size for delivery
      */
     private combineCards;
     /**
      * Save generated files to disk and return file paths
      */
-    saveToFiles(data: EfaydaData, jobId: string): Promise<GeneratedFiles>;
+    saveToFiles(data: EfaydaData, jobId: string, template?: TemplateType): Promise<GeneratedFiles>;
     /**
      * Sanitize filename to remove invalid characters
      */

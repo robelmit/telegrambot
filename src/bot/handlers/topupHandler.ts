@@ -50,7 +50,7 @@ export async function handleTopupAmountCallback(ctx: BotContext): Promise<void> 
   const keyboard = Markup.inlineKeyboard([
     [
       Markup.button.callback('📱 Telebirr', 'topup_provider_telebirr'),
-      Markup.button.callback('🏦 CBE Birr', 'topup_provider_cbe')
+      Markup.button.callback('🏦 CBE', 'topup_provider_cbe')
     ]
   ]);
 
@@ -85,7 +85,7 @@ export async function handleTopupProviderCallback(ctx: BotContext): Promise<void
 
   let message = `💳 ${t(lang, 'payment_instructions')}\n\n`;
   message += `${t(lang, 'amount')}: ${amount} ETB\n`;
-  message += `${t(lang, 'provider')}: ${provider === 'telebirr' ? 'Telebirr' : 'CBE Birr'}\n\n`;
+  message += `${t(lang, 'provider')}: ${provider === 'telebirr' ? 'Telebirr' : 'CBE'}\n\n`;
   
   if (provider === 'telebirr') {
     message += `📱 ${t(lang, 'send_to_phone')}: ${instructions.recipientPhone}\n`;

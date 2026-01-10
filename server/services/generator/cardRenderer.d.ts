@@ -1,7 +1,9 @@
 import { EfaydaData } from '../../types';
+export type TemplateType = 'template0' | 'template1' | 'template2';
 export interface CardRenderOptions {
     variant: 'color' | 'grayscale';
     dpi?: number;
+    template?: TemplateType;
 }
 export declare function registerFonts(): void;
 export declare class CardRenderer {
@@ -21,8 +23,12 @@ export declare class CardRenderer {
     private applyGrayscale;
 }
 export default CardRenderer;
-export declare function getCardDimensions(): {
+export declare function getCardDimensions(template?: TemplateType): {
     width: number;
     height: number;
 };
+export declare function getAvailableTemplates(): {
+    id: TemplateType;
+    name: string;
+}[];
 //# sourceMappingURL=cardRenderer.d.ts.map

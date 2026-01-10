@@ -72,8 +72,8 @@ async function handleStart(ctx) {
         const keyboard = telegraf_1.Markup.keyboard([
             [(0, locales_1.t)(lang, 'btn_upload'), (0, locales_1.t)(lang, 'btn_balance')],
             [(0, locales_1.t)(lang, 'btn_topup'), (0, locales_1.t)(lang, 'btn_pricing')],
-            [(0, locales_1.t)(lang, 'btn_agent'), (0, locales_1.t)(lang, 'btn_language')],
-            [(0, locales_1.t)(lang, 'btn_help')]
+            [(0, locales_1.t)(lang, 'btn_template'), (0, locales_1.t)(lang, 'btn_agent')],
+            [(0, locales_1.t)(lang, 'btn_language'), (0, locales_1.t)(lang, 'btn_help')]
         ]).resize();
         await ctx.reply(welcomeMessage, keyboard);
         // Show available commands
@@ -84,6 +84,7 @@ async function handleStart(ctx) {
 /balance - ${(0, locales_1.t)(lang, 'cmd_balance_desc')}
 /topup - ${(0, locales_1.t)(lang, 'cmd_topup_desc')}
 /pricing - ${(0, locales_1.t)(lang, 'cmd_pricing_desc')}
+/template - Select ID card template
 /agent - ${(0, locales_1.t)(lang, 'cmd_agent_desc')}
 /language - ${(0, locales_1.t)(lang, 'cmd_language_desc')}
 /help - ${(0, locales_1.t)(lang, 'cmd_help_desc')}

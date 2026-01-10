@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CardRenderer = void 0;
 exports.registerFonts = registerFonts;
 exports.getCardDimensions = getCardDimensions;
+exports.getAvailableTemplates = getAvailableTemplates;
 /**
  * Card Renderer - EXACTLY like test-pdf-full.ts from commit a8d0b98
  */
@@ -16,9 +17,15 @@ const fs_1 = __importDefault(require("fs"));
 const jsbarcode_1 = __importDefault(require("jsbarcode"));
 const qrcode_1 = __importDefault(require("qrcode"));
 const sharp_1 = __importDefault(require("sharp"));
-// Load layout config - Use relative path for production
-const layout = JSON.parse(fs_1.default.readFileSync(path_1.default.join(__dirname, '../../config/cardLayout.json'), 'utf-8'));
-const { dimensions, front, back } = layout;
+// Load layout configs
+const layoutConfigs = {
+    template0: JSON.parse(fs_1.default.readFileSync(path_1.default.join(__dirname, '../../config/cardLayout.json'), 'utf-8')),
+    template1: JSON.parse(fs_1.default.readFileSync(path_1.default.join(__dirname, '../../config/cardLayout1.json'), 'utf-8')),
+    template2: JSON.parse(fs_1.default.readFileSync(path_1.default.join(__dirname, '../../config/cardLayout2.json'), 'utf-8'))
+};
+// Default layout for backward compatibility
+const layout = layoutConfigs.template0;
+const { dimensions } = layout;
 const FONTS_DIR = path_1.default.join(process.cwd(), 'src/assets/fonts');
 const TEMPLATE_DIR = path_1.default.join(process.cwd(), 'src/assets');
 let fontsRegistered = false;
@@ -150,10 +157,14 @@ class CardRenderer {
      * Render front card - EXACTLY like test script renderFrontCard function
      */
     async renderFront(data, options = { variant: 'color' }) {
+        const templateType = options.template || 'template0';
+        const layout = layoutConfigs[templateType];
+        const { dimensions, front } = layout;
+        const templateFile = layout.templateFiles?.front || 'front_template.png';
         const canvas = (0, canvas_1.createCanvas)(dimensions.width, dimensions.height);
         const ctx = canvas.getContext('2d');
         // Draw template
-        const template = await (0, canvas_1.loadImage)(path_1.default.join(TEMPLATE_DIR, 'front_template.png'));
+        const template = await (0, canvas_1.loadImage)(path_1.default.join(TEMPLATE_DIR, templateFile));
         ctx.drawImage(template, 0, 0, dimensions.width, dimensions.height);
         // Draw photo with transparent background (already grayscale from removeWhiteBackgroundSharp)
         if (data.photo) {
@@ -246,10 +257,14 @@ class CardRenderer {
      * Render back card - EXACTLY like test script renderBackCard function
      */
     async renderBack(data, options = { variant: 'color' }) {
+        const templateType = options.template || 'template0';
+        const layout = layoutConfigs[templateType];
+        const { dimensions, back } = layout;
+        const templateFile = layout.templateFiles?.back || 'back_template.png';
         const canvas = (0, canvas_1.createCanvas)(dimensions.width, dimensions.height);
         const ctx = canvas.getContext('2d');
         // Draw template
-        const template = await (0, canvas_1.loadImage)(path_1.default.join(TEMPLATE_DIR, 'back_template.png'));
+        const template = await (0, canvas_1.loadImage)(path_1.default.join(TEMPLATE_DIR, templateFile));
         ctx.drawImage(template, 0, 0, dimensions.width, dimensions.height);
         // Draw QR code - EXACTLY like test script
         if (data.qrCode) {
@@ -276,6 +291,16 @@ class CardRenderer {
         ctx.fillStyle = back.phoneNumber.color;
         ctx.font = `bold ${back.phoneNumber.fontSize}px Arial`;
         ctx.fillText(data.phoneNumber, back.phoneNumber.x, back.phoneNumber.y);
+        // Nationality (Amharic | English in one line)
+        if (back.nationality) {
+            ctx.fillStyle = back.nationality.color;
+            ctx.font = `bold ${back.nationality.fontSize}px Ebrima`;
+            const nationalityAmharic = 'ኢትዮጵያዊ';
+            ctx.fillText(nationalityAmharic, back.nationality.x, back.nationality.y);
+            const amharicWidth = ctx.measureText(nationalityAmharic).width;
+            ctx.font = `bold ${back.nationality.fontSize}px Arial`;
+            ctx.fillText(`  |  ${data.nationality || 'Ethiopian'}`, back.nationality.x + amharicWidth, back.nationality.y);
+        }
         // Region - EXACTLY like test script
         ctx.fillStyle = back.regionAmharic.color;
         ctx.font = `bold ${back.regionAmharic.fontSize}px Ebrima`;
@@ -325,7 +350,14 @@ class CardRenderer {
 }
 exports.CardRenderer = CardRenderer;
 exports.default = CardRenderer;
-function getCardDimensions() {
-    return { width: dimensions.width, height: dimensions.height };
+function getCardDimensions(template = 'template0') {
+    const layout = layoutConfigs[template];
+    return { width: layout.dimensions.width, height: layout.dimensions.height };
+}
+function getAvailableTemplates() {
+    return Object.entries(layoutConfigs).map(([id, config]) => ({
+        id: id,
+        name: config.templateName || id
+    }));
 }
 //# sourceMappingURL=cardRenderer.js.map

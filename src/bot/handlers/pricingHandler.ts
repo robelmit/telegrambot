@@ -31,7 +31,7 @@ export async function handlePricing(ctx: BotContext): Promise<void> {
   
   message += `\n📱 ${t(lang, 'payment_methods')}:\n`;
   message += `• Telebirr\n`;
-  message += `• CBE Birr\n\n`;
+  message += `• CBE\n\n`;
   
   message += `ℹ️ ${t(lang, 'pricing_note')}`;
 

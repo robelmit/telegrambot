@@ -3,13 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IDGeneratorService = exports.PDFGenerator = exports.CardVariantGenerator = exports.registerFonts = exports.CardRenderer = exports.ImageProcessor = void 0;
+exports.IDGeneratorService = exports.PDFGenerator = exports.CardVariantGenerator = exports.getAvailableTemplates = exports.registerFonts = exports.CardRenderer = exports.ImageProcessor = void 0;
 exports.getIDGeneratorService = getIDGeneratorService;
 var imageProcessor_1 = require("./imageProcessor");
 Object.defineProperty(exports, "ImageProcessor", { enumerable: true, get: function () { return imageProcessor_1.ImageProcessor; } });
 var cardRenderer_1 = require("./cardRenderer");
 Object.defineProperty(exports, "CardRenderer", { enumerable: true, get: function () { return cardRenderer_1.CardRenderer; } });
 Object.defineProperty(exports, "registerFonts", { enumerable: true, get: function () { return cardRenderer_1.registerFonts; } });
+Object.defineProperty(exports, "getAvailableTemplates", { enumerable: true, get: function () { return cardRenderer_1.getAvailableTemplates; } });
 var cardVariantGenerator_1 = require("./cardVariantGenerator");
 Object.defineProperty(exports, "CardVariantGenerator", { enumerable: true, get: function () { return cardVariantGenerator_1.CardVariantGenerator; } });
 var pdfGenerator_1 = require("./pdfGenerator");
@@ -35,13 +36,13 @@ class IDGeneratorService {
      * Generate all output files for a job
      * Returns: 2 mirrored PNG images + 2 mirrored A4 PDFs
      */
-    async generateAll(data, jobId) {
+    async generateAll(data, jobId, template) {
         try {
-            logger_1.default.info(`Starting ID generation for job: ${jobId}`);
+            logger_1.default.info(`Starting ID generation for job: ${jobId} with template: ${template || 'template0'}`);
             // Ensure output directory exists
             await promises_1.default.mkdir(this.outputDir, { recursive: true });
             // Generate PNG files
-            const pngFiles = await this.cardGenerator.saveToFiles(data, jobId);
+            const pngFiles = await this.cardGenerator.saveToFiles(data, jobId, template);
             // Generate A4 PDFs from the PNG files
             await this.pdfGenerator.generateA4PDF(pngFiles.colorMirroredPng, pngFiles.colorMirroredPdf, { title: `ID Card - ${data.fullNameEnglish} (Color)` });
             await this.pdfGenerator.generateA4PDF(pngFiles.grayscaleMirroredPng, pngFiles.grayscaleMirroredPdf, { title: `ID Card - ${data.fullNameEnglish} (Grayscale)` });

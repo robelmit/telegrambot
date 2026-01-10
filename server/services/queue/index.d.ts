@@ -2,12 +2,14 @@ import { SimpleQueue, QueueJob } from '../../utils/simpleQueue';
 import { PDFService } from '../pdf';
 import { IDGeneratorService } from '../generator';
 import { WalletService } from '../payment';
+export type TemplateType = 'template0' | 'template1' | 'template2';
 export interface IDGenerationJobData {
     jobId: string;
     userId: string;
     telegramId: number;
     pdfPath: string;
     chatId: number;
+    template?: TemplateType;
 }
 export interface JobProcessorDependencies {
     pdfService: PDFService;

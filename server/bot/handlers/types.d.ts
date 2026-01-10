@@ -1,6 +1,7 @@
 import { Context } from 'telegraf';
 import { Update } from 'telegraf/types';
 import { Language } from '../../types';
+export type TemplateType = 'template0' | 'template1' | 'template2';
 export interface SessionData {
     userId?: string;
     language: Language;
@@ -8,6 +9,7 @@ export interface SessionData {
     selectedProvider?: 'telebirr' | 'cbe';
     selectedAmount?: number;
     awaitingPdf?: boolean;
+    selectedTemplate?: TemplateType;
     adminAction?: 'find_user' | 'add_balance' | 'ban_user' | 'unban_user' | 'make_admin' | 'broadcast';
 }
 export interface BotContext extends Context<Update> {

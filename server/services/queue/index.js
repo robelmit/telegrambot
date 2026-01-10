@@ -58,8 +58,8 @@ function initializeJobQueue(deps, concurrency = 3) {
     });
     // Register processor
     jobQueue.process(async (job) => {
-        const { jobId, pdfPath } = job.data;
-        logger_1.default.info(`Processing job ${jobId} for user ${job.data.telegramId}`);
+        const { jobId, pdfPath, template } = job.data;
+        logger_1.default.info(`Processing job ${jobId} for user ${job.data.telegramId} with template ${template || 'template0'}`);
         // Update job status to processing
         await Job_1.default.findByIdAndUpdate(jobId, {
             status: 'processing',
@@ -77,8 +77,8 @@ function initializeJobQueue(deps, concurrency = 3) {
         await Job_1.default.findByIdAndUpdate(jobId, {
             extractedData: parseResult.data
         });
-        // Generate ID cards
-        const generatedFiles = await deps.idGenerator.generateAll(parseResult.data, jobId);
+        // Generate ID cards with selected template
+        const generatedFiles = await deps.idGenerator.generateAll(parseResult.data, jobId, template);
         // Verify all files exist
         const filesExist = await deps.idGenerator.verifyFiles(generatedFiles);
         if (!filesExist) {

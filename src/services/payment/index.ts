@@ -29,7 +29,7 @@ export function generatePaymentInstructions(
 ): PaymentInstructions {
   const telebirrPhone = process.env.TELEBIRR_RECEIVER_PHONE || '09XXXXXXXX';
   const cbeAccount = process.env.CBE_RECEIVER_ACCOUNT || '1000XXXXXXXX';
-  const recipientName = process.env.PAYMENT_RECIPIENT_NAME || 'eFayda ID Service';
+  const recipientName = process.env.PAYMENT_RECIPIENT_NAME || 'Robel Tsegay';
 
   if (provider === 'telebirr') {
     return {
@@ -45,7 +45,7 @@ export function generatePaymentInstructions(
       amount,
       recipientAccount: cbeAccount,
       recipientName,
-      instructions: `Transfer ${amount} ETB to account ${cbeAccount} via CBE Birr, then submit your transaction ID.`
+      instructions: `Transfer ${amount} ETB to account ${cbeAccount} via CBE, then submit your transaction ID.`
     };
   }
 }

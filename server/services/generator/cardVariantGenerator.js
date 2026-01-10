@@ -20,17 +20,17 @@ class CardVariantGenerator {
      * Generate all card variants (color/grayscale, normal/mirrored)
      * NOTE: "Mirrored" variants are now the same as normal (no flipping)
      */
-    async generateAllVariants(data) {
+    async generateAllVariants(data, template) {
         try {
             // Generate color variants
-            const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color' });
-            const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color' });
+            const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color', template });
+            const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color', template });
             // Generate grayscale variants
-            const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale' });
-            const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale' });
+            const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale', template });
+            const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale', template });
             // Combine front and back into single images (NO mirroring)
-            const colorNormalCombined = await this.combineCards(colorFront, colorBack);
-            const grayscaleNormalCombined = await this.combineCards(grayscaleFront, grayscaleBack);
+            const colorNormalCombined = await this.combineCards(colorFront, colorBack, template);
+            const grayscaleNormalCombined = await this.combineCards(grayscaleFront, grayscaleBack, template);
             return {
                 colorNormal: {
                     front: colorFront,
@@ -63,17 +63,17 @@ class CardVariantGenerator {
      * Generate mirrored variants only (as per requirements)
      * NOTE: Changed to generate NORMAL (non-mirrored) variants based on user feedback
      */
-    async generateMirroredVariants(data) {
+    async generateMirroredVariants(data, template) {
         try {
             // Generate color cards
-            const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color' });
-            const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color' });
+            const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color', template });
+            const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color', template });
             // Generate grayscale cards
-            const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale' });
-            const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale' });
+            const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale', template });
+            const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale', template });
             // Combine front and back (NO mirroring - return normal images)
-            const colorCombined = await this.combineCards(colorFront, colorBack);
-            const grayscaleCombined = await this.combineCards(grayscaleFront, grayscaleBack);
+            const colorCombined = await this.combineCards(colorFront, colorBack, template);
+            const grayscaleCombined = await this.combineCards(grayscaleFront, grayscaleBack, template);
             return {
                 colorMirrored: colorCombined,
                 grayscaleMirrored: grayscaleCombined
@@ -86,17 +86,31 @@ class CardVariantGenerator {
     }
     /**
      * Combine front and back cards into a single image (side by side like the example PNG)
+     * Output is scaled to a reasonable size for delivery
      */
-    async combineCards(front, back) {
+    async combineCards(front, back, template) {
         try {
-            const { width, height } = this.cardRenderer.getCardDimensions();
+            const { width, height } = (0, cardRenderer_1.getCardDimensions)(template);
             const gap = 30; // Gap between cards
             const totalWidth = width * 2 + gap;
+            // Target output width (standard size for all templates)
+            const targetWidth = 2054; // Same as Template 1 combined width
+            const scale = targetWidth / totalWidth;
+            const targetHeight = Math.round(height * scale);
+            const scaledGap = Math.round(gap * scale);
+            const scaledWidth = Math.round(width * scale);
+            // Scale front and back images first
+            const scaledFront = await (0, sharp_1.default)(front)
+                .resize(scaledWidth, targetHeight)
+                .toBuffer();
+            const scaledBack = await (0, sharp_1.default)(back)
+                .resize(scaledWidth, targetHeight)
+                .toBuffer();
             // Create canvas (horizontal layout like the example PNG)
             const canvas = await (0, sharp_1.default)({
                 create: {
-                    width: totalWidth,
-                    height: height,
+                    width: targetWidth,
+                    height: targetHeight,
                     channels: 4,
                     background: { r: 255, g: 255, b: 255, alpha: 1 }
                 }
@@ -106,8 +120,8 @@ class CardVariantGenerator {
             // Composite front and back (side by side)
             return await (0, sharp_1.default)(canvas)
                 .composite([
-                { input: back, left: 0, top: 0 }, // Back card on left
-                { input: front, left: width + gap, top: 0 } // Front card on right
+                { input: scaledBack, left: 0, top: 0 }, // Back card on left
+                { input: scaledFront, left: scaledWidth + scaledGap, top: 0 } // Front card on right
             ])
                 .png()
                 .toBuffer();
@@ -120,12 +134,12 @@ class CardVariantGenerator {
     /**
      * Save generated files to disk and return file paths
      */
-    async saveToFiles(data, jobId) {
+    async saveToFiles(data, jobId, template) {
         try {
             // Ensure output directory exists
             await promises_1.default.mkdir(this.outputDir, { recursive: true });
             // Generate mirrored variants
-            const { colorMirrored, grayscaleMirrored } = await this.generateMirroredVariants(data);
+            const { colorMirrored, grayscaleMirrored } = await this.generateMirroredVariants(data, template);
             // Generate safe filename from user name
             const safeName = this.sanitizeFilename(data.fullNameEnglish);
             // Define file paths

@@ -1,8 +1,9 @@
 export { ImageProcessor } from './imageProcessor';
-export { CardRenderer, CardRenderOptions, registerFonts } from './cardRenderer';
+export { CardRenderer, CardRenderOptions, registerFonts, TemplateType, getAvailableTemplates } from './cardRenderer';
 export { CardVariantGenerator, CardVariant } from './cardVariantGenerator';
 export { PDFGenerator, A4PDFOptions } from './pdfGenerator';
 import { EfaydaData, GeneratedFiles } from '../../types';
+import { TemplateType } from './cardRenderer';
 /**
  * Main ID Generation Service
  * Orchestrates the complete ID card generation process
@@ -16,7 +17,7 @@ export declare class IDGeneratorService {
      * Generate all output files for a job
      * Returns: 2 mirrored PNG images + 2 mirrored A4 PDFs
      */
-    generateAll(data: EfaydaData, jobId: string): Promise<GeneratedFiles>;
+    generateAll(data: EfaydaData, jobId: string, template?: TemplateType): Promise<GeneratedFiles>;
     /**
      * Clean up generated files for a job
      */

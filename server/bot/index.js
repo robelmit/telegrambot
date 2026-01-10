@@ -19,7 +19,8 @@ function createBot(token) {
         defaultSession: () => ({
             language: 'en',
             awaitingTransactionId: false,
-            awaitingPdf: false
+            awaitingPdf: false,
+            selectedTemplate: 'template0'
         })
     }));
     // Error handling middleware
@@ -53,9 +54,11 @@ function createBot(token) {
     bot.command('settings', handlers_1.handleSettings);
     bot.command('help', handlers_1.handleHelp);
     bot.command('agent', handlers_1.handleAgent);
+    bot.command('template', handlers_1.handleTemplate);
     bot.command('admin', handlers_1.handleAdmin);
     // Callback query handlers
     bot.action(/^lang_/, handlers_1.handleLanguageCallback);
+    bot.action(/^template_/, handlers_1.handleTemplateCallback);
     bot.action(/^topup_amount_/, handlers_1.handleTopupAmountCallback);
     bot.action(/^topup_provider_/, handlers_1.handleTopupProviderCallback);
     bot.action('topup_cancel', handlers_1.handleTopupCancel);
@@ -114,7 +117,8 @@ function createBot(token) {
             [(0, locales_1.t)(lang, 'btn_pricing')]: () => (0, handlers_1.handlePricing)(ctx),
             [(0, locales_1.t)(lang, 'btn_language')]: () => (0, handlers_1.handleLanguage)(ctx),
             [(0, locales_1.t)(lang, 'btn_help')]: () => (0, handlers_1.handleHelp)(ctx),
-            [(0, locales_1.t)(lang, 'btn_agent')]: () => (0, handlers_1.handleAgent)(ctx)
+            [(0, locales_1.t)(lang, 'btn_agent')]: () => (0, handlers_1.handleAgent)(ctx),
+            [(0, locales_1.t)(lang, 'btn_template')]: () => (0, handlers_1.handleTemplate)(ctx)
         };
         const handler = buttonMap[text];
         if (handler) {
@@ -131,6 +135,7 @@ async function startBot(bot) {
         { command: 'balance', description: 'Check wallet balance' },
         { command: 'topup', description: 'Top up wallet' },
         { command: 'pricing', description: 'View pricing' },
+        { command: 'template', description: 'Select ID card template' },
         { command: 'agent', description: 'Agent/Referral program' },
         { command: 'language', description: 'Change language' },
         { command: 'settings', description: 'Bot settings' },
