@@ -11,12 +11,13 @@ import QRCode from 'qrcode';
 import sharp from 'sharp';
 
 // Template type
-export type TemplateType = 'template0' | 'template1';
+export type TemplateType = 'template0' | 'template1' | 'template2';
 
 // Load layout configs
 const layoutConfigs: Record<TemplateType, any> = {
   template0: JSON.parse(fs.readFileSync(path.join(__dirname, '../../config/cardLayout.json'), 'utf-8')),
-  template1: JSON.parse(fs.readFileSync(path.join(__dirname, '../../config/cardLayout1.json'), 'utf-8'))
+  template1: JSON.parse(fs.readFileSync(path.join(__dirname, '../../config/cardLayout1.json'), 'utf-8')),
+  template2: JSON.parse(fs.readFileSync(path.join(__dirname, '../../config/cardLayout2.json'), 'utf-8'))
 };
 
 // Default layout for backward compatibility

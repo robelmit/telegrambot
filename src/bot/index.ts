@@ -57,7 +57,7 @@ export function createBot(token: string): Telegraf<BotContext> {
       language: 'en',
       awaitingTransactionId: false,
       awaitingPdf: false,
-      selectedTemplate: 'template1'
+      selectedTemplate: 'template0'
     })
   }));
 

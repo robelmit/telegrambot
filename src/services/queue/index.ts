@@ -5,7 +5,7 @@ import { WalletService } from '../payment';
 import JobModel from '../../models/Job';
 import logger from '../../utils/logger';
 
-export type TemplateType = 'template0' | 'template1';
+export type TemplateType = 'template0' | 'template1' | 'template2';
 
 export interface IDGenerationJobData {
   jobId: string;

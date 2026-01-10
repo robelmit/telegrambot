@@ -2,6 +2,9 @@ import { BotContext, TemplateType } from './types';
 import { t } from '../../locales';
 import { Markup } from 'telegraf';
 import { getAvailableTemplates } from '../../services/generator/cardRenderer';
+import { getTemplatePreview } from '../../services/generator/templatePreview';
+import { Input } from 'telegraf';
+import logger from '../../utils/logger';
 
 export async function handleTemplate(ctx: BotContext): Promise<void> {
   const lang = ctx.session.language || 'en';
@@ -14,10 +17,24 @@ export async function handleTemplate(ctx: BotContext): Promise<void> {
     return [Markup.button.callback(label, `template_${template.id}`)];
   });
   
-  await ctx.reply(
-    t(lang, 'select_template'),
-    Markup.inlineKeyboard(buttons)
-  );
+  try {
+    // Send preview image with selection buttons
+    const previewBuffer = getTemplatePreview();
+    await ctx.replyWithPhoto(
+      Input.fromBuffer(previewBuffer, 'template_preview.png'),
+      {
+        caption: t(lang, 'select_template'),
+        ...Markup.inlineKeyboard(buttons)
+      }
+    );
+  } catch (error) {
+    logger.error('Failed to send template preview:', error);
+    // Fallback to text-only if preview fails
+    await ctx.reply(
+      t(lang, 'select_template'),
+      Markup.inlineKeyboard(buttons)
+    );
+  }
 }
 
 export async function handleTemplateCallback(ctx: BotContext): Promise<void> {
@@ -35,10 +52,23 @@ export async function handleTemplateCallback(ctx: BotContext): Promise<void> {
   
   await ctx.answerCbQuery(t(lang, 'template_selected'));
   
-  await ctx.editMessageText(
-    t(lang, 'template_changed', { template: selectedTemplate?.name || templateId }),
-    Markup.inlineKeyboard([])
-  );
+  // Update the caption since it's a photo message
+  try {
+    await ctx.editMessageCaption(
+      t(lang, 'template_changed', { template: selectedTemplate?.name || templateId }),
+      Markup.inlineKeyboard([])
+    );
+  } catch {
+    // If editing caption fails, try editing message text (for text-only fallback)
+    try {
+      await ctx.editMessageText(
+        t(lang, 'template_changed', { template: selectedTemplate?.name || templateId }),
+        Markup.inlineKeyboard([])
+      );
+    } catch {
+      // Ignore if both fail
+    }
+  }
 }
 
 export default { handleTemplate, handleTemplateCallback };

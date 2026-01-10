@@ -2,7 +2,7 @@ import { Context } from 'telegraf';
 import { Update } from 'telegraf/types';
 import { Language } from '../../types';
 
-export type TemplateType = 'template0' | 'template1';
+export type TemplateType = 'template0' | 'template1' | 'template2';
 
 export interface SessionData {
   userId?: string;
