@@ -68,11 +68,12 @@ export interface TransactionVerification {
 }
 
 // Generated files interface
+// Note: Files are named "mirrored" for backward compatibility but are NOT actually mirrored
 export interface GeneratedFiles {
-  colorMirroredPng: string;
-  grayscaleMirroredPng: string;
-  colorMirroredPdf: string;
-  grayscaleMirroredPdf: string;
+  colorMirroredPng: string;      // Color PNG (not mirrored)
+  grayscaleMirroredPng: string;  // Grayscale PNG (not mirrored)
+  colorMirroredPdf: string;      // Color PDF (not mirrored)
+  grayscaleMirroredPdf: string;  // Grayscale PDF (not mirrored)
 }
 
 // Card generator options

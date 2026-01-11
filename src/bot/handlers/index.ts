@@ -1,3 +1,4 @@
+// Handler exports
 export * from './types';
 export { handleStart } from './startHandler';
 export { handleLanguage, handleLanguageCallback } from './languageHandler';
@@ -14,6 +15,15 @@ export { handlePricing } from './pricingHandler';
 export { handleSettings, handleSettingsCallback } from './settingsHandler';
 export { handleHelp } from './helpHandler';
 export { handleTemplate, handleTemplateCallback } from './templateHandler';
+export {
+  handleBulk,
+  handleBulkDocument,
+  handleBulkDone,
+  handleBulkCancel,
+  handleBulkDoneCallback,
+  handleBulkCancelCallback,
+  isInBulkMode
+} from './bulkHandler';
 export {
   handleAgent,
   handleAgentRegister,

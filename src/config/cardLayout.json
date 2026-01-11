@@ -2,8 +2,11 @@
   "templateId": "template0",
   "templateName": "Template 1",
   "dimensions": {
-    "width": 2550,
-    "height": 1620
+    "width": 1024,
+    "height": 646,
+    "widthCm": 8.67,
+    "heightCm": 5.47,
+    "dpi": 300
   },
   "templateFiles": {
     "front": "front3.png",
@@ -11,176 +14,176 @@
   },
   "front": {
     "mainPhoto": {
-      "x": 168,
-      "y": 449,
-      "width": 794,
-      "height": 1008
+      "x": 67,
+      "y": 179,
+      "width": 318,
+      "height": 403
     },
     "smallPhoto": {
-      "x": 2088,
-      "y": 1155,
-      "width": 302,
-      "height": 323
+      "x": 837,
+      "y": 461,
+      "width": 121,
+      "height": 129
     },
     "nameAmharic": {
-      "x": 1020,
-      "y": 428,
-      "fontSize": 80,
+      "x": 409,
+      "y": 171,
+      "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(33, 33, 33)",
       "fontFamily": "Ebrima"
     },
     "nameEnglish": {
-      "x": 1020,
-      "y": 524,
-      "fontSize": 80,
+      "x": 409,
+      "y": 209,
+      "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(33, 33, 33)",
       "fontFamily": "Arial"
     },
     "dateOfBirth": {
-      "x": 1020,
-      "y": 776,
-      "fontSize": 80,
+      "x": 409,
+      "y": 310,
+      "fontSize": 32,
       "fontWeight": "600",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Arial"
     },
     "sex": {
-      "x": 1020,
-      "y": 940,
-      "fontSize": 80,
+      "x": 409,
+      "y": 376,
+      "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Ebrima"
     },
     "expiryDate": {
-      "x": 1020,
-      "y": 1110,
-      "fontSize": 80,
+      "x": 409,
+      "y": 444,
+      "fontSize": 32,
       "fontWeight": "600",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Arial"
     },
     "dateOfIssueEthiopian": {
-      "x": 64,
-      "y": 1285,
-      "fontSize": 55,
+      "x": 26,
+      "y": 514,
+      "fontSize": 22,
       "fontWeight": "700",
       "color": "rgb(60, 60, 60)",
       "rotation": -90,
       "fontFamily": "Arial"
     },
     "dateOfIssueGregorian": {
-      "x": 60,
-      "y": 630,
-      "fontSize": 55,
+      "x": 24,
+      "y": 252,
+      "fontSize": 22,
       "fontWeight": "700",
       "color": "rgb(60, 60, 60)",
       "rotation": -90,
       "fontFamily": "Arial"
     },
     "fan": {
-      "x": 1165,
-      "y": 1235,
-      "fontSize": 64,
+      "x": 467,
+      "y": 494,
+      "fontSize": 26,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "OCR-B"
     },
     "barcode": {
-      "x": 1170,
-      "y": 1320,
-      "width": 680,
-      "height": 120,
+      "x": 469,
+      "y": 528,
+      "width": 272,
+      "height": 48,
       "type": "Code128"
     }
   },
   "back": {
     "phoneNumber": {
-      "x": 54,
-      "y": 202,
-      "fontSize": 75,
+      "x": 22,
+      "y": 81,
+      "fontSize": 30,
       "fontWeight": "500",
       "color": "rgb(33, 33, 33)",
       "fontFamily": "Arial"
     },
     "regionAmharic": {
-      "x": 54,
-      "y": 580,
-      "fontSize": 75,
+      "x": 22,
+      "y": 232,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Ebrima"
     },
     "regionEnglish": {
-      "x": 54,
-      "y": 680,
-      "fontSize": 75,
+      "x": 22,
+      "y": 272,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Arial"
     },
     "zoneAmharic": {
-      "x": 54,
-      "y": 769,
-      "fontSize": 75,
+      "x": 22,
+      "y": 308,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Ebrima"
     },
     "zoneEnglish": {
-      "x": 54,
-      "y": 857,
-      "fontSize": 75,
+      "x": 22,
+      "y": 343,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Arial"
     },
     "woredaAmharic": {
-      "x": 54,
-      "y": 933,
-      "fontSize": 70,
+      "x": 22,
+      "y": 373,
+      "fontSize": 28,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Ebrima"
     },
     "woredaEnglish": {
-      "x": 54,
-      "y": 1023,
-      "fontSize": 75,
+      "x": 22,
+      "y": 409,
+      "fontSize": 30,
       "fontWeight": "500",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Arial"
     },
     "fin": {
-      "x": 330,
-      "y": 1312,
-      "fontSize": 80,
+      "x": 132,
+      "y": 525,
+      "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "OCR-B"
     },
     "serialNumber": {
-      "x": 2100,
-      "y": 1440,
-      "fontSize": 80,
+      "x": 841,
+      "y": 576,
+      "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Arial"
     },
     "nationality": {
-      "x": 54,
-      "y": 415,
-      "fontSize": 75,
+      "x": 22,
+      "y": 166,
+      "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)"
     },
     "qrCode": {
-      "x": 1120,
-      "y": 89,
-      "width": 1323,
-      "height": 1323
+      "x": 449,
+      "y": 36,
+      "width": 530,
+      "height": 530
     }
   },
   "fonts": {

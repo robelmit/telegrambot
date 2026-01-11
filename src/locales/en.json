@@ -4,6 +4,7 @@
   "available_commands": "Available Commands",
   
   "btn_upload": "📄 Upload PDF",
+  "btn_bulk": "📦 Bulk Upload",
   "btn_balance": "💰 Balance",
   "btn_topup": "💳 Top Up",
   "btn_pricing": "💵 Pricing",

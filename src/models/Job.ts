@@ -20,6 +20,16 @@ export interface IJob extends Document {
   createdAt: Date;
   completedAt?: Date;
   expiresAt: Date;
+  // Bulk processing fields
+  isBulk?: boolean;
+  bulkIndex?: number;
+  bulkGroupId?: string;
+  bulkBatchIndex?: number;
+  bulkIndexInBatch?: number;
+  bulkTotalFiles?: number;
+  bulkFilesPerPdf?: number;
+  bulkTotalBatches?: number;
+  template?: string;
 }
 
 const OutputFileSchema = new Schema<IOutputFile>({
@@ -70,6 +80,37 @@ const JobSchema = new Schema<IJob>({
   expiresAt: { 
     type: Date,
     default: () => new Date(Date.now() + 3600000) // 1 hour from now
+  },
+  // Bulk processing fields
+  isBulk: {
+    type: Boolean,
+    default: false
+  },
+  bulkIndex: {
+    type: Number
+  },
+  bulkGroupId: {
+    type: String,
+    index: true
+  },
+  bulkBatchIndex: {
+    type: Number
+  },
+  bulkIndexInBatch: {
+    type: Number
+  },
+  bulkTotalFiles: {
+    type: Number
+  },
+  bulkFilesPerPdf: {
+    type: Number
+  },
+  bulkTotalBatches: {
+    type: Number
+  },
+  template: {
+    type: String,
+    default: 'template0'
   }
 }, {
   timestamps: { createdAt: true, updatedAt: false }

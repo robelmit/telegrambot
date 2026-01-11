@@ -70,6 +70,46 @@ async function main() {
           logger.error('File delivery failed:', error);
         }
       },
+      onBulkBatchComplete: async (_bulkGroupId, batchIndex, combinedFiles, chatId, _telegramId) => {
+        try {
+          // Send combined PDF to user
+          const fs = await import('fs');
+          
+          for (const filePath of combinedFiles) {
+            if (fs.existsSync(filePath)) {
+              await bot.telegram.sendDocument(chatId, {
+                source: filePath,
+                filename: `bulk_ids_batch_${batchIndex + 1}.pdf`
+              }, {
+                caption: `📄 Bulk ID Cards - Batch ${batchIndex + 1}\n\n` +
+                  `Contains multiple ID cards ready for printing.\n` +
+                  `Print at 100% scale for correct size.`
+              });
+              
+              logger.info(`Delivered bulk batch ${batchIndex + 1} to chat ${chatId}`);
+              
+              // Cleanup after 2 minutes
+              setTimeout(async () => {
+                try {
+                  await fs.promises.unlink(filePath);
+                  logger.info(`Cleaned up bulk PDF: ${filePath}`);
+                } catch (e) {
+                  // Ignore cleanup errors
+                }
+              }, 120000);
+            }
+          }
+        } catch (error) {
+          logger.error('Bulk batch delivery failed:', error);
+          try {
+            await bot.telegram.sendMessage(chatId, 
+              `❌ Failed to deliver batch ${batchIndex + 1}. Please contact support.`
+            );
+          } catch (e) {
+            // Ignore notification errors
+          }
+        }
+      },
       onFailed: async (job, error) => {
         const { chatId } = job.data;
         try {

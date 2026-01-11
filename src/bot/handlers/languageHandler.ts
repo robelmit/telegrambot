@@ -67,11 +67,12 @@ export async function handleLanguageCallback(ctx: BotContext): Promise<void> {
       `✅ ${t(newLang, 'language_set_to')} ${langNames[newLang]}`
     );
 
-    // Show updated main menu
+    // Show updated main menu - Bulk on top row, no Pricing button
     const keyboard = Markup.keyboard([
-      [t(newLang, 'btn_upload'), t(newLang, 'btn_balance')],
-      [t(newLang, 'btn_topup'), t(newLang, 'btn_pricing')],
-      [t(newLang, 'btn_language'), t(newLang, 'btn_help')]
+      [t(newLang, 'btn_upload'), t(newLang, 'btn_bulk')],
+      [t(newLang, 'btn_topup'), t(newLang, 'btn_balance')],
+      [t(newLang, 'btn_template'), t(newLang, 'btn_agent')],
+      [t(newLang, 'btn_help'), t(newLang, 'btn_language')]
     ]).resize();
 
     await ctx.reply(t(newLang, 'menu_updated'), keyboard);

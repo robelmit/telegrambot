@@ -12,6 +12,8 @@ export interface SessionData {
   selectedAmount?: number;
   awaitingPdf?: boolean;
   selectedTemplate?: TemplateType;
+  // Bulk upload mode
+  awaitingBulkPdf?: boolean;
   // Admin
   adminAction?: 'find_user' | 'add_balance' | 'ban_user' | 'unban_user' | 'make_admin' | 'broadcast';
 }

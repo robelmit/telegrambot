@@ -2,8 +2,11 @@
   "templateId": "template2",
   "templateName": "Template 3",
   "dimensions": {
-    "width": 1012,
-    "height": 638
+    "width": 1024,
+    "height": 646,
+    "widthCm": 8.67,
+    "heightCm": 5.47,
+    "dpi": 300
   },
   "templateFiles": {
     "front": "front_template.png",
@@ -11,52 +14,52 @@
   },
   "front": {
     "mainPhoto": {
-      "x": 67,
-      "y": 178,
-      "width": 315,
-      "height": 400
+      "x": 68,
+      "y": 180,
+      "width": 319,
+      "height": 405
     },
     "smallPhoto": {
-      "x": 828,
-      "y": 458,
-      "width": 120,
-      "height": 128
+      "x": 838,
+      "y": 464,
+      "width": 122,
+      "height": 130
     },
     "nameAmharic": {
-      "x": 402,
-      "y": 170,
+      "x": 407,
+      "y": 172,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(33, 33, 33)",
       "fontFamily": "Inter"
     },
     "nameEnglish": {
-      "x": 402,
-      "y": 208,
+      "x": 407,
+      "y": 211,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(33, 33, 33)",
       "fontFamily": "Inter"
     },
     "dateOfBirth": {
-      "x": 402,
-      "y": 308,
+      "x": 407,
+      "y": 312,
       "fontSize": 32,
       "fontWeight": "600",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
     },
     "sex": {
-      "x": 402,
-      "y": 375,
+      "x": 407,
+      "y": 380,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
     },
     "expiryDate": {
-      "x": 402,
-      "y": 450,
+      "x": 407,
+      "y": 456,
       "fontSize": 32,
       "fontWeight": "600",
       "color": "rgb(0, 0, 0)",
@@ -64,7 +67,7 @@
     },
     "dateOfIssueEthiopian": {
       "x": 20,
-      "y": 510,
+      "y": 517,
       "fontSize": 22,
       "fontWeight": "700",
       "color": "rgb(60, 60, 60)",
@@ -73,7 +76,7 @@
     },
     "dateOfIssueGregorian": {
       "x": 20,
-      "y": 250,
+      "y": 253,
       "fontSize": 22,
       "fontWeight": "700",
       "color": "rgb(60, 60, 60)",
@@ -81,25 +84,25 @@
       "fontFamily": "Inter"
     },
     "fan": {
-      "x": 455,
-      "y": 500,
+      "x": 461,
+      "y": 507,
       "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "OCR-B"
     },
     "barcode": {
-      "x": 448,
-      "y": 528,
-      "width": 350,
-      "height": 65,
+      "x": 454,
+      "y": 535,
+      "width": 355,
+      "height": 66,
       "type": "Code128"
     }
   },
   "back": {
     "phoneNumber": {
       "x": 30,
-      "y": 80,
+      "y": 81,
       "fontSize": 30,
       "fontWeight": "500",
       "color": "rgb(33, 33, 33)",
@@ -107,14 +110,14 @@
     },
     "nationality": {
       "x": 30,
-      "y": 155,
+      "y": 157,
       "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)"
     },
     "regionAmharic": {
       "x": 30,
-      "y": 230,
+      "y": 233,
       "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
@@ -122,7 +125,7 @@
     },
     "regionEnglish": {
       "x": 30,
-      "y": 270,
+      "y": 274,
       "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
@@ -130,7 +133,7 @@
     },
     "zoneAmharic": {
       "x": 30,
-      "y": 305,
+      "y": 309,
       "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
@@ -138,7 +141,7 @@
     },
     "zoneEnglish": {
       "x": 30,
-      "y": 340,
+      "y": 345,
       "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
@@ -146,7 +149,7 @@
     },
     "woredaAmharic": {
       "x": 30,
-      "y": 370,
+      "y": 375,
       "fontSize": 28,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
@@ -154,33 +157,33 @@
     },
     "woredaEnglish": {
       "x": 30,
-      "y": 406,
+      "y": 412,
       "fontSize": 30,
       "fontWeight": "500",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
     },
     "fin": {
-      "x": 130,
-      "y": 525,
+      "x": 132,
+      "y": 532,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "OCR-B"
     },
     "serialNumber": {
-      "x": 815,
-      "y": 580,
+      "x": 826,
+      "y": 588,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
     },
     "qrCode": {
-      "x": 450,
+      "x": 456,
       "y": 37,
-      "width": 525,
-      "height": 525
+      "width": 532,
+      "height": 532
     }
   },
   "fonts": {

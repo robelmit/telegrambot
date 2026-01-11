@@ -25,6 +25,14 @@ import {
   handleAgentShare,
   handleAgentWithdraw,
   handleAgentBack,
+  // Bulk handlers
+  handleBulk,
+  handleBulkDocument,
+  handleBulkDone,
+  handleBulkCancel,
+  handleBulkDoneCallback,
+  handleBulkCancelCallback,
+  isInBulkMode,
   // Admin handlers
   handleAdmin,
   handleAdminStats,
@@ -57,6 +65,7 @@ export function createBot(token: string): Telegraf<BotContext> {
       language: 'en',
       awaitingTransactionId: false,
       awaitingPdf: false,
+      awaitingBulkPdf: false,
       selectedTemplate: 'template0'
     })
   }));
@@ -97,6 +106,15 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.command('agent', handleAgent);
   bot.command('template', handleTemplate);
   bot.command('admin', handleAdmin);
+  
+  // Bulk upload commands
+  bot.command('bulk', handleBulk);
+  bot.command('bulkdone', handleBulkDone);
+  bot.command('bulkcancel', handleBulkCancel);
+  
+  // Bulk upload callback handlers (UI buttons)
+  bot.action('bulk_done', handleBulkDoneCallback);
+  bot.action('bulk_cancel', handleBulkCancelCallback);
 
   // Callback query handlers
   bot.action(/^lang_/, handleLanguageCallback);
@@ -137,7 +155,14 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.action('admin_back', handleAdminBack);
 
   // Document handler (PDF uploads)
-  bot.on('document', handleDocument);
+  bot.on('document', async (ctx) => {
+    // Check if in bulk mode first
+    if (isInBulkMode(ctx)) {
+      await handleBulkDocument(ctx);
+    } else {
+      await handleDocument(ctx);
+    }
+  });
 
   // Text message handler (for transaction IDs and admin input)
   bot.on('text', async (ctx) => {
@@ -160,6 +185,7 @@ export function createBot(token: string): Telegraf<BotContext> {
     // Map button text to commands
     const buttonMap: Record<string, () => Promise<void>> = {
       [t(lang, 'btn_upload')]: () => handleUpload(ctx),
+      [t(lang, 'btn_bulk')]: () => handleBulk(ctx),
       [t(lang, 'btn_balance')]: () => handleBalance(ctx),
       [t(lang, 'btn_topup')]: () => handleTopup(ctx),
       [t(lang, 'btn_pricing')]: () => handlePricing(ctx),
@@ -183,6 +209,7 @@ export async function startBot(bot: Telegraf<BotContext>): Promise<void> {
   await bot.telegram.setMyCommands([
     { command: 'start', description: 'Start the bot' },
     { command: 'upload', description: 'Upload eFayda PDF' },
+    { command: 'bulk', description: 'Bulk upload (up to 5 files)' },
     { command: 'balance', description: 'Check wallet balance' },
     { command: 'topup', description: 'Top up wallet' },
     { command: 'pricing', description: 'View pricing' },

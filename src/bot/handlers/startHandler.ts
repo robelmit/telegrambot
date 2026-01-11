@@ -80,12 +80,12 @@ export async function handleStart(ctx: BotContext): Promise<void> {
       welcomeMessage += '\n\n' + t(lang, 'welcome_referred');
     }
     
-    // Main menu keyboard
+    // Main menu keyboard - Bulk on top row, no Pricing button
     const keyboard = Markup.keyboard([
-      [t(lang, 'btn_upload'), t(lang, 'btn_balance')],
-      [t(lang, 'btn_topup'), t(lang, 'btn_pricing')],
+      [t(lang, 'btn_upload'), t(lang, 'btn_bulk')],
+      [t(lang, 'btn_topup'), t(lang, 'btn_balance')],
       [t(lang, 'btn_template'), t(lang, 'btn_agent')],
-      [t(lang, 'btn_language'), t(lang, 'btn_help')]
+      [t(lang, 'btn_help'), t(lang, 'btn_language')]
     ]).resize();
 
     await ctx.reply(welcomeMessage, keyboard);
@@ -95,6 +95,7 @@ export async function handleStart(ctx: BotContext): Promise<void> {
 📋 ${t(lang, 'available_commands')}
 
 /upload - ${t(lang, 'cmd_upload_desc')}
+/bulk - Bulk upload (up to 5 files)
 /balance - ${t(lang, 'cmd_balance_desc')}
 /topup - ${t(lang, 'cmd_topup_desc')}
 /pricing - ${t(lang, 'cmd_pricing_desc')}
