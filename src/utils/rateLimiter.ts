@@ -18,7 +18,7 @@ interface UserRateData {
 
 const DEFAULT_CONFIG: RateLimitConfig = {
   windowMs: 60 * 1000,  // 1 minute
-  maxRequests: 10       // 10 requests per minute
+  maxRequests: 180      // 180 requests per minute
 };
 
 /**
@@ -151,7 +151,7 @@ export function getRateLimiter(): RateLimiter {
   if (!defaultRateLimiter) {
     defaultRateLimiter = new RateLimiter({
       windowMs: 60 * 1000,  // 1 minute
-      maxRequests: 10       // 10 requests per minute
+      maxRequests: 180      // 180 requests per minute
     });
   }
   return defaultRateLimiter;

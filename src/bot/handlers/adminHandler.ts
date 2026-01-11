@@ -77,7 +77,12 @@ export async function handleAdmin(ctx: BotContext): Promise<void> {
 // Stats overview
 export async function handleAdminStats(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
+
+  await ctx.answerCbQuery();
 
   try {
     const [
@@ -146,7 +151,12 @@ export async function handleAdminStats(ctx: BotContext): Promise<void> {
 // Recent users list
 export async function handleAdminUsers(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
+
+  await ctx.answerCbQuery();
 
   try {
     const users = await User.find()
@@ -183,7 +193,12 @@ export async function handleAdminUsers(ctx: BotContext): Promise<void> {
 // Recent transactions
 export async function handleAdminTransactions(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
+
+  await ctx.answerCbQuery();
 
   try {
     const transactions = await Transaction.find()
@@ -218,7 +233,12 @@ export async function handleAdminTransactions(ctx: BotContext): Promise<void> {
 // Pending transactions (for manual approval)
 export async function handleAdminPendingTx(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
+
+  await ctx.answerCbQuery();
 
   try {
     const transactions = await Transaction.find({ status: 'pending' })
@@ -345,7 +365,12 @@ export async function handleAdminRejectTx(ctx: BotContext, txId: string): Promis
 // Recent jobs
 export async function handleAdminJobs(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
+
+  await ctx.answerCbQuery();
 
   try {
     const jobs = await Job.find()
@@ -377,8 +402,12 @@ export async function handleAdminJobs(ctx: BotContext): Promise<void> {
 // Find user prompt
 export async function handleAdminFindUser(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
 
+  await ctx.answerCbQuery();
   ctx.session.adminAction = 'find_user';
   
   await ctx.editMessageText(
@@ -395,8 +424,12 @@ export async function handleAdminFindUser(ctx: BotContext): Promise<void> {
 // Add balance prompt
 export async function handleAdminAddBalance(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
 
+  await ctx.answerCbQuery();
   ctx.session.adminAction = 'add_balance';
   
   await ctx.editMessageText(
@@ -413,8 +446,12 @@ export async function handleAdminAddBalance(ctx: BotContext): Promise<void> {
 // Ban user prompt
 export async function handleAdminBan(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
 
+  await ctx.answerCbQuery();
   ctx.session.adminAction = 'ban_user';
   
   await ctx.editMessageText(
@@ -431,8 +468,12 @@ export async function handleAdminBan(ctx: BotContext): Promise<void> {
 // Unban user prompt
 export async function handleAdminUnban(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
 
+  await ctx.answerCbQuery();
   ctx.session.adminAction = 'unban_user';
   
   await ctx.editMessageText(
@@ -449,8 +490,12 @@ export async function handleAdminUnban(ctx: BotContext): Promise<void> {
 // Make admin prompt
 export async function handleAdminMakeAdmin(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
 
+  await ctx.answerCbQuery();
   ctx.session.adminAction = 'make_admin';
   
   await ctx.editMessageText(
@@ -467,8 +512,12 @@ export async function handleAdminMakeAdmin(ctx: BotContext): Promise<void> {
 // Broadcast prompt
 export async function handleAdminBroadcast(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
-  if (!telegramId || !(await isAdmin(telegramId))) return;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
 
+  await ctx.answerCbQuery();
   ctx.session.adminAction = 'broadcast';
   
   await ctx.editMessageText(
@@ -485,7 +534,50 @@ export async function handleAdminBroadcast(ctx: BotContext): Promise<void> {
 // Back to admin panel
 export async function handleAdminBack(ctx: BotContext): Promise<void> {
   ctx.session.adminAction = undefined;
-  await handleAdmin(ctx);
+  
+  const telegramId = ctx.from?.id;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    await ctx.answerCbQuery('⛔ Access denied.');
+    return;
+  }
+
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: '📊 Stats', callback_data: 'admin_stats' },
+        { text: '👥 Users', callback_data: 'admin_users' }
+      ],
+      [
+        { text: '💰 Transactions', callback_data: 'admin_transactions' },
+        { text: '📋 Jobs', callback_data: 'admin_jobs' }
+      ],
+      [
+        { text: '🔍 Find User', callback_data: 'admin_find_user' },
+        { text: '💵 Add Balance', callback_data: 'admin_add_balance' }
+      ],
+      [
+        { text: '🚫 Ban User', callback_data: 'admin_ban' },
+        { text: '✅ Unban User', callback_data: 'admin_unban' }
+      ],
+      [
+        { text: '👑 Make Admin', callback_data: 'admin_make_admin' },
+        { text: '📢 Broadcast', callback_data: 'admin_broadcast' }
+      ]
+    ]
+  };
+
+  try {
+    await ctx.editMessageText('🔐 *Admin Panel*\n\nSelect an option:', {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    });
+  } catch (error) {
+    // If edit fails, send new message
+    await ctx.reply('🔐 *Admin Panel*\n\nSelect an option:', {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    });
+  }
 }
 
 // Handle admin text input

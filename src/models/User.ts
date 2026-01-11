@@ -104,9 +104,5 @@ const UserSchema = new Schema<IUser>({
   timestamps: true
 });
 
-// Index for faster lookups
-UserSchema.index({ telegramId: 1 });
-UserSchema.index({ agentCode: 1 });
-
 export const User = mongoose.model<IUser>('User', UserSchema);
 export default User;

@@ -68,8 +68,7 @@ const JobSchema = new Schema<IJob>({
     type: Date 
   },
   expiresAt: { 
-    type: Date, 
-    index: true,
+    type: Date,
     default: () => new Date(Date.now() + 3600000) // 1 hour from now
   }
 }, {
