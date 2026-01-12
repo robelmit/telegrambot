@@ -273,10 +273,7 @@ async function removeWhiteBackgroundSharp(photoBuffer: Buffer): Promise<Buffer> 
   return removeBackgroundAI(photoBuffer);
 }
 
-// Cache for processed photos to avoid re-running expensive AI removal
-const processedPhotoCache = new Map<string, Buffer>();
-
-// Cache for normalized template images (sRGB color space)
+// Cache for normalized template images (sRGB color space) - templates don't change
 const templateCache = new Map<string, Buffer>();
 
 /**
@@ -336,25 +333,14 @@ export class CardRenderer {
     const template = await loadImage(normalizedTemplate);
     ctx.drawImage(template, 0, 0, dimensions.width, dimensions.height);
 
-    // Draw photo with transparent background (already grayscale from removeWhiteBackgroundSharp)
+    // Draw photo with transparent background
     if (data.photo) {
       try {
         const photoBuffer = typeof data.photo === 'string' ? Buffer.from(data.photo, 'base64') : data.photo;
         
-        // Create cache key from photo buffer hash
-        const cacheKey = photoBuffer.slice(0, 100).toString('base64');
-        
-        // Check cache first to avoid re-running expensive flood-fill
-        let photoProcessed = processedPhotoCache.get(cacheKey);
-        if (!photoProcessed) {
-          logger.info('Processing photo (AI background removal)...');
-          photoProcessed = await removeWhiteBackgroundSharp(photoBuffer);
-          processedPhotoCache.set(cacheKey, photoProcessed);
-          // Clear cache after 60 seconds to prevent memory leak
-          setTimeout(() => processedPhotoCache.delete(cacheKey), 60000);
-        } else {
-          logger.info('Using cached processed photo');
-        }
+        // Process photo - no caching, always fresh
+        logger.info('Processing photo (AI background removal)...');
+        const photoProcessed = await removeWhiteBackgroundSharp(photoBuffer);
         
         const photo = await loadImage(photoProcessed);
         

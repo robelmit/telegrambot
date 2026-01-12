@@ -2,14 +2,19 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import logger from '../../utils/logger';
 
-// A4 dimensions at 300 DPI
+// A4 dimensions at 72 DPI (PDF standard)
 const A4_WIDTH_PT = 595.28;  // 210mm in points
 const A4_HEIGHT_PT = 841.89; // 297mm in points
 
-// ID Card dimensions in points (at 72 DPI for PDF)
-// Standard ID card: 8.67cm x 5.47cm = 245.67pt x 155.01pt
-const CARD_WIDTH_PT = 246;   // 8.67cm = ~86.7mm
-const CARD_HEIGHT_PT = 155;  // 5.47cm = ~54.7mm
+// ID Card dimensions in points (72 DPI for PDF)
+// Standard ID card: 8.67cm x 5.47cm
+// 1cm = 28.3465pt, so:
+// 8.67cm = 245.67pt, 5.47cm = 155.01pt
+const CARD_WIDTH_CM = 8.67;
+const CARD_HEIGHT_CM = 5.47;
+const CM_TO_PT = 28.3465;
+const CARD_WIDTH_PT = CARD_WIDTH_CM * CM_TO_PT;   // 245.67pt
+const CARD_HEIGHT_PT = CARD_HEIGHT_CM * CM_TO_PT; // 155.01pt
 
 // Increased gap between cards for better transparency/cutting
 const CARD_GAP_PT = 30;      // Gap between front and back cards
@@ -73,18 +78,25 @@ export class PDFGenerator {
         // Add footer text with print instructions
         doc.undash()
            .fontSize(8)
-           .fillColor('#999999')
+           .fillColor('#666666')
            .text(
-             'Print at 100% scale. Cut along dashed lines. Card size: 8.67cm × 5.47cm',
+             '⚠️ IMPORTANT: Print at 100% scale (no fit/shrink). Do NOT select "Fit to Page".',
              0,
-             A4_HEIGHT_PT - 45,
+             A4_HEIGHT_PT - 50,
+             { align: 'center', width: A4_WIDTH_PT }
+           )
+           .text(
+             `Card size: ${CARD_WIDTH_CM}cm × ${CARD_HEIGHT_CM}cm | Cut along dashed lines`,
+             0,
+             A4_HEIGHT_PT - 38,
              { align: 'center', width: A4_WIDTH_PT }
            )
            .fontSize(6)
+           .fillColor('#999999')
            .text(
-             'For consistent colors: Use "sRGB" color profile in printer settings. Disable printer color management.',
+             'Printer settings: Scale=100%, Color=sRGB, Quality=Best',
              0,
-             A4_HEIGHT_PT - 30,
+             A4_HEIGHT_PT - 25,
              { align: 'center', width: A4_WIDTH_PT }
            );
 
@@ -146,18 +158,25 @@ export class PDFGenerator {
         // Add footer with print instructions
         doc.undash()
            .fontSize(8)
-           .fillColor('#999999')
+           .fillColor('#666666')
            .text(
-             'Print at 100% scale. Cut along dashed lines. Card size: 8.67cm × 5.47cm',
+             '⚠️ IMPORTANT: Print at 100% scale (no fit/shrink). Do NOT select "Fit to Page".',
              0,
-             A4_HEIGHT_PT - 45,
+             A4_HEIGHT_PT - 50,
+             { align: 'center', width: A4_WIDTH_PT }
+           )
+           .text(
+             `Card size: ${CARD_WIDTH_CM}cm × ${CARD_HEIGHT_CM}cm | Cut along dashed lines`,
+             0,
+             A4_HEIGHT_PT - 38,
              { align: 'center', width: A4_WIDTH_PT }
            )
            .fontSize(6)
+           .fillColor('#999999')
            .text(
-             'For consistent colors: Use "sRGB" color profile in printer settings. Disable printer color management.',
+             'Printer settings: Scale=100%, Color=sRGB, Quality=Best',
              0,
-             A4_HEIGHT_PT - 30,
+             A4_HEIGHT_PT - 25,
              { align: 'center', width: A4_WIDTH_PT }
            );
 

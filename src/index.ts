@@ -72,21 +72,27 @@ async function main() {
       },
       onBulkBatchComplete: async (_bulkGroupId, batchIndex, combinedFiles, chatId, _telegramId) => {
         try {
-          // Send combined PDF to user
+          // Send combined PDFs to user (normal and mirrored)
           const fs = await import('fs');
           
-          for (const filePath of combinedFiles) {
+          for (let i = 0; i < combinedFiles.length; i++) {
+            const filePath = combinedFiles[i];
+            const isNormal = i === 0;
+            const fileType = isNormal ? 'Normal' : 'Mirrored';
+            
             if (fs.existsSync(filePath)) {
               await bot.telegram.sendDocument(chatId, {
                 source: filePath,
-                filename: `bulk_ids_batch_${batchIndex + 1}.pdf`
+                filename: `bulk_ids_batch_${batchIndex + 1}_${fileType.toLowerCase()}.pdf`
               }, {
-                caption: `📄 Bulk ID Cards - Batch ${batchIndex + 1}\n\n` +
-                  `Contains multiple ID cards ready for printing.\n` +
-                  `Print at 100% scale for correct size.`
+                caption: `📄 Bulk ID Cards - Batch ${batchIndex + 1} (${fileType})\n\n` +
+                  (isNormal 
+                    ? `Normal orientation for viewing.`
+                    : `Mirrored for printing - flip paper to print back side.`) +
+                  `\nPrint at 100% scale for correct size.`
               });
               
-              logger.info(`Delivered bulk batch ${batchIndex + 1} to chat ${chatId}`);
+              logger.info(`Delivered bulk batch ${batchIndex + 1} (${fileType}) to chat ${chatId}`);
               
               // Cleanup after 2 minutes
               setTimeout(async () => {

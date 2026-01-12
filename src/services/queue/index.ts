@@ -36,16 +36,6 @@ export interface JobProcessorDependencies {
   onFailed?: (job: QueueJob<IDGenerationJobData>, error: Error) => Promise<void>;
 }
 
-// Track bulk job completion
-const bulkJobTracker = new Map<string, {
-  totalFiles: number;
-  completedFiles: number;
-  filesPerPdf: number;
-  batches: Map<number, string[]>; // batchIndex -> colorPng paths
-  chatId: number;
-  telegramId: number;
-}>();
-
 // Singleton queue instance
 let jobQueue: SimpleQueue<IDGenerationJobData> | null = null;
 
@@ -127,7 +117,8 @@ export function initializeJobQueue(
         generatedFiles.colorNormalPng,
         job.data.chatId,
         job.data.telegramId,
-        deps
+        deps,
+        generatedFiles.colorMirroredPng  // Pass mirrored PNG path too
       );
     }
 
@@ -187,22 +178,34 @@ export function initializeJobQueue(
   return jobQueue;
 }
 
+// Track bulk job files - stores both normal and mirrored PNG paths
+const bulkJobFiles = new Map<string, {
+  totalFiles: number;
+  completedFiles: number;
+  filesPerPdf: number;
+  batches: Map<number, { normal: string[]; mirrored: string[] }>;
+  chatId: number;
+  telegramId: number;
+}>();
+
 /**
  * Track bulk job completion and generate combined PDFs when batch is complete
+ * Generates both normal and mirrored PDFs for each batch
  */
 async function trackBulkJobCompletion(
   bulkGroupId: string,
   batchIndex: number,
   totalFiles: number,
   filesPerPdf: number,
-  colorPngPath: string,
+  colorNormalPngPath: string,
   chatId: number,
   telegramId: number,
-  deps: JobProcessorDependencies
+  deps: JobProcessorDependencies,
+  colorMirroredPngPath?: string
 ): Promise<void> {
   // Initialize tracker if needed
-  if (!bulkJobTracker.has(bulkGroupId)) {
-    bulkJobTracker.set(bulkGroupId, {
+  if (!bulkJobFiles.has(bulkGroupId)) {
+    bulkJobFiles.set(bulkGroupId, {
       totalFiles,
       completedFiles: 0,
       filesPerPdf,
@@ -212,39 +215,57 @@ async function trackBulkJobCompletion(
     });
   }
 
-  const tracker = bulkJobTracker.get(bulkGroupId)!;
+  const tracker = bulkJobFiles.get(bulkGroupId)!;
   tracker.completedFiles++;
 
-  // Add to batch
+  // Add to batch (both normal and mirrored)
   if (!tracker.batches.has(batchIndex)) {
-    tracker.batches.set(batchIndex, []);
+    tracker.batches.set(batchIndex, { normal: [], mirrored: [] });
   }
-  tracker.batches.get(batchIndex)!.push(colorPngPath);
+  const batch = tracker.batches.get(batchIndex)!;
+  batch.normal.push(colorNormalPngPath);
+  if (colorMirroredPngPath) {
+    batch.mirrored.push(colorMirroredPngPath);
+  }
 
   logger.info(`Bulk ${bulkGroupId}: ${tracker.completedFiles}/${tracker.totalFiles} completed, batch ${batchIndex}`);
 
   // Check if batch is complete
   const filesInThisBatch = Math.min(filesPerPdf, totalFiles - (batchIndex * filesPerPdf));
-  const batchFiles = tracker.batches.get(batchIndex)!;
 
-  if (batchFiles.length === filesInThisBatch) {
-    // Batch complete - generate combined PDF
+  if (batch.normal.length === filesInThisBatch) {
+    // Batch complete - generate combined PDFs (normal and mirrored)
     try {
-      const outputDir = process.env.OUTPUT_DIR || 'output';
-      const combinedPdfPath = path.join(outputDir, `bulk_${bulkGroupId}_batch${batchIndex + 1}.pdf`);
+      const outputDir = process.env.OUTPUT_DIR || 'temp';
+      
+      // Ensure output directory exists
+      await fs.mkdir(outputDir, { recursive: true });
+      
+      const normalPdfPath = path.join(outputDir, `${bulkGroupId}_batch${batchIndex + 1}_normal.pdf`);
+      const mirroredPdfPath = path.join(outputDir, `${bulkGroupId}_batch${batchIndex + 1}_mirrored.pdf`);
 
-      await deps.pdfGenerator!.generateCombinedPDF(batchFiles, combinedPdfPath, {
-        title: `Bulk ID Cards - Batch ${batchIndex + 1}`
+      // Generate normal PDF
+      await deps.pdfGenerator!.generateCombinedPDF(batch.normal, normalPdfPath, {
+        title: `Bulk ID Cards - Batch ${batchIndex + 1} (Normal)`
       });
+      logger.info(`Generated normal PDF for batch ${batchIndex + 1}: ${normalPdfPath}`);
 
-      logger.info(`Generated combined PDF for batch ${batchIndex + 1}: ${combinedPdfPath}`);
+      // Generate mirrored PDF if we have mirrored files
+      const combinedFiles = [normalPdfPath];
+      if (batch.mirrored.length === filesInThisBatch) {
+        await deps.pdfGenerator!.generateCombinedPDF(batch.mirrored, mirroredPdfPath, {
+          title: `Bulk ID Cards - Batch ${batchIndex + 1} (Mirrored for Printing)`
+        });
+        logger.info(`Generated mirrored PDF for batch ${batchIndex + 1}: ${mirroredPdfPath}`);
+        combinedFiles.push(mirroredPdfPath);
+      }
 
       // Notify via callback
       if (deps.onBulkBatchComplete) {
-        await deps.onBulkBatchComplete(bulkGroupId, batchIndex, [combinedPdfPath], chatId, telegramId);
+        await deps.onBulkBatchComplete(bulkGroupId, batchIndex, combinedFiles, chatId, telegramId);
       }
     } catch (error) {
-      logger.error(`Failed to generate combined PDF for batch ${batchIndex}:`, error);
+      logger.error(`Failed to generate combined PDFs for batch ${batchIndex}:`, error);
     }
   }
 
@@ -252,7 +273,7 @@ async function trackBulkJobCompletion(
   if (tracker.completedFiles === tracker.totalFiles) {
     // Small delay to ensure all callbacks complete
     setTimeout(() => {
-      bulkJobTracker.delete(bulkGroupId);
+      bulkJobFiles.delete(bulkGroupId);
       logger.info(`Bulk job ${bulkGroupId} fully completed and cleaned up`);
     }, 5000);
   }

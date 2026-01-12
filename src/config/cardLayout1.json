@@ -9,8 +9,8 @@
     "dpi": 300
   },
   "templateFiles": {
-    "front": "front1.JPG",
-    "back": "back1.JPG"
+    "front": "front1.png",
+    "back": "back1.png"
   },
   "front": {
     "mainPhoto": {
