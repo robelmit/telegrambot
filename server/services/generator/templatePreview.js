@@ -10,7 +10,7 @@ exports.getTemplatePreview = getTemplatePreview;
  */
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-const PREVIEW_PATH = path_1.default.join(process.cwd(), 'src/assets/template_preview.png');
+const PREVIEW_PATH = path_1.default.join(process.cwd(), 'assets/template_preview.png');
 /**
  * Get the template preview image buffer (always reads fresh from disk)
  */
