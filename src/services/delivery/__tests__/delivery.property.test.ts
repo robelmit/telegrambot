@@ -48,10 +48,10 @@ describe('File Delivery Property Tests', () => {
           fc.string({ minLength: 5, maxLength: 20 }),
           (userName, jobId) => {
             const files: GeneratedFiles = {
-              colorMirroredPng: `temp/${jobId}_color.png`,
-              grayscaleMirroredPng: `temp/${jobId}_gray.png`,
-              colorMirroredPdf: `temp/${jobId}_color.pdf`,
-              grayscaleMirroredPdf: `temp/${jobId}_gray.pdf`
+              colorNormalPng: `temp/${jobId}_normal.png`,
+              colorMirroredPng: `temp/${jobId}_mirrored.png`,
+              colorNormalPdf: `temp/${jobId}_normal.pdf`,
+              colorMirroredPdf: `temp/${jobId}_mirrored.pdf`
             };
 
             // Count the files
@@ -73,7 +73,7 @@ describe('File Delivery Property Tests', () => {
       fc.assert(
         fc.property(
           userNameArb,
-          fc.constantFrom('color', 'grayscale') as fc.Arbitrary<'color' | 'grayscale'>,
+          fc.constantFrom('normal', 'mirrored') as fc.Arbitrary<'normal' | 'mirrored'>,
           fc.constantFrom('png', 'pdf') as fc.Arbitrary<'png' | 'pdf'>,
           (userName, variant, extension) => {
             const filename = deliveryService.generateFilename(userName, variant, extension);
@@ -82,7 +82,7 @@ describe('File Delivery Property Tests', () => {
             expect(deliveryService.isValidFilenameFormat(filename)).toBe(true);
             
             // Should contain variant
-            const variantLabel = variant === 'color' ? 'Color' : 'Grayscale';
+            const variantLabel = variant === 'normal' ? 'Normal' : 'Mirrored';
             expect(filename).toContain(variantLabel);
             
             // Should have correct extension
@@ -90,9 +90,6 @@ describe('File Delivery Property Tests', () => {
             
             // Should contain ID_Card prefix
             expect(filename).toMatch(/^ID_Card_/);
-            
-            // Should contain Mirrored
-            expect(filename).toContain('Mirrored');
           }
         ),
         { numRuns: 100 }
@@ -104,7 +101,7 @@ describe('File Delivery Property Tests', () => {
         fc.property(
           fc.string({ minLength: 1, maxLength: 50 }),
           (userName) => {
-            const filename = deliveryService.generateFilename(userName, 'color', 'png');
+            const filename = deliveryService.generateFilename(userName, 'normal', 'png');
             
             // Should not contain special characters except underscore
             expect(filename).toMatch(/^[A-Za-z0-9_.]+$/);
@@ -127,7 +124,7 @@ describe('File Delivery Property Tests', () => {
       fc.assert(
         fc.property(
           userNameArb,
-          fc.constantFrom('color', 'grayscale') as fc.Arbitrary<'color' | 'grayscale'>,
+          fc.constantFrom('normal', 'mirrored') as fc.Arbitrary<'normal' | 'mirrored'>,
           fc.constantFrom('png', 'pdf') as fc.Arbitrary<'png' | 'pdf'>,
           (userName, variant, extension) => {
             const validFilename = deliveryService.generateFilename(userName, variant, extension);
@@ -152,7 +149,7 @@ describe('File Delivery Property Tests', () => {
       fc.assert(
         fc.property(
           fc.string({ minLength: 0, maxLength: 100 }),
-          fc.constantFrom('color', 'grayscale') as fc.Arbitrary<'color' | 'grayscale'>,
+          fc.constantFrom('normal', 'mirrored') as fc.Arbitrary<'normal' | 'mirrored'>,
           fc.constantFrom('png', 'pdf') as fc.Arbitrary<'png' | 'pdf'>,
           (userName, variant, extension) => {
             const filename = deliveryService.generateFilename(userName, variant, extension);
@@ -178,13 +175,13 @@ describe('File Delivery Property Tests', () => {
         fc.property(
           userNameArb,
           (userName) => {
-            const colorPng = deliveryService.generateFilename(userName, 'color', 'png');
-            const grayPng = deliveryService.generateFilename(userName, 'grayscale', 'png');
-            const colorPdf = deliveryService.generateFilename(userName, 'color', 'pdf');
-            const grayPdf = deliveryService.generateFilename(userName, 'grayscale', 'pdf');
+            const normalPng = deliveryService.generateFilename(userName, 'normal', 'png');
+            const mirroredPng = deliveryService.generateFilename(userName, 'mirrored', 'png');
+            const normalPdf = deliveryService.generateFilename(userName, 'normal', 'pdf');
+            const mirroredPdf = deliveryService.generateFilename(userName, 'mirrored', 'pdf');
             
             // All filenames should be unique
-            const filenames = [colorPng, grayPng, colorPdf, grayPdf];
+            const filenames = [normalPng, mirroredPng, normalPdf, mirroredPdf];
             const uniqueFilenames = new Set(filenames);
             expect(uniqueFilenames.size).toBe(4);
           }

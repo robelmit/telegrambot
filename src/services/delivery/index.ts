@@ -111,9 +111,9 @@ export class FileDeliveryService {
    * Generate file caption
    */
   private generateCaption(fileInfo: FileInfo): string {
-    const variantLabel = fileInfo.variant === 'color' ? '🎨 Color' : '⬛ Grayscale';
     const typeLabel = fileInfo.type === 'png' ? 'Image' : 'PDF (A4)';
-    return `${variantLabel} ${typeLabel} - Mirrored`;
+    const variantLabel = fileInfo.variant === 'color' ? '📄 Normal' : '🖨️ Mirrored (for printing)';
+    return `${variantLabel} ${typeLabel}`;
   }
 
   /**
@@ -124,40 +124,40 @@ export class FileDeliveryService {
     
     return [
       {
-        path: files.colorMirroredPng,
-        filename: this.generateFilename(safeName, 'color', 'png'),
+        path: files.colorNormalPng,
+        filename: this.generateFilename(safeName, 'normal', 'png'),
         type: 'png' as const,
         variant: 'color' as const
       },
       {
-        path: files.grayscaleMirroredPng,
-        filename: this.generateFilename(safeName, 'grayscale', 'png'),
+        path: files.colorMirroredPng,
+        filename: this.generateFilename(safeName, 'mirrored', 'png'),
         type: 'png' as const,
-        variant: 'grayscale' as const
+        variant: 'grayscale' as const  // Using grayscale to indicate mirrored in caption
+      },
+      {
+        path: files.colorNormalPdf,
+        filename: this.generateFilename(safeName, 'normal', 'pdf'),
+        type: 'pdf' as const,
+        variant: 'color' as const
       },
       {
         path: files.colorMirroredPdf,
-        filename: this.generateFilename(safeName, 'color', 'pdf'),
+        filename: this.generateFilename(safeName, 'mirrored', 'pdf'),
         type: 'pdf' as const,
-        variant: 'color' as const
-      },
-      {
-        path: files.grayscaleMirroredPdf,
-        filename: this.generateFilename(safeName, 'grayscale', 'pdf'),
-        type: 'pdf' as const,
-        variant: 'grayscale' as const
+        variant: 'grayscale' as const  // Using grayscale to indicate mirrored in caption
       }
     ];
   }
 
   /**
    * Generate descriptive filename
-   * Format: ID_Card_[Name]_[Variant]_Mirrored.[ext]
+   * Format: ID_Card_[Name]_[Variant].[ext]
    */
-  generateFilename(userName: string, variant: 'color' | 'grayscale', extension: 'png' | 'pdf'): string {
+  generateFilename(userName: string, variant: 'normal' | 'mirrored', extension: 'png' | 'pdf'): string {
     const safeName = this.sanitizeFilename(userName);
-    const variantLabel = variant === 'color' ? 'Color' : 'Grayscale';
-    return `ID_Card_${safeName}_${variantLabel}_Mirrored.${extension}`;
+    const variantLabel = variant === 'normal' ? 'Normal' : 'Mirrored';
+    return `ID_Card_${safeName}_${variantLabel}.${extension}`;
   }
 
   /**
@@ -175,10 +175,10 @@ export class FileDeliveryService {
    */
   async cleanupJobFiles(files: GeneratedFiles): Promise<void> {
     const filePaths = [
+      files.colorNormalPng,
       files.colorMirroredPng,
-      files.grayscaleMirroredPng,
-      files.colorMirroredPdf,
-      files.grayscaleMirroredPdf
+      files.colorNormalPdf,
+      files.colorMirroredPdf
     ];
 
     for (const filePath of filePaths) {
@@ -251,8 +251,8 @@ export class FileDeliveryService {
    * Validate filename format
    */
   isValidFilenameFormat(filename: string): boolean {
-    // Expected format: ID_Card_[Name]_[Variant]_Mirrored.[ext]
-    const pattern = /^ID_Card_[A-Za-z0-9_]+_(Color|Grayscale)_Mirrored\.(png|pdf)$/;
+    // Expected format: ID_Card_[Name]_[Variant].[ext]
+    const pattern = /^ID_Card_[A-Za-z0-9_]+_(Normal|Mirrored)\.(png|pdf)$/;
     return pattern.test(filename);
   }
 }

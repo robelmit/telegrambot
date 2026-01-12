@@ -9,6 +9,7 @@ import fs from 'fs';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
+import { removeBackground } from '@imgly/background-removal-node';
 
 // Template type
 export type TemplateType = 'template0' | 'template1' | 'template2';
@@ -68,10 +69,70 @@ export function registerFonts(): void {
 // Grayscale conversion is now done in removeBackgroundSharp function
 
 /**
+ * Remove background using AI-based @imgly/background-removal-node
+ * Uses 'small' model for lower RAM usage (~500MB vs ~2GB for large)
+ * Falls back to flood-fill method if AI fails
+ */
+async function removeBackgroundAI(photoBuffer: Buffer): Promise<Buffer> {
+  try {
+    logger.info('Using AI background removal (medium model)...');
+    
+    // Convert buffer to blob for the library
+    const blob = new Blob([photoBuffer], { type: 'image/png' });
+    
+    // Remove background using AI with medium model for better quality
+    const resultBlob = await removeBackground(blob, {
+      model: 'medium',  // Options: 'small', 'medium', 'large' - medium uses ~1GB RAM
+      output: {
+        format: 'image/png',
+        quality: 1
+      }
+    });
+    
+    // Convert blob back to buffer
+    const arrayBuffer = await resultBlob.arrayBuffer();
+    const resultBuffer = Buffer.from(arrayBuffer);
+    
+    // Convert to grayscale while preserving alpha
+    const { data, info } = await sharp(resultBuffer)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    
+    const pixels = Buffer.from(data);
+    const width = info.width;
+    const height = info.height;
+    
+    // Convert to grayscale
+    for (let i = 0; i < width * height * 4; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+      pixels[i] = gray;
+      pixels[i + 1] = gray;
+      pixels[i + 2] = gray;
+      // Alpha preserved
+    }
+    
+    const finalResult = await sharp(pixels, {
+      raw: { width, height, channels: 4 }
+    }).png().toBuffer();
+    
+    logger.info('AI background removal successful');
+    return finalResult;
+  } catch (error) {
+    logger.warn('AI background removal failed, falling back to flood-fill:', error);
+    return removeBackgroundFloodFill(photoBuffer);
+  }
+}
+
+/**
  * Remove background (white OR black) using sharp - flood fill from edges, then convert to grayscale
  * Automatically detects whether background is white or black based on edge pixels
+ * This is the fallback method when AI removal fails
  */
-async function removeBackgroundSharp(photoBuffer: Buffer): Promise<Buffer> {
+async function removeBackgroundFloodFill(photoBuffer: Buffer): Promise<Buffer> {
   try {
     const { data, info } = await sharp(photoBuffer)
       .ensureAlpha()
@@ -207,12 +268,12 @@ async function removeBackgroundSharp(photoBuffer: Buffer): Promise<Buffer> {
   }
 }
 
-// Keep old function name for backward compatibility
+// Keep old function name for backward compatibility - now uses AI removal
 async function removeWhiteBackgroundSharp(photoBuffer: Buffer): Promise<Buffer> {
-  return removeBackgroundSharp(photoBuffer);
+  return removeBackgroundAI(photoBuffer);
 }
 
-// Cache for processed photos to avoid re-running flood-fill multiple times
+// Cache for processed photos to avoid re-running expensive AI removal
 const processedPhotoCache = new Map<string, Buffer>();
 
 // Cache for normalized template images (sRGB color space)
@@ -286,7 +347,7 @@ export class CardRenderer {
         // Check cache first to avoid re-running expensive flood-fill
         let photoProcessed = processedPhotoCache.get(cacheKey);
         if (!photoProcessed) {
-          logger.info('Processing photo (flood-fill background removal)...');
+          logger.info('Processing photo (AI background removal)...');
           photoProcessed = await removeWhiteBackgroundSharp(photoBuffer);
           processedPhotoCache.set(cacheKey, photoProcessed);
           // Clear cache after 60 seconds to prevent memory leak

@@ -27,7 +27,7 @@ export class IDGeneratorService {
 
   /**
    * Generate all output files for a job
-   * Returns: 2 mirrored PNG images + 2 mirrored A4 PDFs
+   * Returns: 2 PNG images (normal + mirrored) + 2 A4 PDFs (normal + mirrored)
    */
   async generateAll(data: EfaydaData, jobId: string, template?: TemplateType): Promise<GeneratedFiles> {
     try {
@@ -41,15 +41,15 @@ export class IDGeneratorService {
 
       // Generate A4 PDFs from the PNG files
       await this.pdfGenerator.generateA4PDF(
-        pngFiles.colorMirroredPng,
-        pngFiles.colorMirroredPdf,
-        { title: `ID Card - ${data.fullNameEnglish} (Color)` }
+        pngFiles.colorNormalPng,
+        pngFiles.colorNormalPdf,
+        { title: `ID Card - ${data.fullNameEnglish} (Normal)` }
       );
 
       await this.pdfGenerator.generateA4PDF(
-        pngFiles.grayscaleMirroredPng,
-        pngFiles.grayscaleMirroredPdf,
-        { title: `ID Card - ${data.fullNameEnglish} (Grayscale)` }
+        pngFiles.colorMirroredPng,
+        pngFiles.colorMirroredPdf,
+        { title: `ID Card - ${data.fullNameEnglish} (Mirrored for Printing)` }
       );
 
       logger.info(`ID generation completed for job: ${jobId}`);
@@ -66,10 +66,10 @@ export class IDGeneratorService {
    */
   async cleanup(files: GeneratedFiles): Promise<void> {
     const filePaths = [
+      files.colorNormalPng,
       files.colorMirroredPng,
-      files.grayscaleMirroredPng,
-      files.colorMirroredPdf,
-      files.grayscaleMirroredPdf
+      files.colorNormalPdf,
+      files.colorMirroredPdf
     ];
 
     for (const filePath of filePaths) {
@@ -88,10 +88,10 @@ export class IDGeneratorService {
    */
   async verifyFiles(files: GeneratedFiles): Promise<boolean> {
     const filePaths = [
+      files.colorNormalPng,
       files.colorMirroredPng,
-      files.grayscaleMirroredPng,
-      files.colorMirroredPdf,
-      files.grayscaleMirroredPdf
+      files.colorNormalPdf,
+      files.colorMirroredPdf
     ];
 
     for (const filePath of filePaths) {

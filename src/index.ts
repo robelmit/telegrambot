@@ -51,19 +51,19 @@ async function main() {
           const userName = jobDoc?.extractedData?.fullNameEnglish || 'User';
 
           await deliveryService.deliverFiles(chatId, {
-            colorMirroredPng: files[0],
-            grayscaleMirroredPng: files[1],
-            colorMirroredPdf: files[2],
-            grayscaleMirroredPdf: files[3]
+            colorNormalPng: files[0],
+            colorMirroredPng: files[1],
+            colorNormalPdf: files[2],
+            colorMirroredPdf: files[3]
           }, userName);
 
           // Cleanup files after 1 minute
           setTimeout(async () => {
             await deliveryService.cleanupJobFiles({
-              colorMirroredPng: files[0],
-              grayscaleMirroredPng: files[1],
-              colorMirroredPdf: files[2],
-              grayscaleMirroredPdf: files[3]
+              colorNormalPng: files[0],
+              colorMirroredPng: files[1],
+              colorNormalPdf: files[2],
+              colorMirroredPdf: files[3]
             });
           }, 60000);
         } catch (error) {

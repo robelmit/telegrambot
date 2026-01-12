@@ -68,12 +68,12 @@ export interface TransactionVerification {
 }
 
 // Generated files interface
-// Note: Files are named "mirrored" for backward compatibility but are NOT actually mirrored
+// Normal = regular orientation, Mirrored = back card flipped for printing
 export interface GeneratedFiles {
-  colorMirroredPng: string;      // Color PNG (not mirrored)
-  grayscaleMirroredPng: string;  // Grayscale PNG (not mirrored)
-  colorMirroredPdf: string;      // Color PDF (not mirrored)
-  grayscaleMirroredPdf: string;  // Grayscale PDF (not mirrored)
+  colorNormalPng: string;       // Color PNG (normal orientation)
+  colorMirroredPng: string;     // Color PNG (back mirrored for printing)
+  colorNormalPdf: string;       // Color PDF (normal orientation)
+  colorMirroredPdf: string;     // Color PDF (back mirrored for printing)
 }
 
 // Card generator options

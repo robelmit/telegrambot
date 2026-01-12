@@ -109,10 +109,10 @@ export function initializeJobQueue(
     await JobModel.findByIdAndUpdate(jobId, {
       status: 'completed',
       outputFiles: [
+        { type: 'colorNormalPng', path: generatedFiles.colorNormalPng },
         { type: 'colorMirroredPng', path: generatedFiles.colorMirroredPng },
-        { type: 'grayscaleMirroredPng', path: generatedFiles.grayscaleMirroredPng },
-        { type: 'colorMirroredPdf', path: generatedFiles.colorMirroredPdf },
-        { type: 'grayscaleMirroredPdf', path: generatedFiles.grayscaleMirroredPdf }
+        { type: 'colorNormalPdf', path: generatedFiles.colorNormalPdf },
+        { type: 'colorMirroredPdf', path: generatedFiles.colorMirroredPdf }
       ],
       completedAt: new Date()
     });
@@ -124,7 +124,7 @@ export function initializeJobQueue(
         bulkBatchIndex,
         bulkTotalFiles,
         bulkFilesPerPdf,
-        generatedFiles.colorMirroredPng,
+        generatedFiles.colorNormalPng,
         job.data.chatId,
         job.data.telegramId,
         deps
