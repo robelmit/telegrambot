@@ -34,7 +34,7 @@ class IDGeneratorService {
     }
     /**
      * Generate all output files for a job
-     * Returns: 2 mirrored PNG images + 2 mirrored A4 PDFs
+     * Returns: 2 PNG images (normal + mirrored) + 2 A4 PDFs (normal + mirrored)
      */
     async generateAll(data, jobId, template) {
         try {
@@ -44,8 +44,8 @@ class IDGeneratorService {
             // Generate PNG files
             const pngFiles = await this.cardGenerator.saveToFiles(data, jobId, template);
             // Generate A4 PDFs from the PNG files
-            await this.pdfGenerator.generateA4PDF(pngFiles.colorMirroredPng, pngFiles.colorMirroredPdf, { title: `ID Card - ${data.fullNameEnglish} (Color)` });
-            await this.pdfGenerator.generateA4PDF(pngFiles.grayscaleMirroredPng, pngFiles.grayscaleMirroredPdf, { title: `ID Card - ${data.fullNameEnglish} (Grayscale)` });
+            await this.pdfGenerator.generateA4PDF(pngFiles.colorNormalPng, pngFiles.colorNormalPdf, { title: `ID Card - ${data.fullNameEnglish} (Normal)` });
+            await this.pdfGenerator.generateA4PDF(pngFiles.colorMirroredPng, pngFiles.colorMirroredPdf, { title: `ID Card - ${data.fullNameEnglish} (Mirrored for Printing)` });
             logger_1.default.info(`ID generation completed for job: ${jobId}`);
             return pngFiles;
         }
@@ -59,10 +59,10 @@ class IDGeneratorService {
      */
     async cleanup(files) {
         const filePaths = [
+            files.colorNormalPng,
             files.colorMirroredPng,
-            files.grayscaleMirroredPng,
-            files.colorMirroredPdf,
-            files.grayscaleMirroredPdf
+            files.colorNormalPdf,
+            files.colorMirroredPdf
         ];
         for (const filePath of filePaths) {
             try {
@@ -80,10 +80,10 @@ class IDGeneratorService {
      */
     async verifyFiles(files) {
         const filePaths = [
+            files.colorNormalPng,
             files.colorMirroredPng,
-            files.grayscaleMirroredPng,
-            files.colorMirroredPdf,
-            files.grayscaleMirroredPdf
+            files.colorNormalPdf,
+            files.colorMirroredPdf
         ];
         for (const filePath of filePaths) {
             try {

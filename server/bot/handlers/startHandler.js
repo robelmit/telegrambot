@@ -68,12 +68,12 @@ async function handleStart(ctx) {
         if (isNewUser && referringAgent) {
             welcomeMessage += '\n\n' + (0, locales_1.t)(lang, 'welcome_referred');
         }
-        // Main menu keyboard
+        // Main menu keyboard - Bulk on top row, no Pricing button
         const keyboard = telegraf_1.Markup.keyboard([
-            [(0, locales_1.t)(lang, 'btn_upload'), (0, locales_1.t)(lang, 'btn_balance')],
-            [(0, locales_1.t)(lang, 'btn_topup'), (0, locales_1.t)(lang, 'btn_pricing')],
+            [(0, locales_1.t)(lang, 'btn_upload'), (0, locales_1.t)(lang, 'btn_bulk')],
+            [(0, locales_1.t)(lang, 'btn_topup'), (0, locales_1.t)(lang, 'btn_balance')],
             [(0, locales_1.t)(lang, 'btn_template'), (0, locales_1.t)(lang, 'btn_agent')],
-            [(0, locales_1.t)(lang, 'btn_language'), (0, locales_1.t)(lang, 'btn_help')]
+            [(0, locales_1.t)(lang, 'btn_help'), (0, locales_1.t)(lang, 'btn_language')]
         ]).resize();
         await ctx.reply(welcomeMessage, keyboard);
         // Show available commands
@@ -81,6 +81,7 @@ async function handleStart(ctx) {
 📋 ${(0, locales_1.t)(lang, 'available_commands')}
 
 /upload - ${(0, locales_1.t)(lang, 'cmd_upload_desc')}
+/bulk - Bulk upload (up to 5 files)
 /balance - ${(0, locales_1.t)(lang, 'cmd_balance_desc')}
 /topup - ${(0, locales_1.t)(lang, 'cmd_topup_desc')}
 /pricing - ${(0, locales_1.t)(lang, 'cmd_pricing_desc')}

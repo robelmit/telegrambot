@@ -15,7 +15,7 @@ export declare class PDFGenerator {
      */
     generateA4PDFFromBuffer(imageBuffer: Buffer, outputPath: string, options?: A4PDFOptions): Promise<string>;
     /**
-     * Add cutting guide lines to PDF
+     * Add cutting guide lines to PDF with increased margins for transparency
      */
     private addCuttingGuides;
     /**
@@ -30,6 +30,15 @@ export declare class PDFGenerator {
      * Verify PDF is A4 size (for testing)
      */
     isA4Size(widthPt: number, heightPt: number): boolean;
+    /**
+     * Generate combined A4 PDF with multiple ID cards (5 per page)
+     * Each card image contains front+back side by side
+     */
+    generateCombinedPDF(cardImagePaths: string[], outputPath: string, options?: A4PDFOptions): Promise<string>;
+    /**
+     * Generate combined PDF from image buffers
+     */
+    generateCombinedPDFFromBuffers(imageBuffers: Buffer[], outputPath: string, options?: A4PDFOptions): Promise<string>;
 }
 export default PDFGenerator;
 //# sourceMappingURL=pdfGenerator.d.ts.map

@@ -17,6 +17,7 @@ const fs_1 = __importDefault(require("fs"));
 const jsbarcode_1 = __importDefault(require("jsbarcode"));
 const qrcode_1 = __importDefault(require("qrcode"));
 const sharp_1 = __importDefault(require("sharp"));
+const background_removal_node_1 = require("@imgly/background-removal-node");
 // Load layout configs
 const layoutConfigs = {
     template0: JSON.parse(fs_1.default.readFileSync(path_1.default.join(__dirname, '../../config/cardLayout.json'), 'utf-8')),
@@ -60,9 +61,64 @@ function registerFonts() {
         logger_1.default.warn('Font registration failed:', error);
     }
 }
-// Grayscale conversion is now done in removeWhiteBackgroundSharp function
-// Remove white background using sharp - flood fill from edges, then convert to grayscale
-async function removeWhiteBackgroundSharp(photoBuffer, threshold = 240) {
+// Grayscale conversion is now done in removeBackgroundSharp function
+/**
+ * Remove background using AI-based @imgly/background-removal-node
+ * Uses 'small' model for lower RAM usage (~500MB vs ~2GB for large)
+ * Falls back to flood-fill method if AI fails
+ */
+async function removeBackgroundAI(photoBuffer) {
+    try {
+        logger_1.default.info('Using AI background removal (medium model)...');
+        // Convert buffer to blob for the library
+        const blob = new Blob([photoBuffer], { type: 'image/png' });
+        // Remove background using AI with medium model for better quality
+        const resultBlob = await (0, background_removal_node_1.removeBackground)(blob, {
+            model: 'medium', // Options: 'small', 'medium', 'large' - medium uses ~1GB RAM
+            output: {
+                format: 'image/png',
+                quality: 1
+            }
+        });
+        // Convert blob back to buffer
+        const arrayBuffer = await resultBlob.arrayBuffer();
+        const resultBuffer = Buffer.from(arrayBuffer);
+        // Convert to grayscale while preserving alpha
+        const { data, info } = await (0, sharp_1.default)(resultBuffer)
+            .ensureAlpha()
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+        const pixels = Buffer.from(data);
+        const width = info.width;
+        const height = info.height;
+        // Convert to grayscale
+        for (let i = 0; i < width * height * 4; i += 4) {
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+            const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+            pixels[i] = gray;
+            pixels[i + 1] = gray;
+            pixels[i + 2] = gray;
+            // Alpha preserved
+        }
+        const finalResult = await (0, sharp_1.default)(pixels, {
+            raw: { width, height, channels: 4 }
+        }).png().toBuffer();
+        logger_1.default.info('AI background removal successful');
+        return finalResult;
+    }
+    catch (error) {
+        logger_1.default.warn('AI background removal failed, falling back to flood-fill:', error);
+        return removeBackgroundFloodFill(photoBuffer);
+    }
+}
+/**
+ * Remove background (white OR black) using sharp - flood fill from edges, then convert to grayscale
+ * Automatically detects whether background is white or black based on edge pixels
+ * This is the fallback method when AI removal fails
+ */
+async function removeBackgroundFloodFill(photoBuffer) {
     try {
         const { data, info } = await (0, sharp_1.default)(photoBuffer)
             .ensureAlpha()
@@ -71,18 +127,56 @@ async function removeWhiteBackgroundSharp(photoBuffer, threshold = 240) {
         const width = info.width;
         const height = info.height;
         const pixels = Buffer.from(data);
-        // Create visited set for flood fill
-        const visited = new Set();
-        const queue = [];
-        // Helper to check if pixel is white-ish
-        const isWhite = (idx) => {
+        // Helper to get pixel index
+        const getIdx = (x, y) => (y * width + x) * 4;
+        // Analyze edge pixels to determine if background is white or black
+        let whiteCount = 0;
+        let blackCount = 0;
+        const edgePixels = [];
+        // Sample edge pixels
+        for (let x = 0; x < width; x++) {
+            edgePixels.push(getIdx(x, 0));
+            edgePixels.push(getIdx(x, height - 1));
+        }
+        for (let y = 0; y < height; y++) {
+            edgePixels.push(getIdx(0, y));
+            edgePixels.push(getIdx(width - 1, y));
+        }
+        // Count white vs black edge pixels
+        const WHITE_THRESHOLD = 240;
+        const BLACK_THRESHOLD = 30;
+        for (const idx of edgePixels) {
             const r = pixels[idx];
             const g = pixels[idx + 1];
             const b = pixels[idx + 2];
-            return r >= threshold && g >= threshold && b >= threshold;
+            if (r >= WHITE_THRESHOLD && g >= WHITE_THRESHOLD && b >= WHITE_THRESHOLD) {
+                whiteCount++;
+            }
+            else if (r <= BLACK_THRESHOLD && g <= BLACK_THRESHOLD && b <= BLACK_THRESHOLD) {
+                blackCount++;
+            }
+        }
+        // Determine background type
+        const isBlackBackground = blackCount > whiteCount;
+        const threshold = isBlackBackground ? BLACK_THRESHOLD : WHITE_THRESHOLD;
+        logger_1.default.info(`Background detection: white=${whiteCount}, black=${blackCount}, using ${isBlackBackground ? 'BLACK' : 'WHITE'} removal`);
+        // Helper to check if pixel matches background color
+        const isBackground = (idx) => {
+            const r = pixels[idx];
+            const g = pixels[idx + 1];
+            const b = pixels[idx + 2];
+            if (isBlackBackground) {
+                // Check for black/dark pixels
+                return r <= threshold && g <= threshold && b <= threshold;
+            }
+            else {
+                // Check for white/light pixels
+                return r >= threshold && g >= threshold && b >= threshold;
+            }
         };
-        // Helper to get pixel index
-        const getIdx = (x, y) => (y * width + x) * 4;
+        // Create visited set for flood fill
+        const visited = new Set();
+        const queue = [];
         // Add all edge pixels to queue
         for (let x = 0; x < width; x++) {
             queue.push(getIdx(x, 0));
@@ -93,13 +187,13 @@ async function removeWhiteBackgroundSharp(photoBuffer, threshold = 240) {
             queue.push(getIdx(width - 1, y));
         }
         let transparentCount = 0;
-        // Flood fill from edges - only remove connected white pixels
+        // Flood fill from edges - only remove connected background pixels
         while (queue.length > 0) {
             const idx = queue.shift();
             if (visited.has(idx))
                 continue;
             visited.add(idx);
-            if (!isWhite(idx))
+            if (!isBackground(idx))
                 continue;
             // Make transparent
             pixels[idx + 3] = 0;
@@ -129,7 +223,7 @@ async function removeWhiteBackgroundSharp(photoBuffer, threshold = 240) {
             pixels[i + 2] = gray;
             // Alpha (pixels[i + 3]) is preserved
         }
-        logger_1.default.info(`White background removed: ${transparentCount} pixels made transparent, converted to grayscale`);
+        logger_1.default.info(`Background removed: ${transparentCount} pixels made transparent (${isBlackBackground ? 'black' : 'white'} bg), converted to grayscale`);
         const result = await (0, sharp_1.default)(pixels, {
             raw: {
                 width: width,
@@ -140,12 +234,42 @@ async function removeWhiteBackgroundSharp(photoBuffer, threshold = 240) {
         return result;
     }
     catch (error) {
-        logger_1.default.error('Failed to remove white background:', error);
+        logger_1.default.error('Failed to remove background:', error);
         return photoBuffer; // Return original if failed
     }
 }
-// Cache for processed photos to avoid re-running flood-fill multiple times
-const processedPhotoCache = new Map();
+// Keep old function name for backward compatibility - now uses AI removal
+async function removeWhiteBackgroundSharp(photoBuffer) {
+    return removeBackgroundAI(photoBuffer);
+}
+// Cache for normalized template images (sRGB color space) - templates don't change
+const templateCache = new Map();
+/**
+ * Load and normalize template image to sRGB color space for consistent printing
+ */
+async function loadNormalizedTemplate(templatePath) {
+    // Check cache first
+    const cached = templateCache.get(templatePath);
+    if (cached) {
+        return cached;
+    }
+    try {
+        // Load template and convert to sRGB color space
+        const normalized = await (0, sharp_1.default)(templatePath)
+            .toColorspace('srgb')
+            .png() // Convert to PNG for consistent handling
+            .toBuffer();
+        // Cache the normalized template
+        templateCache.set(templatePath, normalized);
+        logger_1.default.info(`Loaded and normalized template: ${templatePath}`);
+        return normalized;
+    }
+    catch (error) {
+        logger_1.default.error(`Failed to normalize template ${templatePath}:`, error);
+        // Fallback to reading file directly
+        return fs_1.default.readFileSync(templatePath);
+    }
+}
 class CardRenderer {
     constructor() {
         registerFonts();
@@ -155,6 +279,7 @@ class CardRenderer {
     }
     /**
      * Render front card - EXACTLY like test script renderFrontCard function
+     * Uses sRGB normalized templates for consistent color printing
      */
     async renderFront(data, options = { variant: 'color' }) {
         const templateType = options.template || 'template0';
@@ -163,27 +288,18 @@ class CardRenderer {
         const templateFile = layout.templateFiles?.front || 'front_template.png';
         const canvas = (0, canvas_1.createCanvas)(dimensions.width, dimensions.height);
         const ctx = canvas.getContext('2d');
-        // Draw template
-        const template = await (0, canvas_1.loadImage)(path_1.default.join(TEMPLATE_DIR, templateFile));
+        // Draw template (normalized to sRGB for consistent colors)
+        const templatePath = path_1.default.join(TEMPLATE_DIR, templateFile);
+        const normalizedTemplate = await loadNormalizedTemplate(templatePath);
+        const template = await (0, canvas_1.loadImage)(normalizedTemplate);
         ctx.drawImage(template, 0, 0, dimensions.width, dimensions.height);
-        // Draw photo with transparent background (already grayscale from removeWhiteBackgroundSharp)
+        // Draw photo with transparent background
         if (data.photo) {
             try {
                 const photoBuffer = typeof data.photo === 'string' ? Buffer.from(data.photo, 'base64') : data.photo;
-                // Create cache key from photo buffer hash
-                const cacheKey = photoBuffer.slice(0, 100).toString('base64');
-                // Check cache first to avoid re-running expensive flood-fill
-                let photoProcessed = processedPhotoCache.get(cacheKey);
-                if (!photoProcessed) {
-                    logger_1.default.info('Processing photo (flood-fill background removal)...');
-                    photoProcessed = await removeWhiteBackgroundSharp(photoBuffer);
-                    processedPhotoCache.set(cacheKey, photoProcessed);
-                    // Clear cache after 60 seconds to prevent memory leak
-                    setTimeout(() => processedPhotoCache.delete(cacheKey), 60000);
-                }
-                else {
-                    logger_1.default.info('Using cached processed photo');
-                }
+                // Process photo - no caching, always fresh
+                logger_1.default.info('Processing photo (AI background removal)...');
+                const photoProcessed = await removeWhiteBackgroundSharp(photoBuffer);
                 const photo = await (0, canvas_1.loadImage)(photoProcessed);
                 // Draw main photo (already grayscale with transparent background)
                 ctx.drawImage(photo, front.mainPhoto.x, front.mainPhoto.y, front.mainPhoto.width, front.mainPhoto.height);
@@ -255,6 +371,7 @@ class CardRenderer {
     }
     /**
      * Render back card - EXACTLY like test script renderBackCard function
+     * Uses sRGB normalized templates for consistent color printing
      */
     async renderBack(data, options = { variant: 'color' }) {
         const templateType = options.template || 'template0';
@@ -263,8 +380,10 @@ class CardRenderer {
         const templateFile = layout.templateFiles?.back || 'back_template.png';
         const canvas = (0, canvas_1.createCanvas)(dimensions.width, dimensions.height);
         const ctx = canvas.getContext('2d');
-        // Draw template
-        const template = await (0, canvas_1.loadImage)(path_1.default.join(TEMPLATE_DIR, templateFile));
+        // Draw template (normalized to sRGB for consistent colors)
+        const templatePath = path_1.default.join(TEMPLATE_DIR, templateFile);
+        const normalizedTemplate = await loadNormalizedTemplate(templatePath);
+        const template = await (0, canvas_1.loadImage)(normalizedTemplate);
         ctx.drawImage(template, 0, 0, dimensions.width, dimensions.height);
         // Draw QR code - EXACTLY like test script
         if (data.qrCode) {

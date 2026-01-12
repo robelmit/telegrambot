@@ -2,6 +2,7 @@ import { SimpleQueue, QueueJob } from '../../utils/simpleQueue';
 import { PDFService } from '../pdf';
 import { IDGeneratorService } from '../generator';
 import { WalletService } from '../payment';
+import { PDFGenerator } from '../generator/pdfGenerator';
 export type TemplateType = 'template0' | 'template1' | 'template2';
 export interface IDGenerationJobData {
     jobId: string;
@@ -10,12 +11,20 @@ export interface IDGenerationJobData {
     pdfPath: string;
     chatId: number;
     template?: TemplateType;
+    isBulk?: boolean;
+    bulkGroupId?: string;
+    bulkBatchIndex?: number;
+    bulkIndexInBatch?: number;
+    bulkTotalFiles?: number;
+    bulkFilesPerPdf?: number;
 }
 export interface JobProcessorDependencies {
     pdfService: PDFService;
     idGenerator: IDGeneratorService;
     walletService: WalletService;
+    pdfGenerator?: PDFGenerator;
     onComplete?: (job: QueueJob<IDGenerationJobData>, files: string[]) => Promise<void>;
+    onBulkBatchComplete?: (bulkGroupId: string, batchIndex: number, combinedFiles: string[], chatId: number, telegramId: number) => Promise<void>;
     onFailed?: (job: QueueJob<IDGenerationJobData>, error: Error) => Promise<void>;
 }
 /**

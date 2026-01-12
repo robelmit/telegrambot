@@ -17,113 +17,94 @@ class CardVariantGenerator {
         this.outputDir = outputDir || process.env.TEMP_DIR || 'temp';
     }
     /**
-     * Generate all card variants (color/grayscale, normal/mirrored)
-     * NOTE: "Mirrored" variants are now the same as normal (no flipping)
+     * Generate color card variants (normal and mirrored for printing)
      */
-    async generateAllVariants(data, template) {
-        try {
-            // Generate color variants
-            const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color', template });
-            const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color', template });
-            // Generate grayscale variants
-            const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale', template });
-            const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale', template });
-            // Combine front and back into single images (NO mirroring)
-            const colorNormalCombined = await this.combineCards(colorFront, colorBack, template);
-            const grayscaleNormalCombined = await this.combineCards(grayscaleFront, grayscaleBack, template);
-            return {
-                colorNormal: {
-                    front: colorFront,
-                    back: colorBack,
-                    combined: colorNormalCombined
-                },
-                colorMirrored: {
-                    front: colorFront,
-                    back: colorBack,
-                    combined: colorNormalCombined
-                },
-                grayscaleNormal: {
-                    front: grayscaleFront,
-                    back: grayscaleBack,
-                    combined: grayscaleNormalCombined
-                },
-                grayscaleMirrored: {
-                    front: grayscaleFront,
-                    back: grayscaleBack,
-                    combined: grayscaleNormalCombined
-                }
-            };
-        }
-        catch (error) {
-            logger_1.default.error('Failed to generate card variants:', error);
-            throw new Error('Failed to generate ID card variants');
-        }
-    }
-    /**
-     * Generate mirrored variants only (as per requirements)
-     * NOTE: Changed to generate NORMAL (non-mirrored) variants based on user feedback
-     */
-    async generateMirroredVariants(data, template) {
+    async generateColorVariants(data, template) {
         try {
             // Generate color cards
             const colorFront = await this.cardRenderer.renderFront(data, { variant: 'color', template });
             const colorBack = await this.cardRenderer.renderBack(data, { variant: 'color', template });
-            // Generate grayscale cards
-            const grayscaleFront = await this.cardRenderer.renderFront(data, { variant: 'grayscale', template });
-            const grayscaleBack = await this.cardRenderer.renderBack(data, { variant: 'grayscale', template });
-            // Combine front and back (NO mirroring - return normal images)
-            const colorCombined = await this.combineCards(colorFront, colorBack, template);
-            const grayscaleCombined = await this.combineCards(grayscaleFront, grayscaleBack, template);
+            // Normal: front and back side by side (back | front)
+            const normalCombined = await this.combineCards(colorFront, colorBack, template, false);
+            // Mirrored: back is flipped horizontally for printing (back_flipped | front)
+            const mirroredCombined = await this.combineCards(colorFront, colorBack, template, true);
+            logger_1.default.info('Generated color card variants (normal + mirrored for printing)');
             return {
-                colorMirrored: colorCombined,
-                grayscaleMirrored: grayscaleCombined
+                normalCombined,
+                mirroredCombined
             };
         }
         catch (error) {
-            logger_1.default.error('Failed to generate mirrored variants:', error);
-            throw new Error('Failed to generate mirrored ID cards');
+            logger_1.default.error('Failed to generate color variants:', error);
+            throw new Error('Failed to generate ID cards');
         }
     }
     /**
-     * Combine front and back cards into a single image (side by side like the example PNG)
+     * Combine front and back cards into a single image (side by side)
+     * @param mirrored - If true, flip both cards horizontally for printing
      * Output is scaled to a reasonable size for delivery
+     * Increased gap for better transparency handling and print cutting
+     * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
      */
-    async combineCards(front, back, template) {
+    async combineCards(front, back, template, mirrored = false) {
         try {
             const { width, height } = (0, cardRenderer_1.getCardDimensions)(template);
-            const gap = 30; // Gap between cards
-            const totalWidth = width * 2 + gap;
-            // Target output width (standard size for all templates)
-            const targetWidth = 2054; // Same as Template 1 combined width
+            const gap = 80; // Good spacing between cards for cutting
+            const padding = 30; // Padding around the entire image
+            const totalWidth = width * 2 + gap + (padding * 2);
+            const totalHeight = height + (padding * 2);
+            // Standard output dimensions (2 cards + gap + padding)
+            const targetWidth = 2200;
             const scale = targetWidth / totalWidth;
-            const targetHeight = Math.round(height * scale);
+            const targetHeight = Math.round(totalHeight * scale);
             const scaledGap = Math.round(gap * scale);
+            const scaledPadding = Math.round(padding * scale);
             const scaledWidth = Math.round(width * scale);
-            // Scale front and back images first
-            const scaledFront = await (0, sharp_1.default)(front)
-                .resize(scaledWidth, targetHeight)
-                .toBuffer();
-            const scaledBack = await (0, sharp_1.default)(back)
-                .resize(scaledWidth, targetHeight)
-                .toBuffer();
-            // Create canvas (horizontal layout like the example PNG)
+            const scaledCardHeight = Math.round(height * scale);
+            // Scale and optionally flip both cards for mirrored version
+            let scaledFront;
+            let scaledBack;
+            if (mirrored) {
+                // Flip both cards horizontally for printing
+                scaledFront = await (0, sharp_1.default)(front)
+                    .resize(scaledWidth, scaledCardHeight)
+                    .flop()
+                    .toBuffer();
+                scaledBack = await (0, sharp_1.default)(back)
+                    .resize(scaledWidth, scaledCardHeight)
+                    .flop()
+                    .toBuffer();
+            }
+            else {
+                scaledFront = await (0, sharp_1.default)(front)
+                    .resize(scaledWidth, scaledCardHeight)
+                    .toBuffer();
+                scaledBack = await (0, sharp_1.default)(back)
+                    .resize(scaledWidth, scaledCardHeight)
+                    .toBuffer();
+            }
+            // Create canvas with white background
             const canvas = await (0, sharp_1.default)({
                 create: {
                     width: targetWidth,
                     height: targetHeight,
                     channels: 4,
-                    background: { r: 255, g: 255, b: 255, alpha: 1 }
+                    background: { r: 255, g: 255, b: 255, alpha: 1 } // White background
                 }
             })
                 .png()
                 .toBuffer();
-            // Composite front and back (side by side)
+            // Composite front and back (back on left, front on right)
+            // Use PNG compression level 9 for smaller file size
             return await (0, sharp_1.default)(canvas)
                 .composite([
-                { input: scaledBack, left: 0, top: 0 }, // Back card on left
-                { input: scaledFront, left: scaledWidth + scaledGap, top: 0 } // Front card on right
+                { input: scaledBack, left: scaledPadding, top: scaledPadding },
+                { input: scaledFront, left: scaledPadding + scaledWidth + scaledGap, top: scaledPadding }
             ])
-                .png()
+                .png({
+                compressionLevel: 9,
+                effort: 10
+            })
                 .toBuffer();
         }
         catch (error) {
@@ -133,40 +114,60 @@ class CardVariantGenerator {
     }
     /**
      * Save generated files to disk and return file paths
+     * Generates: normal PNG, mirrored PNG, normal PDF, mirrored PDF (all color)
      */
     async saveToFiles(data, jobId, template) {
         try {
             // Ensure output directory exists
             await promises_1.default.mkdir(this.outputDir, { recursive: true });
-            // Generate mirrored variants
-            const { colorMirrored, grayscaleMirrored } = await this.generateMirroredVariants(data, template);
+            // Generate color variants (normal and mirrored)
+            const { normalCombined, mirroredCombined } = await this.generateColorVariants(data, template);
             // Generate safe filename from user name
             const safeName = this.sanitizeFilename(data.fullNameEnglish);
             // Define file paths
-            const colorMirroredPngPath = path_1.default.join(this.outputDir, `${jobId}_${safeName}_color_mirrored.png`);
-            const grayscaleMirroredPngPath = path_1.default.join(this.outputDir, `${jobId}_${safeName}_grayscale_mirrored.png`);
-            // Save PNG files with 300 DPI
-            await (0, sharp_1.default)(colorMirrored)
-                .withMetadata({ density: 300 })
-                .png()
-                .toFile(colorMirroredPngPath);
-            await (0, sharp_1.default)(grayscaleMirrored)
-                .withMetadata({ density: 300 })
-                .png()
-                .toFile(grayscaleMirroredPngPath);
+            const colorNormalPngPath = path_1.default.join(this.outputDir, `${jobId}_${safeName}_normal.png`);
+            const colorMirroredPngPath = path_1.default.join(this.outputDir, `${jobId}_${safeName}_mirrored.png`);
+            // Save PNG files (no compression - templates already optimized)
+            await this.savePng(normalCombined, colorNormalPngPath);
+            await this.savePng(mirroredCombined, colorMirroredPngPath);
             // PDF paths will be generated by PDFGenerator
-            const colorMirroredPdfPath = path_1.default.join(this.outputDir, `${jobId}_${safeName}_color_mirrored_A4.pdf`);
-            const grayscaleMirroredPdfPath = path_1.default.join(this.outputDir, `${jobId}_${safeName}_grayscale_mirrored_A4.pdf`);
+            const colorNormalPdfPath = path_1.default.join(this.outputDir, `${jobId}_${safeName}_normal_A4.pdf`);
+            const colorMirroredPdfPath = path_1.default.join(this.outputDir, `${jobId}_${safeName}_mirrored_A4.pdf`);
             return {
+                colorNormalPng: colorNormalPngPath,
                 colorMirroredPng: colorMirroredPngPath,
-                grayscaleMirroredPng: grayscaleMirroredPngPath,
-                colorMirroredPdf: colorMirroredPdfPath,
-                grayscaleMirroredPdf: grayscaleMirroredPdfPath
+                colorNormalPdf: colorNormalPdfPath,
+                colorMirroredPdf: colorMirroredPdfPath
             };
         }
         catch (error) {
             logger_1.default.error('Failed to save files:', error);
             throw new Error('Failed to save generated files');
+        }
+    }
+    /**
+     * Save PNG with good compression - templates are already optimized
+     * Embed sRGB color profile for consistent printing
+     */
+    async savePng(imageBuffer, outputPath) {
+        try {
+            const result = await (0, sharp_1.default)(imageBuffer)
+                .withMetadata({ density: 300 })
+                .toColorspace('srgb')
+                .png({
+                compressionLevel: 9,
+                effort: 10,
+                palette: false
+            })
+                .toBuffer();
+            await promises_1.default.writeFile(outputPath, result);
+            const finalSize = Math.round(result.length / 1024);
+            logger_1.default.info(`Saved PNG: ${outputPath} (${finalSize}KB)`);
+        }
+        catch (error) {
+            logger_1.default.error('PNG save failed:', error);
+            // Fallback to direct write
+            await promises_1.default.writeFile(outputPath, imageBuffer);
         }
     }
     /**

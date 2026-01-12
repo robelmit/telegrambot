@@ -81,23 +81,66 @@ async function main() {
                     const jobDoc = await JobModel.findById(job.data.jobId);
                     const userName = jobDoc?.extractedData?.fullNameEnglish || 'User';
                     await deliveryService.deliverFiles(chatId, {
-                        colorMirroredPng: files[0],
-                        grayscaleMirroredPng: files[1],
-                        colorMirroredPdf: files[2],
-                        grayscaleMirroredPdf: files[3]
+                        colorNormalPng: files[0],
+                        colorMirroredPng: files[1],
+                        colorNormalPdf: files[2],
+                        colorMirroredPdf: files[3]
                     }, userName);
                     // Cleanup files after 1 minute
                     setTimeout(async () => {
                         await deliveryService.cleanupJobFiles({
-                            colorMirroredPng: files[0],
-                            grayscaleMirroredPng: files[1],
-                            colorMirroredPdf: files[2],
-                            grayscaleMirroredPdf: files[3]
+                            colorNormalPng: files[0],
+                            colorMirroredPng: files[1],
+                            colorNormalPdf: files[2],
+                            colorMirroredPdf: files[3]
                         });
                     }, 60000);
                 }
                 catch (error) {
                     logger_1.default.error('File delivery failed:', error);
+                }
+            },
+            onBulkBatchComplete: async (_bulkGroupId, batchIndex, combinedFiles, chatId, _telegramId) => {
+                try {
+                    // Send combined PDFs to user (normal and mirrored)
+                    const fs = await Promise.resolve().then(() => __importStar(require('fs')));
+                    for (let i = 0; i < combinedFiles.length; i++) {
+                        const filePath = combinedFiles[i];
+                        const isNormal = i === 0;
+                        const fileType = isNormal ? 'Normal' : 'Mirrored';
+                        if (fs.existsSync(filePath)) {
+                            await bot.telegram.sendDocument(chatId, {
+                                source: filePath,
+                                filename: `bulk_ids_batch_${batchIndex + 1}_${fileType.toLowerCase()}.pdf`
+                            }, {
+                                caption: `📄 Bulk ID Cards - Batch ${batchIndex + 1} (${fileType})\n\n` +
+                                    (isNormal
+                                        ? `Normal orientation for viewing.`
+                                        : `Mirrored for printing - flip paper to print back side.`) +
+                                    `\nPrint at 100% scale for correct size.`
+                            });
+                            logger_1.default.info(`Delivered bulk batch ${batchIndex + 1} (${fileType}) to chat ${chatId}`);
+                            // Cleanup after 2 minutes
+                            setTimeout(async () => {
+                                try {
+                                    await fs.promises.unlink(filePath);
+                                    logger_1.default.info(`Cleaned up bulk PDF: ${filePath}`);
+                                }
+                                catch (e) {
+                                    // Ignore cleanup errors
+                                }
+                            }, 120000);
+                        }
+                    }
+                }
+                catch (error) {
+                    logger_1.default.error('Bulk batch delivery failed:', error);
+                    try {
+                        await bot.telegram.sendMessage(chatId, `❌ Failed to deliver batch ${batchIndex + 1}. Please contact support.`);
+                    }
+                    catch (e) {
+                        // Ignore notification errors
+                    }
                 }
             },
             onFailed: async (job, error) => {

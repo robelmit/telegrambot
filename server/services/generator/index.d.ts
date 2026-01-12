@@ -15,7 +15,7 @@ export declare class IDGeneratorService {
     constructor(outputDir?: string);
     /**
      * Generate all output files for a job
-     * Returns: 2 mirrored PNG images + 2 mirrored A4 PDFs
+     * Returns: 2 PNG images (normal + mirrored) + 2 A4 PDFs (normal + mirrored)
      */
     generateAll(data: EfaydaData, jobId: string, template?: TemplateType): Promise<GeneratedFiles>;
     /**

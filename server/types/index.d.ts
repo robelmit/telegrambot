@@ -43,10 +43,10 @@ export interface TransactionVerification {
     error?: string;
 }
 export interface GeneratedFiles {
+    colorNormalPng: string;
     colorMirroredPng: string;
-    grayscaleMirroredPng: string;
+    colorNormalPdf: string;
     colorMirroredPdf: string;
-    grayscaleMirroredPdf: string;
 }
 export interface CardGeneratorOptions {
     variant: 'color' | 'grayscale';

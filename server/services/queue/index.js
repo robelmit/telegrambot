@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -42,8 +9,11 @@ exports.addJob = addJob;
 exports.getJobStatus = getJobStatus;
 exports.shutdownJobQueue = shutdownJobQueue;
 const simpleQueue_1 = require("../../utils/simpleQueue");
+const pdfGenerator_1 = require("../generator/pdfGenerator");
 const Job_1 = __importDefault(require("../../models/Job"));
 const logger_1 = __importDefault(require("../../utils/logger"));
+const path_1 = __importDefault(require("path"));
+const promises_1 = __importDefault(require("fs/promises"));
 // Singleton queue instance
 let jobQueue = null;
 /**
@@ -51,6 +21,10 @@ let jobQueue = null;
  */
 function initializeJobQueue(deps, concurrency = 3) {
     const servicePrice = parseInt(process.env.SERVICE_PRICE || '50', 10);
+    // Initialize PDF generator if not provided
+    if (!deps.pdfGenerator) {
+        deps.pdfGenerator = new pdfGenerator_1.PDFGenerator();
+    }
     jobQueue = new simpleQueue_1.SimpleQueue({
         concurrency,
         maxAttempts: 3,
@@ -58,16 +32,15 @@ function initializeJobQueue(deps, concurrency = 3) {
     });
     // Register processor
     jobQueue.process(async (job) => {
-        const { jobId, pdfPath, template } = job.data;
-        logger_1.default.info(`Processing job ${jobId} for user ${job.data.telegramId} with template ${template || 'template0'}`);
+        const { jobId, pdfPath, template, isBulk, bulkGroupId, bulkBatchIndex, bulkTotalFiles, bulkFilesPerPdf } = job.data;
+        logger_1.default.info(`Processing job ${jobId} for user ${job.data.telegramId} with template ${template || 'template0'}${isBulk ? ` (bulk: ${bulkGroupId})` : ''}`);
         // Update job status to processing
         await Job_1.default.findByIdAndUpdate(jobId, {
             status: 'processing',
             startedAt: new Date()
         });
         // Read PDF file
-        const fs = await Promise.resolve().then(() => __importStar(require('fs/promises')));
-        const pdfBuffer = await fs.readFile(pdfPath);
+        const pdfBuffer = await promises_1.default.readFile(pdfPath);
         // Parse PDF and extract data
         const parseResult = await deps.pdfService.processDocument(pdfBuffer, 'document.pdf');
         if (!parseResult.isValid || !parseResult.data) {
@@ -88,17 +61,26 @@ function initializeJobQueue(deps, concurrency = 3) {
         await Job_1.default.findByIdAndUpdate(jobId, {
             status: 'completed',
             outputFiles: [
+                { type: 'colorNormalPng', path: generatedFiles.colorNormalPng },
                 { type: 'colorMirroredPng', path: generatedFiles.colorMirroredPng },
-                { type: 'grayscaleMirroredPng', path: generatedFiles.grayscaleMirroredPng },
-                { type: 'colorMirroredPdf', path: generatedFiles.colorMirroredPdf },
-                { type: 'grayscaleMirroredPdf', path: generatedFiles.grayscaleMirroredPdf }
+                { type: 'colorNormalPdf', path: generatedFiles.colorNormalPdf },
+                { type: 'colorMirroredPdf', path: generatedFiles.colorMirroredPdf }
             ],
             completedAt: new Date()
         });
+        // Handle bulk job tracking
+        if (isBulk && bulkGroupId && bulkBatchIndex !== undefined && bulkTotalFiles && bulkFilesPerPdf) {
+            await trackBulkJobCompletion(bulkGroupId, bulkBatchIndex, bulkTotalFiles, bulkFilesPerPdf, generatedFiles.colorNormalPng, job.data.chatId, job.data.telegramId, deps, generatedFiles.colorMirroredPng // Pass mirrored PNG path too
+            );
+        }
         logger_1.default.info(`Job ${jobId} completed successfully`);
     });
     // Handle completed jobs
     jobQueue.on('completed', async (job) => {
+        // Skip bulk jobs - they're handled by trackBulkJobCompletion
+        if (job.data.isBulk) {
+            return;
+        }
         if (deps.onComplete) {
             try {
                 const jobDoc = await Job_1.default.findById(job.data.jobId);
@@ -141,6 +123,78 @@ function initializeJobQueue(deps, concurrency = 3) {
     });
     logger_1.default.info('Job queue initialized (in-memory)');
     return jobQueue;
+}
+// Track bulk job files - stores both normal and mirrored PNG paths
+const bulkJobFiles = new Map();
+/**
+ * Track bulk job completion and generate combined PDFs when batch is complete
+ * Generates both normal and mirrored PDFs for each batch
+ */
+async function trackBulkJobCompletion(bulkGroupId, batchIndex, totalFiles, filesPerPdf, colorNormalPngPath, chatId, telegramId, deps, colorMirroredPngPath) {
+    // Initialize tracker if needed
+    if (!bulkJobFiles.has(bulkGroupId)) {
+        bulkJobFiles.set(bulkGroupId, {
+            totalFiles,
+            completedFiles: 0,
+            filesPerPdf,
+            batches: new Map(),
+            chatId,
+            telegramId
+        });
+    }
+    const tracker = bulkJobFiles.get(bulkGroupId);
+    tracker.completedFiles++;
+    // Add to batch (both normal and mirrored)
+    if (!tracker.batches.has(batchIndex)) {
+        tracker.batches.set(batchIndex, { normal: [], mirrored: [] });
+    }
+    const batch = tracker.batches.get(batchIndex);
+    batch.normal.push(colorNormalPngPath);
+    if (colorMirroredPngPath) {
+        batch.mirrored.push(colorMirroredPngPath);
+    }
+    logger_1.default.info(`Bulk ${bulkGroupId}: ${tracker.completedFiles}/${tracker.totalFiles} completed, batch ${batchIndex}`);
+    // Check if batch is complete
+    const filesInThisBatch = Math.min(filesPerPdf, totalFiles - (batchIndex * filesPerPdf));
+    if (batch.normal.length === filesInThisBatch) {
+        // Batch complete - generate combined PDFs (normal and mirrored)
+        try {
+            const outputDir = process.env.OUTPUT_DIR || 'temp';
+            // Ensure output directory exists
+            await promises_1.default.mkdir(outputDir, { recursive: true });
+            const normalPdfPath = path_1.default.join(outputDir, `${bulkGroupId}_batch${batchIndex + 1}_normal.pdf`);
+            const mirroredPdfPath = path_1.default.join(outputDir, `${bulkGroupId}_batch${batchIndex + 1}_mirrored.pdf`);
+            // Generate normal PDF
+            await deps.pdfGenerator.generateCombinedPDF(batch.normal, normalPdfPath, {
+                title: `Bulk ID Cards - Batch ${batchIndex + 1} (Normal)`
+            });
+            logger_1.default.info(`Generated normal PDF for batch ${batchIndex + 1}: ${normalPdfPath}`);
+            // Generate mirrored PDF if we have mirrored files
+            const combinedFiles = [normalPdfPath];
+            if (batch.mirrored.length === filesInThisBatch) {
+                await deps.pdfGenerator.generateCombinedPDF(batch.mirrored, mirroredPdfPath, {
+                    title: `Bulk ID Cards - Batch ${batchIndex + 1} (Mirrored for Printing)`
+                });
+                logger_1.default.info(`Generated mirrored PDF for batch ${batchIndex + 1}: ${mirroredPdfPath}`);
+                combinedFiles.push(mirroredPdfPath);
+            }
+            // Notify via callback
+            if (deps.onBulkBatchComplete) {
+                await deps.onBulkBatchComplete(bulkGroupId, batchIndex, combinedFiles, chatId, telegramId);
+            }
+        }
+        catch (error) {
+            logger_1.default.error(`Failed to generate combined PDFs for batch ${batchIndex}:`, error);
+        }
+    }
+    // Cleanup tracker when all files are done
+    if (tracker.completedFiles === tracker.totalFiles) {
+        // Small delay to ensure all callbacks complete
+        setTimeout(() => {
+            bulkJobFiles.delete(bulkGroupId);
+            logger_1.default.info(`Bulk job ${bulkGroupId} fully completed and cleaned up`);
+        }, 5000);
+    }
 }
 /**
  * Get the job queue instance

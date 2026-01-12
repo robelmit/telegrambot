@@ -34,9 +34,9 @@ export declare class FileDeliveryService {
     private getFileInfos;
     /**
      * Generate descriptive filename
-     * Format: ID_Card_[Name]_[Variant]_Mirrored.[ext]
+     * Format: ID_Card_[Name]_[Variant].[ext]
      */
-    generateFilename(userName: string, variant: 'color' | 'grayscale', extension: 'png' | 'pdf'): string;
+    generateFilename(userName: string, variant: 'normal' | 'mirrored', extension: 'png' | 'pdf'): string;
     /**
      * Sanitize filename to remove invalid characters
      */

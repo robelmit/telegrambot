@@ -18,6 +18,15 @@ export interface IJob extends Document {
     createdAt: Date;
     completedAt?: Date;
     expiresAt: Date;
+    isBulk?: boolean;
+    bulkIndex?: number;
+    bulkGroupId?: string;
+    bulkBatchIndex?: number;
+    bulkIndexInBatch?: number;
+    bulkTotalFiles?: number;
+    bulkFilesPerPdf?: number;
+    bulkTotalBatches?: number;
+    template?: string;
 }
 export declare const Job: mongoose.Model<IJob, {}, {}, {}, mongoose.Document<unknown, {}, IJob, {}, {}> & IJob & Required<{
     _id: Types.ObjectId;

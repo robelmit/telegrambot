@@ -1,1 +1,1 @@
-{"version":3,"file":"startHandler.d.ts","sourceRoot":"","sources":["../../../src/bot/handlers/startHandler.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,UAAU,EAAE,MAAM,SAAS,CAAC;AAMrC,wBAAsB,WAAW,CAAC,GAAG,EAAE,UAAU,GAAG,OAAO,CAAC,IAAI,CAAC,CAwGhE;AAED,eAAe,WAAW,CAAC"}
+{"version":3,"file":"startHandler.d.ts","sourceRoot":"","sources":["../../../src/bot/handlers/startHandler.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,UAAU,EAAE,MAAM,SAAS,CAAC;AAMrC,wBAAsB,WAAW,CAAC,GAAG,EAAE,UAAU,GAAG,OAAO,CAAC,IAAI,CAAC,CAyGhE;AAED,eAAe,WAAW,CAAC"}

@@ -20,6 +20,7 @@ function createBot(token) {
             language: 'en',
             awaitingTransactionId: false,
             awaitingPdf: false,
+            awaitingBulkPdf: false,
             selectedTemplate: 'template0'
         })
     }));
@@ -56,6 +57,13 @@ function createBot(token) {
     bot.command('agent', handlers_1.handleAgent);
     bot.command('template', handlers_1.handleTemplate);
     bot.command('admin', handlers_1.handleAdmin);
+    // Bulk upload commands
+    bot.command('bulk', handlers_1.handleBulk);
+    bot.command('bulkdone', handlers_1.handleBulkDone);
+    bot.command('bulkcancel', handlers_1.handleBulkCancel);
+    // Bulk upload callback handlers (UI buttons)
+    bot.action('bulk_done', handlers_1.handleBulkDoneCallback);
+    bot.action('bulk_cancel', handlers_1.handleBulkCancelCallback);
     // Callback query handlers
     bot.action(/^lang_/, handlers_1.handleLanguageCallback);
     bot.action(/^template_/, handlers_1.handleTemplateCallback);
@@ -92,7 +100,15 @@ function createBot(token) {
     bot.action('admin_broadcast', handlers_1.handleAdminBroadcast);
     bot.action('admin_back', handlers_1.handleAdminBack);
     // Document handler (PDF uploads)
-    bot.on('document', handlers_1.handleDocument);
+    bot.on('document', async (ctx) => {
+        // Check if in bulk mode first
+        if ((0, handlers_1.isInBulkMode)(ctx)) {
+            await (0, handlers_1.handleBulkDocument)(ctx);
+        }
+        else {
+            await (0, handlers_1.handleDocument)(ctx);
+        }
+    });
     // Text message handler (for transaction IDs and admin input)
     bot.on('text', async (ctx) => {
         // Check if admin action is pending
@@ -112,6 +128,7 @@ function createBot(token) {
         // Map button text to commands
         const buttonMap = {
             [(0, locales_1.t)(lang, 'btn_upload')]: () => (0, handlers_1.handleUpload)(ctx),
+            [(0, locales_1.t)(lang, 'btn_bulk')]: () => (0, handlers_1.handleBulk)(ctx),
             [(0, locales_1.t)(lang, 'btn_balance')]: () => (0, handlers_1.handleBalance)(ctx),
             [(0, locales_1.t)(lang, 'btn_topup')]: () => (0, handlers_1.handleTopup)(ctx),
             [(0, locales_1.t)(lang, 'btn_pricing')]: () => (0, handlers_1.handlePricing)(ctx),
@@ -132,6 +149,7 @@ async function startBot(bot) {
     await bot.telegram.setMyCommands([
         { command: 'start', description: 'Start the bot' },
         { command: 'upload', description: 'Upload eFayda PDF' },
+        { command: 'bulk', description: 'Bulk upload (up to 5 files)' },
         { command: 'balance', description: 'Check wallet balance' },
         { command: 'topup', description: 'Top up wallet' },
         { command: 'pricing', description: 'View pricing' },

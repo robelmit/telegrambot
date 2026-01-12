@@ -10,32 +10,30 @@ export declare class CardVariantGenerator {
     private outputDir;
     constructor(outputDir?: string);
     /**
-     * Generate all card variants (color/grayscale, normal/mirrored)
-     * NOTE: "Mirrored" variants are now the same as normal (no flipping)
+     * Generate color card variants (normal and mirrored for printing)
      */
-    generateAllVariants(data: EfaydaData, template?: TemplateType): Promise<{
-        colorNormal: CardVariant;
-        colorMirrored: CardVariant;
-        grayscaleNormal: CardVariant;
-        grayscaleMirrored: CardVariant;
+    generateColorVariants(data: EfaydaData, template?: TemplateType): Promise<{
+        normalCombined: Buffer;
+        mirroredCombined: Buffer;
     }>;
     /**
-     * Generate mirrored variants only (as per requirements)
-     * NOTE: Changed to generate NORMAL (non-mirrored) variants based on user feedback
-     */
-    generateMirroredVariants(data: EfaydaData, template?: TemplateType): Promise<{
-        colorMirrored: Buffer;
-        grayscaleMirrored: Buffer;
-    }>;
-    /**
-     * Combine front and back cards into a single image (side by side like the example PNG)
+     * Combine front and back cards into a single image (side by side)
+     * @param mirrored - If true, flip both cards horizontally for printing
      * Output is scaled to a reasonable size for delivery
+     * Increased gap for better transparency handling and print cutting
+     * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
      */
     private combineCards;
     /**
      * Save generated files to disk and return file paths
+     * Generates: normal PNG, mirrored PNG, normal PDF, mirrored PDF (all color)
      */
     saveToFiles(data: EfaydaData, jobId: string, template?: TemplateType): Promise<GeneratedFiles>;
+    /**
+     * Save PNG with good compression - templates are already optimized
+     * Embed sRGB color profile for consistent printing
+     */
+    private savePng;
     /**
      * Sanitize filename to remove invalid characters
      */

@@ -52,11 +52,12 @@ async function handleLanguageCallback(ctx) {
             ti: '🇪🇹 ትግርኛ (Tigrigna)'
         };
         await ctx.editMessageText(`✅ ${(0, locales_1.t)(newLang, 'language_set_to')} ${langNames[newLang]}`);
-        // Show updated main menu
+        // Show updated main menu - Bulk on top row, no Pricing button
         const keyboard = telegraf_1.Markup.keyboard([
-            [(0, locales_1.t)(newLang, 'btn_upload'), (0, locales_1.t)(newLang, 'btn_balance')],
-            [(0, locales_1.t)(newLang, 'btn_topup'), (0, locales_1.t)(newLang, 'btn_pricing')],
-            [(0, locales_1.t)(newLang, 'btn_language'), (0, locales_1.t)(newLang, 'btn_help')]
+            [(0, locales_1.t)(newLang, 'btn_upload'), (0, locales_1.t)(newLang, 'btn_bulk')],
+            [(0, locales_1.t)(newLang, 'btn_topup'), (0, locales_1.t)(newLang, 'btn_balance')],
+            [(0, locales_1.t)(newLang, 'btn_template'), (0, locales_1.t)(newLang, 'btn_agent')],
+            [(0, locales_1.t)(newLang, 'btn_help'), (0, locales_1.t)(newLang, 'btn_language')]
         ]).resize();
         await ctx.reply((0, locales_1.t)(newLang, 'menu_updated'), keyboard);
         logger_1.default.info(`User ${telegramId} changed language to ${newLang}`);

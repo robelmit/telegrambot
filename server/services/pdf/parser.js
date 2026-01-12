@@ -145,31 +145,129 @@ class PDFParserImpl {
             data.sexAmharic = 'ሴት';
             data.sex = 'Female';
         }
-        // Extract English name
+        // Extract English name - improved pattern to catch more variations
+        // Look for 3 consecutive capitalized words that form a name
         const englishNamePattern = /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/g;
         const englishMatches = [...text.matchAll(englishNamePattern)];
-        const excludeEnglish = ['Ethiopian', 'Digital', 'National', 'Date', 'Birth', 'Sub', 'City', 'Phone', 'Number', 'Region', 'Woreda', 'Demographic', 'Data', 'Disclaimer', 'Personal'];
+        const excludeEnglish = [
+            'Ethiopian', 'Digital', 'National', 'Date', 'Birth', 'Sub', 'City',
+            'Phone', 'Number', 'Region', 'Woreda', 'Demographic', 'Data',
+            'Disclaimer', 'Personal', 'Identity', 'Card', 'Program', 'Fayda',
+            'Male', 'Female', 'Sex', 'Nationality', 'Address', 'Zone'
+        ];
+        // Try to find English name - iterate from end to find the actual name (not headers)
         for (let i = englishMatches.length - 1; i >= 0; i--) {
             const fullMatch = englishMatches[i][0];
             const words = fullMatch.split(/\s+/);
             const isExcluded = words.some(w => excludeEnglish.includes(w));
-            if (!isExcluded) {
+            if (!isExcluded && words.length >= 3) {
                 data.fullNameEnglish = fullMatch;
+                logger_1.logger.info(`Found English name: ${fullMatch}`);
                 break;
             }
         }
-        // Extract Amharic name
-        const amharicNamePattern = /^([\u1200-\u137F]+\s+[\u1200-\u137F]+\s+[\u1200-\u137F]+)$/gm;
-        const amharicMatches = [...text.matchAll(amharicNamePattern)];
-        const excludeAmharic = ['ኢትዮጵያ', 'ብሔራዊ', 'መታወቂያ', 'ፕሮግራም', 'ዲጂታል', 'ካርድ', 'ክፍለ', 'ከተማ', 'ወረዳ', 'ክልል', 'ዜግነት', 'ስልክ', 'የስነ', 'ሕዝብ', 'መረጃ', 'ማሳሰቢያ'];
-        for (let i = amharicMatches.length - 1; i >= 0; i--) {
-            const fullMatch = amharicMatches[i][1];
-            const words = fullMatch.split(/\s+/);
-            const isExcluded = words.some(w => excludeAmharic.some(e => w.includes(e)));
-            if (!isExcluded && words.length >= 3) {
-                data.fullNameAmharic = fullMatch;
-                break;
+        // If no English name found with 3 words, try 2 words
+        if (!data.fullNameEnglish) {
+            const twoWordPattern = /([A-Z][a-z]+)\s+([A-Z][a-z]+)/g;
+            const twoWordMatches = [...text.matchAll(twoWordPattern)];
+            for (let i = twoWordMatches.length - 1; i >= 0; i--) {
+                const fullMatch = twoWordMatches[i][0];
+                const words = fullMatch.split(/\s+/);
+                const isExcluded = words.some(w => excludeEnglish.includes(w));
+                if (!isExcluded) {
+                    data.fullNameEnglish = fullMatch;
+                    logger_1.logger.info(`Found English name (2 words): ${fullMatch}`);
+                    break;
+                }
             }
+        }
+        // Extract Amharic name - improved pattern
+        // Look for 2-4 consecutive Amharic words on the same line (space separated, not newlines)
+        const amharicNamePattern = /^([\u1200-\u137F]+(?:[ \t]+[\u1200-\u137F]+){1,3})$/gm;
+        const amharicMatches = [...text.matchAll(amharicNamePattern)];
+        const excludeAmharic = [
+            'ኢትዮጵያ', 'ብሔራዊ', 'መታወቂያ', 'ፕሮግራም', 'ዲጂታል', 'ካርድ',
+            'ክፍለ', 'ከተማ', 'ወረዳ', 'ክልል', 'ዜግነት', 'ስልክ', 'የስነ',
+            'ሕዝብ', 'መረጃ', 'ማሳሰቢያ', 'ፋይዳ', 'ቁጥር', 'አድራሻ', 'ጾታ',
+            'የትውልድ', 'ቀን', 'ያበቃል', 'ተሰጠ', 'እዚህ', 'ይቁረጡ', 'ቅዳ',
+            'ስም', 'ሙሉ', 'ፆታ', 'ወንድ', 'ሴት', 'ኢትዮጵያዊ', 'ተወላጅ',
+            'የማንነት', 'መገለጫዎች', 'ናቸው', 'አበባ', 'አዲስ'
+        ];
+        // Strategy 1: If we found English name, look for Amharic name near it in the text
+        if (data.fullNameEnglish) {
+            const englishNameIndex = text.indexOf(data.fullNameEnglish);
+            if (englishNameIndex !== -1) {
+                // Look in a window around the English name (300 chars before)
+                const windowStart = Math.max(0, englishNameIndex - 300);
+                const nearbyText = text.substring(windowStart, englishNameIndex);
+                const nearbyAmharicMatches = [...nearbyText.matchAll(amharicNamePattern)];
+                // Get the last (closest to English name) valid Amharic name
+                for (let i = nearbyAmharicMatches.length - 1; i >= 0; i--) {
+                    const fullMatch = nearbyAmharicMatches[i][1];
+                    const words = fullMatch.split(/[ \t]+/);
+                    const isExcluded = words.some(w => excludeAmharic.some(e => w.includes(e)));
+                    if (!isExcluded && words.length >= 2 && words.length <= 4) {
+                        data.fullNameAmharic = fullMatch;
+                        logger_1.logger.info(`Found Amharic name near English name: ${fullMatch}`);
+                        break;
+                    }
+                }
+            }
+        }
+        // Strategy 2: If still no Amharic name, iterate from end to find actual name
+        if (!data.fullNameAmharic) {
+            for (let i = amharicMatches.length - 1; i >= 0; i--) {
+                const fullMatch = amharicMatches[i][1];
+                const words = fullMatch.split(/[ \t]+/);
+                const isExcluded = words.some(w => excludeAmharic.some(e => w.includes(e)));
+                // Name should have 2-4 words and not be excluded
+                if (!isExcluded && words.length >= 2 && words.length <= 4) {
+                    data.fullNameAmharic = fullMatch;
+                    logger_1.logger.info(`Found Amharic name: ${fullMatch}`);
+                    break;
+                }
+            }
+        }
+        // Fallback: If we have Amharic but no English, try to find English anywhere
+        if (data.fullNameAmharic && !data.fullNameEnglish) {
+            logger_1.logger.warn('Found Amharic name but no English name, searching more broadly...');
+            // Look for any sequence of capitalized words that could be a name
+            const broadPattern = /\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})(?:\s+([A-Z][a-z]{2,}))?\b/g;
+            const broadMatches = [...text.matchAll(broadPattern)];
+            for (const match of broadMatches) {
+                const fullMatch = match[0];
+                const words = fullMatch.split(/\s+/);
+                const isExcluded = words.some(w => excludeEnglish.includes(w));
+                if (!isExcluded && words.every(w => w.length >= 3)) {
+                    data.fullNameEnglish = fullMatch;
+                    logger_1.logger.info(`Found English name (broad search): ${fullMatch}`);
+                    break;
+                }
+            }
+        }
+        // Fallback: If we have English but no Amharic, try to find Amharic anywhere
+        if (data.fullNameEnglish && !data.fullNameAmharic) {
+            logger_1.logger.warn('Found English name but no Amharic name, searching more broadly...');
+            // Look for any sequence of Amharic words
+            const broadAmharicPattern = /([\u1200-\u137F]{2,})\s+([\u1200-\u137F]{2,})(?:\s+([\u1200-\u137F]{2,}))?/g;
+            const broadAmharicMatches = [...text.matchAll(broadAmharicPattern)];
+            for (const match of broadAmharicMatches) {
+                const fullMatch = match[0];
+                const words = fullMatch.split(/\s+/);
+                const isExcluded = words.some(w => excludeAmharic.some(e => w.includes(e)));
+                if (!isExcluded && words.length >= 2) {
+                    data.fullNameAmharic = fullMatch;
+                    logger_1.logger.info(`Found Amharic name (broad search): ${fullMatch}`);
+                    break;
+                }
+            }
+        }
+        // Log warning if either name is still missing
+        if (!data.fullNameEnglish) {
+            logger_1.logger.warn('Could not extract English name from PDF');
+        }
+        if (!data.fullNameAmharic) {
+            logger_1.logger.warn('Could not extract Amharic name from PDF');
         }
         // Region
         if (text.includes('ትግራይ')) {

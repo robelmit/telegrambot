@@ -14,10 +14,12 @@ export declare class CardRenderer {
     };
     /**
      * Render front card - EXACTLY like test script renderFrontCard function
+     * Uses sRGB normalized templates for consistent color printing
      */
     renderFront(data: EfaydaData, options?: CardRenderOptions): Promise<Buffer>;
     /**
      * Render back card - EXACTLY like test script renderBackCard function
+     * Uses sRGB normalized templates for consistent color printing
      */
     renderBack(data: EfaydaData, options?: CardRenderOptions): Promise<Buffer>;
     private applyGrayscale;

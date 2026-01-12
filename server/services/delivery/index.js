@@ -83,9 +83,9 @@ class FileDeliveryService {
      * Generate file caption
      */
     generateCaption(fileInfo) {
-        const variantLabel = fileInfo.variant === 'color' ? '🎨 Color' : '⬛ Grayscale';
         const typeLabel = fileInfo.type === 'png' ? 'Image' : 'PDF (A4)';
-        return `${variantLabel} ${typeLabel} - Mirrored`;
+        const variantLabel = fileInfo.variant === 'color' ? '📄 Normal' : '🖨️ Mirrored (for printing)';
+        return `${variantLabel} ${typeLabel}`;
     }
     /**
      * Get file information array from GeneratedFiles
@@ -94,39 +94,39 @@ class FileDeliveryService {
         const safeName = this.sanitizeFilename(userName);
         return [
             {
-                path: files.colorMirroredPng,
-                filename: this.generateFilename(safeName, 'color', 'png'),
+                path: files.colorNormalPng,
+                filename: this.generateFilename(safeName, 'normal', 'png'),
                 type: 'png',
                 variant: 'color'
             },
             {
-                path: files.grayscaleMirroredPng,
-                filename: this.generateFilename(safeName, 'grayscale', 'png'),
+                path: files.colorMirroredPng,
+                filename: this.generateFilename(safeName, 'mirrored', 'png'),
                 type: 'png',
-                variant: 'grayscale'
+                variant: 'grayscale' // Using grayscale to indicate mirrored in caption
+            },
+            {
+                path: files.colorNormalPdf,
+                filename: this.generateFilename(safeName, 'normal', 'pdf'),
+                type: 'pdf',
+                variant: 'color'
             },
             {
                 path: files.colorMirroredPdf,
-                filename: this.generateFilename(safeName, 'color', 'pdf'),
+                filename: this.generateFilename(safeName, 'mirrored', 'pdf'),
                 type: 'pdf',
-                variant: 'color'
-            },
-            {
-                path: files.grayscaleMirroredPdf,
-                filename: this.generateFilename(safeName, 'grayscale', 'pdf'),
-                type: 'pdf',
-                variant: 'grayscale'
+                variant: 'grayscale' // Using grayscale to indicate mirrored in caption
             }
         ];
     }
     /**
      * Generate descriptive filename
-     * Format: ID_Card_[Name]_[Variant]_Mirrored.[ext]
+     * Format: ID_Card_[Name]_[Variant].[ext]
      */
     generateFilename(userName, variant, extension) {
         const safeName = this.sanitizeFilename(userName);
-        const variantLabel = variant === 'color' ? 'Color' : 'Grayscale';
-        return `ID_Card_${safeName}_${variantLabel}_Mirrored.${extension}`;
+        const variantLabel = variant === 'normal' ? 'Normal' : 'Mirrored';
+        return `ID_Card_${safeName}_${variantLabel}.${extension}`;
     }
     /**
      * Sanitize filename to remove invalid characters
@@ -142,10 +142,10 @@ class FileDeliveryService {
      */
     async cleanupJobFiles(files) {
         const filePaths = [
+            files.colorNormalPng,
             files.colorMirroredPng,
-            files.grayscaleMirroredPng,
-            files.colorMirroredPdf,
-            files.grayscaleMirroredPdf
+            files.colorNormalPdf,
+            files.colorMirroredPdf
         ];
         for (const filePath of filePaths) {
             try {
@@ -210,8 +210,8 @@ class FileDeliveryService {
      * Validate filename format
      */
     isValidFilenameFormat(filename) {
-        // Expected format: ID_Card_[Name]_[Variant]_Mirrored.[ext]
-        const pattern = /^ID_Card_[A-Za-z0-9_]+_(Color|Grayscale)_Mirrored\.(png|pdf)$/;
+        // Expected format: ID_Card_[Name]_[Variant].[ext]
+        const pattern = /^ID_Card_[A-Za-z0-9_]+_(Normal|Mirrored)\.(png|pdf)$/;
         return pattern.test(filename);
     }
 }
