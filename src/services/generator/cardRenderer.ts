@@ -82,10 +82,16 @@ export function registerFonts(): void {
 /**
  * Get or initialize the background removal pipeline
  * Uses Xenova/modnet model - lightweight and efficient
+ * Auto-recovers if pipeline becomes stale
  */
-async function getSegmenter() {
-  if (!segmenterPipeline) {
-    logger.info('Initializing background removal pipeline (first time only)...');
+async function getSegmenter(forceReinit: boolean = false) {
+  if (!segmenterPipeline || forceReinit) {
+    if (forceReinit) {
+      logger.info('Reinitializing background removal pipeline (recovery mode)...');
+      segmenterPipeline = null;
+    } else {
+      logger.info('Initializing background removal pipeline (first time only)...');
+    }
     segmenterPipeline = await pipeline('image-segmentation', 'Xenova/modnet', {
       dtype: 'fp32'
     });
@@ -98,13 +104,14 @@ async function getSegmenter() {
  * Remove background using @huggingface/transformers with Xenova/modnet
  * Lightweight model with lower memory usage
  * Falls back to flood-fill method if AI fails
+ * Auto-recovers pipeline on failure and retries once
  */
-async function removeBackgroundAI(photoBuffer: Buffer): Promise<Buffer> {
+async function removeBackgroundAI(photoBuffer: Buffer, isRetry: boolean = false): Promise<Buffer> {
   try {
     logger.info('Using Transformers.js background removal (modnet model)...');
     
-    // Get the segmenter pipeline
-    const segmenter = await getSegmenter();
+    // Get the segmenter pipeline (force reinit if this is a retry)
+    const segmenter = await getSegmenter(isRetry);
     
     // Save buffer to temp file (transformers.js works better with file paths in Node.js)
     const tempDir = path.join(process.cwd(), 'temp');
@@ -178,6 +185,16 @@ async function removeBackgroundAI(photoBuffer: Buffer): Promise<Buffer> {
     
     throw new Error('No mask data returned from segmenter');
   } catch (error) {
+    // If this is not a retry, try reinitializing the pipeline once
+    if (!isRetry) {
+      logger.warn('Transformers.js background removal failed, retrying with fresh pipeline...', error);
+      try {
+        return await removeBackgroundAI(photoBuffer, true);
+      } catch (retryError) {
+        logger.error('Retry also failed, falling back to flood-fill:', retryError);
+        return removeBackgroundFloodFill(photoBuffer);
+      }
+    }
     logger.error('Transformers.js background removal failed, falling back to flood-fill:', error);
     return removeBackgroundFloodFill(photoBuffer);
   }
