@@ -9,8 +9,8 @@
     "dpi": 300
   },
   "templateFiles": {
-    "front": "front_template.png",
-    "back": "back_template.png"
+    "front": "halefront.png",
+    "back": "haleback.png"
   },
   "front": {
     "mainPhoto": {
@@ -27,7 +27,7 @@
     },
     "nameAmharic": {
       "x": 407,
-      "y": 172,
+      "y": 197,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(33, 33, 33)",
@@ -35,7 +35,7 @@
     },
     "nameEnglish": {
       "x": 407,
-      "y": 211,
+      "y": 230,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(33, 33, 33)",
@@ -43,7 +43,7 @@
     },
     "dateOfBirth": {
       "x": 407,
-      "y": 312,
+      "y": 305,
       "fontSize": 32,
       "fontWeight": "600",
       "color": "rgb(0, 0, 0)",
@@ -51,7 +51,7 @@
     },
     "sex": {
       "x": 407,
-      "y": 380,
+      "y": 368,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
@@ -59,7 +59,7 @@
     },
     "expiryDate": {
       "x": 407,
-      "y": 456,
+      "y": 440,
       "fontSize": 32,
       "fontWeight": "600",
       "color": "rgb(0, 0, 0)",
@@ -67,8 +67,8 @@
     },
     "dateOfIssueEthiopian": {
       "x": 20,
-      "y": 517,
-      "fontSize": 22,
+      "y": 475,
+      "fontSize": 19,
       "fontWeight": "700",
       "color": "rgb(60, 60, 60)",
       "rotation": -90,
@@ -76,32 +76,32 @@
     },
     "dateOfIssueGregorian": {
       "x": 20,
-      "y": 253,
-      "fontSize": 22,
+      "y": 270,
+      "fontSize": 19,
       "fontWeight": "700",
       "color": "rgb(60, 60, 60)",
       "rotation": -90,
       "fontFamily": "Inter"
     },
     "fan": {
-      "x": 461,
-      "y": 507,
-      "fontSize": 30,
+      "x": 455,
+      "y": 492,
+      "fontSize": 28,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "OCR-B"
     },
     "barcode": {
       "x": 454,
-      "y": 535,
-      "width": 355,
-      "height": 66,
+      "y": 521,
+      "width": 300,
+      "height": 50,
       "type": "Code128"
     }
   },
   "back": {
     "phoneNumber": {
-      "x": 30,
+      "x": 55,
       "y": 81,
       "fontSize": 30,
       "fontWeight": "500",
@@ -109,22 +109,22 @@
       "fontFamily": "Inter"
     },
     "nationality": {
-      "x": 30,
-      "y": 157,
+      "x": 55,
+      "y": 171,
       "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)"
     },
     "regionAmharic": {
-      "x": 30,
-      "y": 233,
+      "x": 55,
+      "y": 240,
       "fontSize": 30,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "Inter"
     },
     "regionEnglish": {
-      "x": 30,
+      "x": 55,
       "y": 274,
       "fontSize": 30,
       "fontWeight": "700",
@@ -132,7 +132,7 @@
       "fontFamily": "Inter"
     },
     "zoneAmharic": {
-      "x": 30,
+      "x": 55,
       "y": 309,
       "fontSize": 30,
       "fontWeight": "700",
@@ -140,7 +140,7 @@
       "fontFamily": "Inter"
     },
     "zoneEnglish": {
-      "x": 30,
+      "x": 55,
       "y": 345,
       "fontSize": 30,
       "fontWeight": "700",
@@ -148,7 +148,7 @@
       "fontFamily": "Inter"
     },
     "woredaAmharic": {
-      "x": 30,
+      "x": 55,
       "y": 375,
       "fontSize": 28,
       "fontWeight": "700",
@@ -156,7 +156,7 @@
       "fontFamily": "Inter"
     },
     "woredaEnglish": {
-      "x": 30,
+      "x": 55,
       "y": 412,
       "fontSize": 30,
       "fontWeight": "500",
@@ -164,8 +164,8 @@
       "fontFamily": "Inter"
     },
     "fin": {
-      "x": 132,
-      "y": 532,
+      "x": 166,
+      "y": 535,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",

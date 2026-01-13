@@ -156,14 +156,21 @@ const TEMPLATE_NAMES = ['Template 1', 'Template 2', 'Template 3'];
 
 let processedPhoto: Buffer | null = null;
 
-async function renderCard(layout: any): Promise<Buffer> {
+async function renderCard(layout: any, layoutIndex: number): Promise<Buffer> {
   const { dimensions, front, templateFiles } = layout;
   
   const canvas = createCanvas(dimensions.width, dimensions.height);
   const ctx = canvas.getContext('2d');
   
-  // Load template
-  const templatePath = path.join(ASSETS_DIR, templateFiles.front);
+  // Load template - use assets folder for template 3 (halefront/haleback), src/assets for others
+  let templatePath: string;
+  if (layoutIndex === 2) {
+    // Template 3 uses assets folder
+    templatePath = path.join(__dirname, 'assets', templateFiles.front);
+  } else {
+    templatePath = path.join(ASSETS_DIR, templateFiles.front);
+  }
+  
   const template = await loadImage(templatePath);
   ctx.drawImage(template, 0, 0, dimensions.width, dimensions.height);
   
@@ -218,7 +225,7 @@ async function renderCard(layout: any): Promise<Buffer> {
   // Expiry
   ctx.fillStyle = front.expiryDate.color;
   ctx.font = `bold ${front.expiryDate.fontSize}px Arial`;
-  ctx.fillText(`${SAMPLE_DATA.expiryDateGregorian} | ${SAMPLE_DATA.expiryDateEthiopian}`, front.expiryDate.x, front.expiryDate.y);
+  ctx.fillText(`${SAMPLE_DATA.expiryDateEthiopian} | ${SAMPLE_DATA.expiryDateGregorian}`, front.expiryDate.x, front.expiryDate.y);
   
   // FAN
   ctx.fillStyle = front.fan.color;
@@ -291,7 +298,7 @@ async function generatePreview() {
   for (let i = 0; i < layouts.length; i++) {
     console.log(`Rendering ${TEMPLATE_NAMES[i]}...`);
     try {
-      const card = await renderCard(layouts[i]);
+      const card = await renderCard(layouts[i], i);
       
       // Resize to fit preview
       const resized = await sharp(card)
