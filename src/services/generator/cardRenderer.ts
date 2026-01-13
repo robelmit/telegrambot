@@ -9,7 +9,6 @@ import fs from 'fs';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
-import { removeBackground } from '@imgly/background-removal-node';
 
 // Template type
 export type TemplateType = 'template0' | 'template1' | 'template2';
@@ -75,17 +74,17 @@ export function registerFonts(): void {
  */
 async function removeBackgroundAI(photoBuffer: Buffer): Promise<Buffer> {
   try {
-    logger.info('Using AI background removal (medium model)...');
+    logger.info('Using AI background removal (small model for production stability)...');
     
     // Convert buffer to blob for the library
     const blob = new Blob([photoBuffer], { type: 'image/png' });
     
-    // Remove background using AI with medium model for better quality
+    // Remove background using AI with small model for production stability
     const resultBlob = await removeBackground(blob, {
-      model: 'medium',  // Options: 'small', 'medium', 'large' - medium uses ~1GB RAM
+      model: 'small',  // Options: 'small', 'medium', 'large' - small uses ~300MB RAM
       output: {
         format: 'image/png',
-        quality: 1
+        quality: 0.9
       }
     });
     
@@ -122,7 +121,7 @@ async function removeBackgroundAI(photoBuffer: Buffer): Promise<Buffer> {
     logger.info('AI background removal successful');
     return finalResult;
   } catch (error) {
-    logger.warn('AI background removal failed, falling back to flood-fill:', error);
+    logger.error('AI background removal failed, falling back to flood-fill:', error);
     return removeBackgroundFloodFill(photoBuffer);
   }
 }
@@ -268,9 +267,17 @@ async function removeBackgroundFloodFill(photoBuffer: Buffer): Promise<Buffer> {
   }
 }
 
-// Keep old function name for backward compatibility - now uses AI removal
+// Keep old function name for backward compatibility - now uses AI removal or flood-fill based on env
 async function removeWhiteBackgroundSharp(photoBuffer: Buffer): Promise<Buffer> {
-  return removeBackgroundAI(photoBuffer);
+  // Check if AI removal is disabled via environment variable
+  const useAI = process.env.USE_AI_BACKGROUND_REMOVAL !== 'false';
+  
+  if (useAI) {
+    return removeBackgroundAI(photoBuffer);
+  } else {
+    logger.info('AI background removal disabled, using flood-fill method');
+    return removeBackgroundFloodFill(photoBuffer);
+  }
 }
 
 // Cache for normalized template images (sRGB color space) - templates don't change
