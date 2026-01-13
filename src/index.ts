@@ -9,6 +9,7 @@ import { IDGeneratorService } from './services/generator';
 import { WalletService } from './services/payment';
 import { FileDeliveryService } from './services/delivery';
 import { registerShutdownHandlers } from './utils/shutdown';
+import { preWarmBackgroundRemoval } from './services/generator/cardRenderer';
 import logger from './utils/logger';
 import config from './config';
 
@@ -35,6 +36,11 @@ async function main() {
     const walletService = new WalletService();
     const deliveryService = new FileDeliveryService(bot);
     logger.info('Services initialized');
+
+    // Pre-warm AI background removal pipeline (loads model before first request)
+    logger.info('Pre-warming AI model...');
+    await preWarmBackgroundRemoval();
+    logger.info('AI model ready');
 
     // Initialize job queue (in-memory, no Redis needed)
     logger.info('Initializing job queue...');

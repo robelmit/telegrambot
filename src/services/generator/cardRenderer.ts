@@ -634,3 +634,26 @@ export function getAvailableTemplates(): { id: TemplateType; name: string }[] {
     name: config.templateName || id
   }));
 }
+
+/**
+ * Pre-warm the AI background removal pipeline on startup
+ * This ensures the model is loaded before any requests come in
+ * Call this during server initialization
+ */
+export async function preWarmBackgroundRemoval(): Promise<boolean> {
+  const useAI = process.env.USE_AI_BACKGROUND_REMOVAL !== 'false';
+  if (!useAI) {
+    logger.info('AI background removal disabled, skipping pre-warm');
+    return true;
+  }
+  
+  try {
+    logger.info('Pre-warming AI background removal pipeline...');
+    await getSegmenter();
+    logger.info('AI background removal pipeline pre-warmed successfully');
+    return true;
+  } catch (error) {
+    logger.error('Failed to pre-warm AI pipeline (will use flood-fill fallback):', error);
+    return false;
+  }
+}
