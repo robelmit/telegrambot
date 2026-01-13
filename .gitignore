@@ -18,6 +18,9 @@ temp/
 *.tmp
 *.temp
 
+# Model cache
+.cache/
+
 # IDE
 .idea/
 .vscode/

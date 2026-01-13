@@ -17,7 +17,7 @@ const fs_1 = __importDefault(require("fs"));
 const jsbarcode_1 = __importDefault(require("jsbarcode"));
 const qrcode_1 = __importDefault(require("qrcode"));
 const sharp_1 = __importDefault(require("sharp"));
-const background_removal_node_1 = require("@imgly/background-removal-node");
+const { Rembg } = require("@xixiyahaha/rembg-node");
 // Load layout configs
 const layoutConfigs = {
     template0: JSON.parse(fs_1.default.readFileSync(path_1.default.join(__dirname, '../../config/cardLayout.json'), 'utf-8')),
@@ -63,53 +63,31 @@ function registerFonts() {
 }
 // Grayscale conversion is now done in removeBackgroundSharp function
 /**
- * Remove background using AI-based @imgly/background-removal-node
- * Uses 'small' model for lower RAM usage (~500MB vs ~2GB for large)
+ * Remove background using @xixiyahaha/rembg-node
  * Falls back to flood-fill method if AI fails
  */
 async function removeBackgroundAI(photoBuffer) {
     try {
-        logger_1.default.info('Using AI background removal (medium model)...');
-        // Convert buffer to blob for the library
-        const blob = new Blob([photoBuffer], { type: 'image/png' });
-        // Remove background using AI with medium model for better quality
-        const resultBlob = await (0, background_removal_node_1.removeBackground)(blob, {
-            model: 'medium', // Options: 'small', 'medium', 'large' - medium uses ~1GB RAM
-            output: {
-                format: 'image/png',
-                quality: 1
-            }
+        logger_1.default.info('Using rembg-node for background removal...');
+        
+        const input = (0, sharp_1.default)(photoBuffer);
+        const rembg = new Rembg({
+            logging: true,
         });
-        // Convert blob back to buffer
-        const arrayBuffer = await resultBlob.arrayBuffer();
-        const resultBuffer = Buffer.from(arrayBuffer);
+        
+        const output = await rembg.remove(input);
+        
         // Convert to grayscale while preserving alpha
-        const { data, info } = await (0, sharp_1.default)(resultBuffer)
-            .ensureAlpha()
-            .raw()
-            .toBuffer({ resolveWithObject: true });
-        const pixels = Buffer.from(data);
-        const width = info.width;
-        const height = info.height;
-        // Convert to grayscale
-        for (let i = 0; i < width * height * 4; i += 4) {
-            const r = pixels[i];
-            const g = pixels[i + 1];
-            const b = pixels[i + 2];
-            const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-            pixels[i] = gray;
-            pixels[i + 1] = gray;
-            pixels[i + 2] = gray;
-            // Alpha preserved
-        }
-        const finalResult = await (0, sharp_1.default)(pixels, {
-            raw: { width, height, channels: 4 }
-        }).png().toBuffer();
-        logger_1.default.info('AI background removal successful');
-        return finalResult;
+        const result = await output
+            .grayscale()
+            .png()
+            .toBuffer();
+        
+        logger_1.default.info('Rembg background removal successful');
+        return result;
     }
     catch (error) {
-        logger_1.default.warn('AI background removal failed, falling back to flood-fill:', error);
+        logger_1.default.warn('Rembg background removal failed, falling back to flood-fill:', error);
         return removeBackgroundFloodFill(photoBuffer);
     }
 }

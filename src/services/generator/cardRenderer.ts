@@ -9,6 +9,18 @@ import fs from 'fs';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
+import { pipeline, env } from '@huggingface/transformers';
+
+// Configure transformers.js for Production Node.js
+env.allowLocalModels = true;      // Allow loading from local cache
+env.allowRemoteModels = true;     // Allow downloading if not cached
+env.useBrowserCache = false;      // Disable browser cache (not in browser)
+env.useFSCache = true;            // Use filesystem cache
+env.cacheDir = process.env.TRANSFORMERS_CACHE || './.cache/transformers';  // Custom cache directory
+env.localModelPath = process.env.TRANSFORMERS_CACHE || './.cache/transformers';  // Local model path
+
+// Cache the segmenter pipeline
+let segmenterPipeline: any = null;
 
 // Template type
 export type TemplateType = 'template0' | 'template1' | 'template2';
@@ -68,60 +80,105 @@ export function registerFonts(): void {
 // Grayscale conversion is now done in removeBackgroundSharp function
 
 /**
- * Remove background using AI-based @imgly/background-removal-node
- * Uses 'small' model for lower RAM usage (~500MB vs ~2GB for large)
+ * Get or initialize the background removal pipeline
+ * Uses Xenova/modnet model - lightweight and efficient
+ */
+async function getSegmenter() {
+  if (!segmenterPipeline) {
+    logger.info('Initializing background removal pipeline (first time only)...');
+    segmenterPipeline = await pipeline('image-segmentation', 'Xenova/modnet', {
+      dtype: 'fp32'
+    });
+    logger.info('Background removal pipeline initialized');
+  }
+  return segmenterPipeline;
+}
+
+/**
+ * Remove background using @huggingface/transformers with Xenova/modnet
+ * Lightweight model with lower memory usage
  * Falls back to flood-fill method if AI fails
  */
 async function removeBackgroundAI(photoBuffer: Buffer): Promise<Buffer> {
   try {
-    logger.info('Using AI background removal (small model for production stability)...');
+    logger.info('Using Transformers.js background removal (modnet model)...');
     
-    // Convert buffer to blob for the library
-    const blob = new Blob([photoBuffer], { type: 'image/png' });
+    // Get the segmenter pipeline
+    const segmenter = await getSegmenter();
     
-    // Remove background using AI with small model for production stability
-    const resultBlob = await removeBackground(blob, {
-      model: 'small',  // Options: 'small', 'medium', 'large' - small uses ~300MB RAM
-      output: {
-        format: 'image/png',
-        quality: 0.9
+    // Save buffer to temp file (transformers.js works better with file paths in Node.js)
+    const tempDir = path.join(process.cwd(), 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const tempFile = path.join(tempDir, `temp_${Date.now()}.png`);
+    await sharp(photoBuffer).png().toFile(tempFile);
+    
+    // Run segmentation with file path
+    const result = await segmenter(tempFile);
+    
+    // Clean up temp file
+    try { fs.unlinkSync(tempFile); } catch (e) { /* ignore */ }
+    
+    // The result contains mask data - we need to apply it to the original image
+    if (result && result.length > 0 && result[0].mask) {
+      const maskData = result[0].mask;
+      
+      // Get original image dimensions
+      const originalMeta = await sharp(photoBuffer).metadata();
+      const width = originalMeta.width!;
+      const height = originalMeta.height!;
+      
+      // Convert RawImage mask to buffer
+      const maskBuffer = Buffer.from(maskData.data);
+      
+      // Resize mask to match original image if needed
+      let resizedMask = maskBuffer;
+      if (maskData.width !== width || maskData.height !== height) {
+        resizedMask = await sharp(maskBuffer, {
+          raw: { width: maskData.width, height: maskData.height, channels: 1 }
+        })
+        .resize(width, height)
+        .raw()
+        .toBuffer();
       }
-    });
-    
-    // Convert blob back to buffer
-    const arrayBuffer = await resultBlob.arrayBuffer();
-    const resultBuffer = Buffer.from(arrayBuffer);
-    
-    // Convert to grayscale while preserving alpha
-    const { data, info } = await sharp(resultBuffer)
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-    
-    const pixels = Buffer.from(data);
-    const width = info.width;
-    const height = info.height;
-    
-    // Convert to grayscale
-    for (let i = 0; i < width * height * 4; i += 4) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-      const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-      pixels[i] = gray;
-      pixels[i + 1] = gray;
-      pixels[i + 2] = gray;
-      // Alpha preserved
+      
+      // Get original image as raw RGBA
+      const { data: originalData } = await sharp(photoBuffer)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      
+      const pixels = Buffer.from(originalData);
+      
+      // Apply mask as alpha channel and convert to grayscale
+      for (let i = 0; i < width * height; i++) {
+        const pixelIdx = i * 4;
+        const maskValue = resizedMask[i] || 0;
+        
+        // Convert to grayscale
+        const r = pixels[pixelIdx];
+        const g = pixels[pixelIdx + 1];
+        const b = pixels[pixelIdx + 2];
+        const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        
+        pixels[pixelIdx] = gray;
+        pixels[pixelIdx + 1] = gray;
+        pixels[pixelIdx + 2] = gray;
+        pixels[pixelIdx + 3] = maskValue; // Apply mask as alpha
+      }
+      
+      const finalResult = await sharp(pixels, {
+        raw: { width, height, channels: 4 }
+      }).png().toBuffer();
+      
+      logger.info('Transformers.js background removal successful');
+      return finalResult;
     }
     
-    const finalResult = await sharp(pixels, {
-      raw: { width, height, channels: 4 }
-    }).png().toBuffer();
-    
-    logger.info('AI background removal successful');
-    return finalResult;
+    throw new Error('No mask data returned from segmenter');
   } catch (error) {
-    logger.error('AI background removal failed, falling back to flood-fill:', error);
+    logger.error('Transformers.js background removal failed, falling back to flood-fill:', error);
     return removeBackgroundFloodFill(photoBuffer);
   }
 }
