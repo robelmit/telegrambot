@@ -2,10 +2,10 @@
   "templateId": "template2",
   "templateName": "Template 3",
   "dimensions": {
-    "width": 1024,
-    "height": 646,
-    "widthCm": 8.67,
-    "heightCm": 5.47,
+    "width": 1044,
+    "height": 684,
+    "widthCm": 8.85,
+    "heightCm": 5.78,
     "dpi": 300
   },
   "templateFiles": {
