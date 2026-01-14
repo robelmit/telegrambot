@@ -82,26 +82,28 @@ export class PDFGenerator {
 
         // Add footer text with print instructions
         doc.undash()
+           .fontSize(10)
+           .fillColor('#CC0000')
+           .text(
+             '⚠️ CRITICAL: Print at ACTUAL SIZE (100% scale). DO NOT use "Fit to Page"!',
+             0,
+             A4_HEIGHT_PT - 60,
+             { align: 'center', width: A4_WIDTH_PT }
+           )
            .fontSize(8)
            .fillColor('#666666')
            .text(
-             '⚠️ IMPORTANT: Print at 100% scale (no fit/shrink). Do NOT select "Fit to Page".',
+             `Card size: ${CARD_WIDTH_CM}cm × ${CARD_HEIGHT_CM}cm | Measure with ruler after printing`,
              0,
-             A4_HEIGHT_PT - 50,
+             A4_HEIGHT_PT - 42,
              { align: 'center', width: A4_WIDTH_PT }
            )
-           .text(
-             `Card size: ${CARD_WIDTH_CM}cm × ${CARD_HEIGHT_CM}cm | Cut along dashed lines`,
-             0,
-             A4_HEIGHT_PT - 38,
-             { align: 'center', width: A4_WIDTH_PT }
-           )
-           .fontSize(6)
+           .fontSize(7)
            .fillColor('#999999')
            .text(
-             'Printer settings: Scale=100%, Color=sRGB, Quality=Best',
+             'Printer: Scale=100%, Paper=A4, No margins. If cards are smaller, your printer scaled them.',
              0,
-             A4_HEIGHT_PT - 25,
+             A4_HEIGHT_PT - 28,
              { align: 'center', width: A4_WIDTH_PT }
            );
 
@@ -164,26 +166,28 @@ export class PDFGenerator {
 
         // Add footer with print instructions
         doc.undash()
+           .fontSize(10)
+           .fillColor('#CC0000')
+           .text(
+             '⚠️ CRITICAL: Print at ACTUAL SIZE (100% scale). DO NOT use "Fit to Page"!',
+             0,
+             A4_HEIGHT_PT - 60,
+             { align: 'center', width: A4_WIDTH_PT }
+           )
            .fontSize(8)
            .fillColor('#666666')
            .text(
-             '⚠️ IMPORTANT: Print at 100% scale (no fit/shrink). Do NOT select "Fit to Page".',
+             `Card size: ${CARD_WIDTH_CM}cm × ${CARD_HEIGHT_CM}cm | Measure with ruler after printing`,
              0,
-             A4_HEIGHT_PT - 50,
+             A4_HEIGHT_PT - 42,
              { align: 'center', width: A4_WIDTH_PT }
            )
-           .text(
-             `Card size: ${CARD_WIDTH_CM}cm × ${CARD_HEIGHT_CM}cm | Cut along dashed lines`,
-             0,
-             A4_HEIGHT_PT - 38,
-             { align: 'center', width: A4_WIDTH_PT }
-           )
-           .fontSize(6)
+           .fontSize(7)
            .fillColor('#999999')
            .text(
-             'Printer settings: Scale=100%, Color=sRGB, Quality=Best',
+             'Printer: Scale=100%, Paper=A4, No margins. If cards are smaller, your printer scaled them.',
              0,
-             A4_HEIGHT_PT - 25,
+             A4_HEIGHT_PT - 28,
              { align: 'center', width: A4_WIDTH_PT }
            );
 
