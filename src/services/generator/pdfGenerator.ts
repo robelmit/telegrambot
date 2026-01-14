@@ -7,14 +7,14 @@ const A4_WIDTH_PT = 595.28;  // 210mm in points
 const A4_HEIGHT_PT = 841.89; // 297mm in points
 
 // ID Card dimensions in points (72 DPI for PDF)
-// Standard ID card: 8.67cm x 5.47cm
+// Standard ID card: 8.85cm x 5.78cm
 // 1cm = 28.3465pt, so:
-// 8.67cm = 245.67pt, 5.47cm = 155.01pt
-const CARD_WIDTH_CM = 8.67;
-const CARD_HEIGHT_CM = 5.47;
+// 8.85cm = 250.87pt, 5.78cm = 163.84pt
+const CARD_WIDTH_CM = 8.85;
+const CARD_HEIGHT_CM = 5.78;
 const CM_TO_PT = 28.3465;
-const CARD_WIDTH_PT = CARD_WIDTH_CM * CM_TO_PT;   // 245.67pt
-const CARD_HEIGHT_PT = CARD_HEIGHT_CM * CM_TO_PT; // 155.01pt
+const CARD_WIDTH_PT = CARD_WIDTH_CM * CM_TO_PT;   // 250.87pt
+const CARD_HEIGHT_PT = CARD_HEIGHT_CM * CM_TO_PT; // 163.84pt
 
 // Increased gap between cards for better transparency/cutting
 const CARD_GAP_PT = 30;      // Gap between front and back cards
@@ -343,7 +343,7 @@ export class PDFGenerator {
            .fontSize(7)
            .fillColor('#999999')
            .text(
-             `Bulk Print - ${cardImagePaths.length} ID card(s) | Print at 100% scale | Card size: 8.67cm × 5.47cm`,
+             `Bulk Print - ${cardImagePaths.length} ID card(s) | Print at 100% scale | Card size: 8.85cm × 5.78cm`,
              0,
              A4_HEIGHT_PT - 25,
              { align: 'center', width: A4_WIDTH_PT }
