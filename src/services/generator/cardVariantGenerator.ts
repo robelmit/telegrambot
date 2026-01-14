@@ -53,9 +53,8 @@ export class CardVariantGenerator {
   /**
    * Combine front and back cards into a single image (side by side)
    * @param mirrored - If true, flip both cards horizontally for printing
-   * Output is scaled to a reasonable size for delivery
-   * Increased gap for better transparency handling and print cutting
-   * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
+   * Output maintains 300 DPI for proper printing
+   * Standard card size: 8.85cm × 5.78cm = 1044×684px at 300 DPI
    */
   private async combineCards(front: Buffer, back: Buffer, template?: TemplateType, mirrored: boolean = false): Promise<Buffer> {
     try {
@@ -65,43 +64,33 @@ export class CardVariantGenerator {
       const totalWidth = width * 2 + gap + (padding * 2);
       const totalHeight = height + (padding * 2);
 
-      // Standard output dimensions (2 cards + gap + padding)
-      const targetWidth = 2200;
-      const scale = targetWidth / totalWidth;
-      const targetHeight = Math.round(totalHeight * scale);
-      const scaledGap = Math.round(gap * scale);
-      const scaledPadding = Math.round(padding * scale);
-      const scaledWidth = Math.round(width * scale);
-      const scaledCardHeight = Math.round(height * scale);
+      // Keep original dimensions at 300 DPI for proper printing
+      // No scaling - maintain pixel-perfect quality
+      const outputWidth = totalWidth;
+      const outputHeight = totalHeight;
 
-      // Scale and optionally flip both cards for mirrored version
-      let scaledFront: Buffer;
-      let scaledBack: Buffer;
+      // Optionally flip both cards for mirrored version (no resize)
+      let processedFront: Buffer;
+      let processedBack: Buffer;
       
       if (mirrored) {
         // Flip both cards horizontally for printing
-        scaledFront = await sharp(front)
-          .resize(scaledWidth, scaledCardHeight)
+        processedFront = await sharp(front)
           .flop()
           .toBuffer();
-        scaledBack = await sharp(back)
-          .resize(scaledWidth, scaledCardHeight)
+        processedBack = await sharp(back)
           .flop()
           .toBuffer();
       } else {
-        scaledFront = await sharp(front)
-          .resize(scaledWidth, scaledCardHeight)
-          .toBuffer();
-        scaledBack = await sharp(back)
-          .resize(scaledWidth, scaledCardHeight)
-          .toBuffer();
+        processedFront = front;
+        processedBack = back;
       }
 
-      // Create canvas with white background
+      // Create canvas with white background at full 300 DPI resolution
       const canvas = await sharp({
         create: {
-          width: targetWidth,
-          height: targetHeight,
+          width: outputWidth,
+          height: outputHeight,
           channels: 4,
           background: { r: 255, g: 255, b: 255, alpha: 1 } // White background
         }
@@ -113,9 +102,10 @@ export class CardVariantGenerator {
       // Use PNG compression level 9 for smaller file size
       return await sharp(canvas)
         .composite([
-          { input: scaledBack, left: scaledPadding, top: scaledPadding },
-          { input: scaledFront, left: scaledPadding + scaledWidth + scaledGap, top: scaledPadding }
+          { input: processedBack, left: padding, top: padding },
+          { input: processedFront, left: padding + width + gap, top: padding }
         ])
+        .withMetadata({ density: 300 }) // Embed 300 DPI metadata
         .png({
           compressionLevel: 9,
           effort: 10
