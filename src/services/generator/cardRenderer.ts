@@ -42,8 +42,8 @@ export interface CardRenderOptions {
   template?: TemplateType;
 }
 
-const FONTS_DIR = path.join(process.cwd(), 'assets/fonts');
-const TEMPLATE_DIR = path.join(process.cwd(), 'assets');
+const FONTS_DIR = path.join(process.cwd(), 'src/assets/fonts');
+const TEMPLATE_DIR = path.join(process.cwd(), 'src/assets');
 
 let fontsRegistered = false;
 
