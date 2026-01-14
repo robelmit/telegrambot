@@ -67,8 +67,8 @@ export class PDFGenerator {
         doc.pipe(writeStream);
 
         // Position card at top of page with margin
-        // PNG dimensions now include bleed area (35px = ~8.40pt on each side)
-        // Card with bleed: (1024 + 70) x (646 + 70) = 1094 x 716 px per card at 300dpi
+        // Each card has bleed on ALL edges (35px = ~8.40pt)
+        // Card with bleed: (1024 + 70) x (646 + 70) = 1094 x 716 px per card
         // Total: (1094*2 + 80 + 60) x (716 + 60) = 2328 x 776 px
         const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
         const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
@@ -86,7 +86,7 @@ export class PDFGenerator {
         });
 
         // Add cutting guides (at original card size, inside the bleed area)
-        this.addCuttingGuides(doc, startX, startY, cardWidthWithBleed);
+        this.addCuttingGuides(doc, startX, startY);
 
         // Add footer text with print instructions
         doc.undash()
@@ -156,7 +156,7 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Position card at top of page with margin (includes bleed area)
+        // Position card at top of page with margin (each card has bleed on all edges)
         const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
         const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
         const totalWidthWithPadding = cardWidthWithBleed * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
@@ -172,7 +172,7 @@ export class PDFGenerator {
         });
 
         // Add cutting guides (at original card size, inside the bleed area)
-        this.addCuttingGuides(doc, startX, startY, cardWidthWithBleed);
+        this.addCuttingGuides(doc, startX, startY);
 
         // Add footer with print instructions
         doc.undash()
@@ -218,44 +218,52 @@ export class PDFGenerator {
 
   /**
    * Add cutting guide lines to PDF
-   * Guides are drawn at the original card size (inside the bleed area)
-   * The bleed area extends beyond these guides so cutting imprecision
-   * still shows card content instead of white paper
+   * Guides are drawn at the original card size (inside the bleed area of each card)
+   * Each card has bleed on all edges so cutting imprecision shows card content
    */
-  private addCuttingGuides(doc: PDFKit.PDFDocument, centerX: number, centerY: number, _cardWidthWithBleed: number): void {
+  private addCuttingGuides(doc: PDFKit.PDFDocument, centerX: number, centerY: number): void {
     // The centerX/centerY point to the top-left of the padded image
-    // Cards start at centerX + CARD_MARGIN_PT, centerY + CARD_MARGIN_PT
-    // But cutting guides should be at original card size (inside bleed)
+    // Each card has bleed, so the actual card content starts at padding + bleed
     const cardStartX = centerX + CARD_MARGIN_PT + BLEED_PT;
     const cardStartY = centerY + CARD_MARGIN_PT + BLEED_PT;
-    const totalCardWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (BLEED_PT * 2); // Gap between original card edges
     
     doc.strokeColor('#cccccc')
        .lineWidth(0.5)
        .dash(5, { space: 3 });
 
     // Horizontal lines (top and bottom of cards - at original size)
+    // These span across both cards
+    const totalWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (BLEED_PT * 2);
+    
     doc.moveTo(cardStartX - 5, cardStartY)
-       .lineTo(cardStartX + totalCardWidth + 5, cardStartY)
+       .lineTo(cardStartX + totalWidth + 5, cardStartY)
        .stroke();
 
     doc.moveTo(cardStartX - 5, cardStartY + CARD_HEIGHT_PT)
-       .lineTo(cardStartX + totalCardWidth + 5, cardStartY + CARD_HEIGHT_PT)
+       .lineTo(cardStartX + totalWidth + 5, cardStartY + CARD_HEIGHT_PT)
        .stroke();
 
-    // Vertical lines (left, middle, right - at original card edges)
+    // Vertical lines for back card (left edge)
     doc.moveTo(cardStartX, cardStartY - 5)
        .lineTo(cardStartX, cardStartY + CARD_HEIGHT_PT + 5)
        .stroke();
 
-    // Middle cutting line (between front and back)
-    const middleX = cardStartX + CARD_WIDTH_PT + BLEED_PT + CARD_GAP_PT / 2;
-    doc.moveTo(middleX, cardStartY - 5)
-       .lineTo(middleX, cardStartY + CARD_HEIGHT_PT + 5)
+    // Vertical line for back card right edge / gap start
+    const backCardRightX = cardStartX + CARD_WIDTH_PT;
+    doc.moveTo(backCardRightX, cardStartY - 5)
+       .lineTo(backCardRightX, cardStartY + CARD_HEIGHT_PT + 5)
        .stroke();
 
-    doc.moveTo(cardStartX + totalCardWidth, cardStartY - 5)
-       .lineTo(cardStartX + totalCardWidth, cardStartY + CARD_HEIGHT_PT + 5)
+    // Vertical line for front card left edge (after gap and back card's right bleed)
+    const frontCardLeftX = cardStartX + CARD_WIDTH_PT + BLEED_PT * 2 + CARD_GAP_PT;
+    doc.moveTo(frontCardLeftX, cardStartY - 5)
+       .lineTo(frontCardLeftX, cardStartY + CARD_HEIGHT_PT + 5)
+       .stroke();
+
+    // Vertical line for front card right edge
+    const frontCardRightX = frontCardLeftX + CARD_WIDTH_PT;
+    doc.moveTo(frontCardRightX, cardStartY - 5)
+       .lineTo(frontCardRightX, cardStartY + CARD_HEIGHT_PT + 5)
        .stroke();
   }
 
@@ -306,11 +314,11 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Calculate card dimensions for 5 cards per page
-        // Each card has front+back side by side with bleed area
+        // Calculate card dimensions for 4 cards per page
+        // Each card has bleed on ALL edges
         const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
         const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
-        const totalCardWidth = cardWidthWithBleed * 2 + CARD_GAP_PT; // ~540pt with bleed
+        const totalCardWidth = cardWidthWithBleed * 2 + CARD_GAP_PT;
         const availableWidth = A4_WIDTH_PT - (PAGE_MARGIN * 2);
         const scale = Math.min(1, availableWidth / totalCardWidth);
         
@@ -410,7 +418,7 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Calculate dimensions (same as above, with bleed area)
+        // Calculate dimensions (each card has bleed on ALL edges)
         const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
         const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
         const totalCardWidth = cardWidthWithBleed * 2 + CARD_GAP_PT;

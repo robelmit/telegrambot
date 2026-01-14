@@ -13,7 +13,7 @@ import QRCode from 'qrcode';
 import sharp from 'sharp';
 
 const LAYOUT_PATH = 'src/config/cardLayout2.json';
-const TEMPLATE_DIR = 'assets';
+const TEMPLATE_DIR = 'src/assets';
 const OUTPUT_DIR = 'test-output';
 const FONTS_DIR = path.resolve(__dirname, 'src/assets/fonts');
 

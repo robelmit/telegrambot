@@ -56,7 +56,7 @@ export class CardVariantGenerator {
    * Output maintains 300 DPI for proper printing
    * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
    * 
-   * BLEED AREA: Edges are extended outward (3mm = ~35px at 300 DPI)
+   * BLEED AREA: Each card has bleed on ALL edges (3mm = ~35px at 300 DPI)
    * so when cut, there's card content at edges instead of white paper
    */
   private async combineCards(front: Buffer, back: Buffer, template?: TemplateType, mirrored: boolean = false): Promise<Buffer> {
@@ -66,53 +66,67 @@ export class CardVariantGenerator {
       const padding = 30; // Padding around the entire image
       
       // Bleed area: 3mm = ~35px at 300 DPI (standard print bleed)
-      // Edges are extended outward, not scaled
+      // Applied to ALL edges of EACH card
       const bleed = 35;
-      
-      // Card with bleed has extended edges
-      const cardWithBleedWidth = width + bleed * 2;
-      const cardWithBleedHeight = height + bleed * 2;
-      
-      // Total dimensions include bleed area
-      const totalWidth = cardWithBleedWidth * 2 + gap + (padding * 2);
-      const totalHeight = cardWithBleedHeight + (padding * 2);
 
-      // Extend edges of cards to create bleed area
+      // Process cards (flip if mirrored)
       let processedFront: Buffer;
       let processedBack: Buffer;
       
       if (mirrored) {
-        // Flip cards first, then extend edges
-        const flippedFront = await sharp(front).flop().toBuffer();
-        const flippedBack = await sharp(back).flop().toBuffer();
-        processedFront = await this.extendEdges(flippedFront, bleed);
-        processedBack = await this.extendEdges(flippedBack, bleed);
+        processedFront = await sharp(front).flop().toBuffer();
+        processedBack = await sharp(back).flop().toBuffer();
       } else {
-        // Extend edges to create bleed
-        processedFront = await this.extendEdges(front, bleed);
-        processedBack = await this.extendEdges(back, bleed);
+        processedFront = front;
+        processedBack = back;
       }
 
-      // Create canvas with white background at full resolution
+      // Add bleed to each card individually
+      const frontWithBleed = await sharp(processedFront)
+        .extend({
+          top: bleed,
+          bottom: bleed,
+          left: bleed,
+          right: bleed,
+          extendWith: 'mirror'
+        })
+        .toBuffer();
+      
+      const backWithBleed = await sharp(processedBack)
+        .extend({
+          top: bleed,
+          bottom: bleed,
+          left: bleed,
+          right: bleed,
+          extendWith: 'mirror'
+        })
+        .toBuffer();
+
+      // Card dimensions with bleed
+      const cardWithBleedWidth = width + bleed * 2;
+      const cardWithBleedHeight = height + bleed * 2;
+      
+      // Total dimensions
+      const totalWidth = cardWithBleedWidth * 2 + gap + (padding * 2);
+      const totalHeight = cardWithBleedHeight + (padding * 2);
+
+      // Create canvas with white background
       const canvas = await sharp({
         create: {
           width: totalWidth,
           height: totalHeight,
           channels: 4,
-          background: { r: 255, g: 255, b: 255, alpha: 1 } // White background
+          background: { r: 255, g: 255, b: 255, alpha: 1 }
         }
-      })
-      .png()
-      .toBuffer();
+      }).png().toBuffer();
 
-      // Composite front and back (back on left, front on right)
-      // Use PNG compression level 9 for smaller file size
+      // Composite cards with bleed (back on left, front on right)
       return await sharp(canvas)
         .composite([
-          { input: processedBack, left: padding, top: padding },
-          { input: processedFront, left: padding + cardWithBleedWidth + gap, top: padding }
+          { input: backWithBleed, left: padding, top: padding },
+          { input: frontWithBleed, left: padding + cardWithBleedWidth + gap, top: padding }
         ])
-        .withMetadata({ density: 300 }) // Embed 300 DPI metadata
+        .withMetadata({ density: 300 })
         .png({
           compressionLevel: 9,
           effort: 10
@@ -122,23 +136,6 @@ export class CardVariantGenerator {
       logger.error('Failed to combine cards:', error);
       throw new Error('Failed to combine front and back cards');
     }
-  }
-
-  /**
-   * Extend the edges of an image to create bleed area
-   * This duplicates edge pixels outward rather than scaling
-   */
-  private async extendEdges(imageBuffer: Buffer, bleed: number): Promise<Buffer> {
-    // Use sharp's extend with edge pixel replication
-    return await sharp(imageBuffer)
-      .extend({
-        top: bleed,
-        bottom: bleed,
-        left: bleed,
-        right: bleed,
-        extendWith: 'mirror' // Mirror edges for smooth bleed
-      })
-      .toBuffer();
   }
 
   /**
