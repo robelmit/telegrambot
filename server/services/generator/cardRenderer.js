@@ -7,6 +7,7 @@ exports.CardRenderer = void 0;
 exports.registerFonts = registerFonts;
 exports.getCardDimensions = getCardDimensions;
 exports.getAvailableTemplates = getAvailableTemplates;
+exports.preWarmBackgroundRemoval = preWarmBackgroundRemoval;
 /**
  * Card Renderer - EXACTLY like test-pdf-full.ts from commit a8d0b98
  */
@@ -17,7 +18,16 @@ const fs_1 = __importDefault(require("fs"));
 const jsbarcode_1 = __importDefault(require("jsbarcode"));
 const qrcode_1 = __importDefault(require("qrcode"));
 const sharp_1 = __importDefault(require("sharp"));
-const { Rembg } = require("@xixiyahaha/rembg-node");
+const transformers_1 = require("@huggingface/transformers");
+// Configure transformers.js for Production Node.js
+transformers_1.env.allowLocalModels = true; // Allow loading from local cache
+transformers_1.env.allowRemoteModels = true; // Allow downloading if not cached
+transformers_1.env.useBrowserCache = false; // Disable browser cache (not in browser)
+transformers_1.env.useFSCache = true; // Use filesystem cache
+transformers_1.env.cacheDir = process.env.TRANSFORMERS_CACHE || './.cache/transformers'; // Custom cache directory
+transformers_1.env.localModelPath = process.env.TRANSFORMERS_CACHE || './.cache/transformers'; // Local model path
+// Cache the segmenter pipeline
+let segmenterPipeline = null;
 // Load layout configs
 const layoutConfigs = {
     template0: JSON.parse(fs_1.default.readFileSync(path_1.default.join(__dirname, '../../config/cardLayout.json'), 'utf-8')),
@@ -27,8 +37,11 @@ const layoutConfigs = {
 // Default layout for backward compatibility
 const layout = layoutConfigs.template0;
 const { dimensions } = layout;
-const FONTS_DIR = path_1.default.join(process.cwd(), 'assets/fonts');
-const TEMPLATE_DIR = path_1.default.join(process.cwd(), 'assets');
+// Smart path detection: use src/assets in development, assets in production
+const SRC_ASSETS = path_1.default.join(process.cwd(), 'src/assets');
+const ROOT_ASSETS = path_1.default.join(process.cwd(), 'assets');
+const TEMPLATE_DIR = fs_1.default.existsSync(SRC_ASSETS) ? SRC_ASSETS : ROOT_ASSETS;
+const FONTS_DIR = path_1.default.join(TEMPLATE_DIR, 'fonts');
 let fontsRegistered = false;
 function registerFonts() {
     if (fontsRegistered)
@@ -63,31 +76,111 @@ function registerFonts() {
 }
 // Grayscale conversion is now done in removeBackgroundSharp function
 /**
- * Remove background using @xixiyahaha/rembg-node
- * Falls back to flood-fill method if AI fails
+ * Get or initialize the background removal pipeline
+ * Uses Xenova/modnet model - lightweight and efficient
+ * Auto-recovers if pipeline becomes stale
  */
-async function removeBackgroundAI(photoBuffer) {
-    try {
-        logger_1.default.info('Using rembg-node for background removal...');
-        
-        const input = (0, sharp_1.default)(photoBuffer);
-        const rembg = new Rembg({
-            logging: true,
+async function getSegmenter(forceReinit = false) {
+    if (!segmenterPipeline || forceReinit) {
+        if (forceReinit) {
+            logger_1.default.info('Reinitializing background removal pipeline (recovery mode)...');
+            segmenterPipeline = null;
+        }
+        else {
+            logger_1.default.info('Initializing background removal pipeline (first time only)...');
+        }
+        segmenterPipeline = await (0, transformers_1.pipeline)('image-segmentation', 'Xenova/modnet', {
+            dtype: 'fp32'
         });
-        
-        const output = await rembg.remove(input);
-        
-        // Convert to grayscale while preserving alpha
-        const result = await output
-            .grayscale()
-            .png()
-            .toBuffer();
-        
-        logger_1.default.info('Rembg background removal successful');
-        return result;
+        logger_1.default.info('Background removal pipeline initialized');
+    }
+    return segmenterPipeline;
+}
+/**
+ * Remove background using @huggingface/transformers with Xenova/modnet
+ * Lightweight model with lower memory usage
+ * Falls back to flood-fill method if AI fails
+ * Auto-recovers pipeline on failure and retries once
+ */
+async function removeBackgroundAI(photoBuffer, isRetry = false) {
+    try {
+        logger_1.default.info('Using Transformers.js background removal (modnet model)...');
+        // Get the segmenter pipeline (force reinit if this is a retry)
+        const segmenter = await getSegmenter(isRetry);
+        // Save buffer to temp file (transformers.js works better with file paths in Node.js)
+        const tempDir = path_1.default.join(process.cwd(), 'temp');
+        if (!fs_1.default.existsSync(tempDir)) {
+            fs_1.default.mkdirSync(tempDir, { recursive: true });
+        }
+        const tempFile = path_1.default.join(tempDir, `temp_${Date.now()}.png`);
+        await (0, sharp_1.default)(photoBuffer).png().toFile(tempFile);
+        // Run segmentation with file path
+        const result = await segmenter(tempFile);
+        // Clean up temp file
+        try {
+            fs_1.default.unlinkSync(tempFile);
+        }
+        catch (e) { /* ignore */ }
+        // The result contains mask data - we need to apply it to the original image
+        if (result && result.length > 0 && result[0].mask) {
+            const maskData = result[0].mask;
+            // Get original image dimensions
+            const originalMeta = await (0, sharp_1.default)(photoBuffer).metadata();
+            const width = originalMeta.width;
+            const height = originalMeta.height;
+            // Convert RawImage mask to buffer
+            const maskBuffer = Buffer.from(maskData.data);
+            // Resize mask to match original image if needed
+            let resizedMask = maskBuffer;
+            if (maskData.width !== width || maskData.height !== height) {
+                resizedMask = await (0, sharp_1.default)(maskBuffer, {
+                    raw: { width: maskData.width, height: maskData.height, channels: 1 }
+                })
+                    .resize(width, height)
+                    .raw()
+                    .toBuffer();
+            }
+            // Get original image as raw RGBA
+            const { data: originalData } = await (0, sharp_1.default)(photoBuffer)
+                .ensureAlpha()
+                .raw()
+                .toBuffer({ resolveWithObject: true });
+            const pixels = Buffer.from(originalData);
+            // Apply mask as alpha channel and convert to grayscale
+            for (let i = 0; i < width * height; i++) {
+                const pixelIdx = i * 4;
+                const maskValue = resizedMask[i] || 0;
+                // Convert to grayscale
+                const r = pixels[pixelIdx];
+                const g = pixels[pixelIdx + 1];
+                const b = pixels[pixelIdx + 2];
+                const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                pixels[pixelIdx] = gray;
+                pixels[pixelIdx + 1] = gray;
+                pixels[pixelIdx + 2] = gray;
+                pixels[pixelIdx + 3] = maskValue; // Apply mask as alpha
+            }
+            const finalResult = await (0, sharp_1.default)(pixels, {
+                raw: { width, height, channels: 4 }
+            }).png().toBuffer();
+            logger_1.default.info('Transformers.js background removal successful');
+            return finalResult;
+        }
+        throw new Error('No mask data returned from segmenter');
     }
     catch (error) {
-        logger_1.default.warn('Rembg background removal failed, falling back to flood-fill:', error);
+        // If this is not a retry, try reinitializing the pipeline once
+        if (!isRetry) {
+            logger_1.default.warn('Transformers.js background removal failed, retrying with fresh pipeline...', error);
+            try {
+                return await removeBackgroundAI(photoBuffer, true);
+            }
+            catch (retryError) {
+                logger_1.default.error('Retry also failed, falling back to flood-fill:', retryError);
+                return removeBackgroundFloodFill(photoBuffer);
+            }
+        }
+        logger_1.default.error('Transformers.js background removal failed, falling back to flood-fill:', error);
         return removeBackgroundFloodFill(photoBuffer);
     }
 }
@@ -216,9 +309,17 @@ async function removeBackgroundFloodFill(photoBuffer) {
         return photoBuffer; // Return original if failed
     }
 }
-// Keep old function name for backward compatibility - now uses AI removal
+// Keep old function name for backward compatibility - now uses AI removal or flood-fill based on env
 async function removeWhiteBackgroundSharp(photoBuffer) {
-    return removeBackgroundAI(photoBuffer);
+    // Check if AI removal is disabled via environment variable
+    const useAI = process.env.USE_AI_BACKGROUND_REMOVAL !== 'false';
+    if (useAI) {
+        return removeBackgroundAI(photoBuffer);
+    }
+    else {
+        logger_1.default.info('AI background removal disabled, using flood-fill method');
+        return removeBackgroundFloodFill(photoBuffer);
+    }
 }
 // Cache for normalized template images (sRGB color space) - templates don't change
 const templateCache = new Map();
@@ -456,5 +557,27 @@ function getAvailableTemplates() {
         id: id,
         name: config.templateName || id
     }));
+}
+/**
+ * Pre-warm the AI background removal pipeline on startup
+ * This ensures the model is loaded before any requests come in
+ * Call this during server initialization
+ */
+async function preWarmBackgroundRemoval() {
+    const useAI = process.env.USE_AI_BACKGROUND_REMOVAL !== 'false';
+    if (!useAI) {
+        logger_1.default.info('AI background removal disabled, skipping pre-warm');
+        return true;
+    }
+    try {
+        logger_1.default.info('Pre-warming AI background removal pipeline...');
+        await getSegmenter();
+        logger_1.default.info('AI background removal pipeline pre-warmed successfully');
+        return true;
+    }
+    catch (error) {
+        logger_1.default.error('Failed to pre-warm AI pipeline (will use flood-fill fallback):', error);
+        return false;
+    }
 }
 //# sourceMappingURL=cardRenderer.js.map

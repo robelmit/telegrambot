@@ -1,13 +1,13 @@
 /**
- * Test Template 3 WITHOUT bleed - for comparison
+ * Test script to render Template 3 cards WITHOUT bleed (like watcher)
+ * This helps compare cardRenderer output with watcher output
  */
 import { CardRenderer } from './src/services/generator/cardRenderer';
 import { EfaydaData } from './src/types';
 import fs from 'fs/promises';
 import path from 'path';
-import sharp from 'sharp';
 
-// Sample data for Template 3
+// Same mock data as watcher
 const mockData: EfaydaData = {
   fullNameAmharic: 'ፀጋ ገብረስላሴ ገብረሂወት',
   fullNameEnglish: 'Tsega Gebreslasie Gebrehiwot',
@@ -27,38 +27,48 @@ const mockData: EfaydaData = {
   fin: '4189 2798 1057',
   fan: '3092 7187 9089 3152',
   serialNumber: '5479474',
-  expiryDate: '2033/Dec/10',
-  expiryDateGregorian: '2033/Dec/10',
-  expiryDateEthiopian: '2026/04/01',
+  expiryDate: '2026/04/01',
+  expiryDateGregorian: '2026/04/01',
+  expiryDateEthiopian: '2033/Dec/10',
   issueDate: '2025/Dec/10',
   issueDateEthiopian: '2018/04/01'
 };
 
-async function testNoBleed() {
-  console.log('🧪 Testing Template 3 WITHOUT bleed (for comparison)...\n');
+async function testTemplate3NoBleed() {
+  console.log('🧪 Testing Template 3 rendering (no bleed, like watcher)...\n');
   
   const outputDir = 'test-output';
   await fs.mkdir(outputDir, { recursive: true });
   
   const renderer = new CardRenderer();
   
-  // Render front and back with template2 (Template 3)
-  console.log('📐 Rendering cards without bleed...');
-  const front = await renderer.renderFront(mockData, { variant: 'color', template: 'template2' });
-  const back = await renderer.renderBack(mockData, { variant: 'color', template: 'template2' });
+  console.log('📐 Rendering Template 3 front card...');
+  const frontBuffer = await renderer.renderFront(mockData, { variant: 'color', template: 'template2' });
   
-  // Save individual cards
-  await fs.writeFile(path.join(outputDir, 'template3_front_no_bleed.png'), front);
-  await fs.writeFile(path.join(outputDir, 'template3_back_no_bleed.png'), back);
-  console.log('✅ Saved individual front and back cards');
+  console.log('📐 Rendering Template 3 back card...');
+  const backBuffer = await renderer.renderBack(mockData, { variant: 'color', template: 'template2' });
   
-  // Combine without bleed (original method)
-  const width = 1024;
-  const height = 646;
+  // Save individual cards (same format as watcher)
+  const frontPath = path.join(outputDir, 'template3_front_no_bleed.png');
+  const backPath = path.join(outputDir, 'template3_back_no_bleed.png');
+  
+  await fs.writeFile(frontPath, frontBuffer);
+  console.log(`✅ Saved: ${frontPath}`);
+  
+  await fs.writeFile(backPath, backBuffer);
+  console.log(`✅ Saved: ${backPath}`);
+  
+  // Also create combined without bleed for comparison
+  const sharp = (await import('sharp')).default;
   const gap = 80;
   const padding = 30;
-  const totalWidth = width * 2 + gap + (padding * 2);
-  const totalHeight = height + (padding * 2);
+  
+  const frontMeta = await sharp(frontBuffer).metadata();
+  const width = frontMeta.width || 1024;
+  const height = frontMeta.height || 646;
+  
+  const totalWidth = width * 2 + gap + padding * 2;
+  const totalHeight = height + padding * 2;
   
   const canvas = await sharp({
     create: {
@@ -71,22 +81,26 @@ async function testNoBleed() {
   
   const combined = await sharp(canvas)
     .composite([
-      { input: back, left: padding, top: padding },
-      { input: front, left: padding + width + gap, top: padding }
+      { input: backBuffer, left: padding, top: padding },
+      { input: frontBuffer, left: padding + width + gap, top: padding }
     ])
     .png()
     .toBuffer();
   
-  await fs.writeFile(path.join(outputDir, 'template3_combined_no_bleed.png'), combined);
-  console.log('✅ Saved: template3_combined_no_bleed.png');
+  const combinedPath = path.join(outputDir, 'template3_combined_no_bleed.png');
+  await fs.writeFile(combinedPath, combined);
+  console.log(`✅ Saved: ${combinedPath}`);
   
-  const metadata = await sharp(combined).metadata();
-  console.log(`\n📏 Dimensions: ${metadata.width} x ${metadata.height}px (no bleed)`);
+  console.log('\n📏 Card dimensions:');
+  console.log(`   Width: ${width}px`);
+  console.log(`   Height: ${height}px`);
   
-  console.log('\n🎉 Compare with template3_bleed_normal.png to see the difference');
+  console.log('\n🎉 Test complete!');
+  console.log('   Compare template3_front_no_bleed.png with front3_color.png (watcher)');
+  console.log('   They should be identical if cardRenderer matches watcher');
 }
 
-testNoBleed().catch(err => {
+testTemplate3NoBleed().catch(err => {
   console.error('❌ Error:', err);
   process.exit(1);
 });

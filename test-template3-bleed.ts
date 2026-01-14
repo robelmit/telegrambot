@@ -1,5 +1,5 @@
 /**
- * Test Template 3 with bleed area - generates PNG and PDF
+ * Test script to verify Template 3 (halefront/haleback) with bleed
  */
 import { CardVariantGenerator } from './src/services/generator/cardVariantGenerator';
 import { PDFGenerator } from './src/services/generator/pdfGenerator';
@@ -7,7 +7,7 @@ import { EfaydaData } from './src/types';
 import fs from 'fs/promises';
 import path from 'path';
 
-// Sample data for Template 3
+// Mock data for testing
 const mockData: EfaydaData = {
   fullNameAmharic: 'ፀጋ ገብረስላሴ ገብረሂወት',
   fullNameEnglish: 'Tsega Gebreslasie Gebrehiwot',
@@ -27,23 +27,24 @@ const mockData: EfaydaData = {
   fin: '4189 2798 1057',
   fan: '3092 7187 9089 3152',
   serialNumber: '5479474',
-  expiryDate: '2033/Dec/10',
-  expiryDateGregorian: '2033/Dec/10',
-  expiryDateEthiopian: '2026/04/01',
+  expiryDate: '2026/04/01',
+  expiryDateGregorian: '2026/04/01',
+  expiryDateEthiopian: '2033/Dec/10',
   issueDate: '2025/Dec/10',
   issueDateEthiopian: '2018/04/01'
 };
 
 async function testTemplate3Bleed() {
-  console.log('🧪 Testing Template 3 with bleed area...\n');
+  console.log('🧪 Testing Template 3 (halefront/haleback) with bleed...\n');
   
+  // Ensure output directory exists
   const outputDir = 'test-output';
   await fs.mkdir(outputDir, { recursive: true });
   
-  // Generate using template2 (which is Template 3 with halefront/haleback)
+  // Generate card variants with template2 (Template 3)
   const variantGenerator = new CardVariantGenerator(outputDir);
   
-  console.log('📐 Generating Template 3 cards with bleed...');
+  console.log('📐 Generating Template 3 cards with bleed area...');
   const { normalCombined, mirroredCombined } = await variantGenerator.generateColorVariants(mockData, 'template2');
   
   // Save PNG files
@@ -64,19 +65,16 @@ async function testTemplate3Bleed() {
   await pdfGenerator.generateA4PDFFromBuffer(normalCombined, pdfPath);
   console.log(`✅ Saved: ${pdfPath}`);
   
-  // Check dimensions
+  // Get image dimensions to verify bleed
   const sharp = (await import('sharp')).default;
   const metadata = await sharp(normalCombined).metadata();
   
   console.log('\n📏 Image dimensions:');
   console.log(`   Width: ${metadata.width}px`);
   console.log(`   Height: ${metadata.height}px`);
-  console.log(`   Expected with bleed: 2328 x 776px`);
   
-  console.log('\n🎉 Done! Check test-output/ folder for:');
-  console.log('   - template3_bleed_normal.png');
-  console.log('   - template3_bleed_mirrored.png');
-  console.log('   - template3_bleed_A4.pdf');
+  console.log('\n🎉 Test complete! Check test-output/template3_bleed_*.png');
+  console.log('   Compare with test-output/front3_color.png from watcher');
 }
 
 testTemplate3Bleed().catch(err => {

@@ -42,8 +42,11 @@ export interface CardRenderOptions {
   template?: TemplateType;
 }
 
-const FONTS_DIR = path.join(process.cwd(), 'src/assets/fonts');
-const TEMPLATE_DIR = path.join(process.cwd(), 'src/assets');
+// Smart path detection: use src/assets in development, assets in production
+const SRC_ASSETS = path.join(process.cwd(), 'src/assets');
+const ROOT_ASSETS = path.join(process.cwd(), 'assets');
+const TEMPLATE_DIR = fs.existsSync(SRC_ASSETS) ? SRC_ASSETS : ROOT_ASSETS;
+const FONTS_DIR = path.join(TEMPLATE_DIR, 'fonts');
 
 let fontsRegistered = false;
 

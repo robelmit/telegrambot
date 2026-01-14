@@ -19,9 +19,11 @@ export declare class CardVariantGenerator {
     /**
      * Combine front and back cards into a single image (side by side)
      * @param mirrored - If true, flip both cards horizontally for printing
-     * Output is scaled to a reasonable size for delivery
-     * Increased gap for better transparency handling and print cutting
+     * Output maintains 300 DPI for proper printing
      * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
+     *
+     * BLEED AREA: Each card has bleed on ALL edges (3mm = ~35px at 300 DPI)
+     * so when cut, there's card content at edges instead of white paper
      */
     private combineCards;
     /**

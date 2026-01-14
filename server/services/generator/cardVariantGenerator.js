@@ -42,65 +42,72 @@ class CardVariantGenerator {
     /**
      * Combine front and back cards into a single image (side by side)
      * @param mirrored - If true, flip both cards horizontally for printing
-     * Output is scaled to a reasonable size for delivery
-     * Increased gap for better transparency handling and print cutting
+     * Output maintains 300 DPI for proper printing
      * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
+     *
+     * BLEED AREA: Each card has bleed on ALL edges (3mm = ~35px at 300 DPI)
+     * so when cut, there's card content at edges instead of white paper
      */
     async combineCards(front, back, template, mirrored = false) {
         try {
             const { width, height } = (0, cardRenderer_1.getCardDimensions)(template);
             const gap = 80; // Good spacing between cards for cutting
             const padding = 30; // Padding around the entire image
-            const totalWidth = width * 2 + gap + (padding * 2);
-            const totalHeight = height + (padding * 2);
-            // Standard output dimensions (2 cards + gap + padding)
-            const targetWidth = 2200;
-            const scale = targetWidth / totalWidth;
-            const targetHeight = Math.round(totalHeight * scale);
-            const scaledGap = Math.round(gap * scale);
-            const scaledPadding = Math.round(padding * scale);
-            const scaledWidth = Math.round(width * scale);
-            const scaledCardHeight = Math.round(height * scale);
-            // Scale and optionally flip both cards for mirrored version
-            let scaledFront;
-            let scaledBack;
+            // Bleed area: 3mm = ~35px at 300 DPI (standard print bleed)
+            // Applied to ALL edges of EACH card
+            const bleed = 35;
+            // Process cards (flip if mirrored)
+            let processedFront;
+            let processedBack;
             if (mirrored) {
-                // Flip both cards horizontally for printing
-                scaledFront = await (0, sharp_1.default)(front)
-                    .resize(scaledWidth, scaledCardHeight)
-                    .flop()
-                    .toBuffer();
-                scaledBack = await (0, sharp_1.default)(back)
-                    .resize(scaledWidth, scaledCardHeight)
-                    .flop()
-                    .toBuffer();
+                processedFront = await (0, sharp_1.default)(front).flop().toBuffer();
+                processedBack = await (0, sharp_1.default)(back).flop().toBuffer();
             }
             else {
-                scaledFront = await (0, sharp_1.default)(front)
-                    .resize(scaledWidth, scaledCardHeight)
-                    .toBuffer();
-                scaledBack = await (0, sharp_1.default)(back)
-                    .resize(scaledWidth, scaledCardHeight)
-                    .toBuffer();
+                processedFront = front;
+                processedBack = back;
             }
+            // Add bleed to each card individually
+            const frontWithBleed = await (0, sharp_1.default)(processedFront)
+                .extend({
+                top: bleed,
+                bottom: bleed,
+                left: bleed,
+                right: bleed,
+                extendWith: 'mirror'
+            })
+                .toBuffer();
+            const backWithBleed = await (0, sharp_1.default)(processedBack)
+                .extend({
+                top: bleed,
+                bottom: bleed,
+                left: bleed,
+                right: bleed,
+                extendWith: 'mirror'
+            })
+                .toBuffer();
+            // Card dimensions with bleed
+            const cardWithBleedWidth = width + bleed * 2;
+            const cardWithBleedHeight = height + bleed * 2;
+            // Total dimensions
+            const totalWidth = cardWithBleedWidth * 2 + gap + (padding * 2);
+            const totalHeight = cardWithBleedHeight + (padding * 2);
             // Create canvas with white background
             const canvas = await (0, sharp_1.default)({
                 create: {
-                    width: targetWidth,
-                    height: targetHeight,
+                    width: totalWidth,
+                    height: totalHeight,
                     channels: 4,
-                    background: { r: 255, g: 255, b: 255, alpha: 1 } // White background
+                    background: { r: 255, g: 255, b: 255, alpha: 1 }
                 }
-            })
-                .png()
-                .toBuffer();
-            // Composite front and back (back on left, front on right)
-            // Use PNG compression level 9 for smaller file size
+            }).png().toBuffer();
+            // Composite cards with bleed (back on left, front on right)
             return await (0, sharp_1.default)(canvas)
                 .composite([
-                { input: scaledBack, left: scaledPadding, top: scaledPadding },
-                { input: scaledFront, left: scaledPadding + scaledWidth + scaledGap, top: scaledPadding }
+                { input: backWithBleed, left: padding, top: padding },
+                { input: frontWithBleed, left: padding + cardWithBleedWidth + gap, top: padding }
             ])
+                .withMetadata({ density: 300 })
                 .png({
                 compressionLevel: 9,
                 effort: 10

@@ -33,4 +33,10 @@ export declare function getAvailableTemplates(): {
     id: TemplateType;
     name: string;
 }[];
+/**
+ * Pre-warm the AI background removal pipeline on startup
+ * This ensures the model is loaded before any requests come in
+ * Call this during server initialization
+ */
+export declare function preWarmBackgroundRemoval(): Promise<boolean>;
 //# sourceMappingURL=cardRenderer.d.ts.map

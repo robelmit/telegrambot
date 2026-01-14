@@ -15,7 +15,9 @@ export declare class PDFGenerator {
      */
     generateA4PDFFromBuffer(imageBuffer: Buffer, outputPath: string, options?: A4PDFOptions): Promise<string>;
     /**
-     * Add cutting guide lines to PDF with increased margins for transparency
+     * Add cutting guide lines to PDF
+     * Guides are drawn at the original card size (inside the bleed area of each card)
+     * Each card has bleed on all edges so cutting imprecision shows card content
      */
     private addCuttingGuides;
     /**
