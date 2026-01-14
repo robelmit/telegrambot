@@ -56,7 +56,7 @@ export class CardVariantGenerator {
    * Output maintains 300 DPI for proper printing
    * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
    * 
-   * BLEED AREA: Cards are scaled up slightly (3mm bleed = ~35px at 300 DPI)
+   * BLEED AREA: Edges are extended outward (3mm = ~35px at 300 DPI)
    * so when cut, there's card content at edges instead of white paper
    */
   private async combineCards(front: Buffer, back: Buffer, template?: TemplateType, mirrored: boolean = false): Promise<Buffer> {
@@ -66,42 +66,31 @@ export class CardVariantGenerator {
       const padding = 30; // Padding around the entire image
       
       // Bleed area: 3mm = ~35px at 300 DPI (standard print bleed)
-      // This extends card content beyond the cut line
+      // Edges are extended outward, not scaled
       const bleed = 35;
       
-      // Scale factor to extend card content into bleed area
-      // Card is scaled up so content extends beyond cut line on all sides
-      const scaleX = (width + bleed * 2) / width;
-      const scaleY = (height + bleed * 2) / height;
-      const scaledWidth = Math.round(width * scaleX);
-      const scaledHeight = Math.round(height * scaleY);
+      // Card with bleed has extended edges
+      const cardWithBleedWidth = width + bleed * 2;
+      const cardWithBleedHeight = height + bleed * 2;
       
       // Total dimensions include bleed area
-      const totalWidth = scaledWidth * 2 + gap + (padding * 2);
-      const totalHeight = scaledHeight + (padding * 2);
+      const totalWidth = cardWithBleedWidth * 2 + gap + (padding * 2);
+      const totalHeight = cardWithBleedHeight + (padding * 2);
 
-      // Scale up cards to include bleed area
+      // Extend edges of cards to create bleed area
       let processedFront: Buffer;
       let processedBack: Buffer;
       
       if (mirrored) {
-        // Flip and scale both cards for mirrored version
-        processedFront = await sharp(front)
-          .flop()
-          .resize(scaledWidth, scaledHeight, { fit: 'fill' })
-          .toBuffer();
-        processedBack = await sharp(back)
-          .flop()
-          .resize(scaledWidth, scaledHeight, { fit: 'fill' })
-          .toBuffer();
+        // Flip cards first, then extend edges
+        const flippedFront = await sharp(front).flop().toBuffer();
+        const flippedBack = await sharp(back).flop().toBuffer();
+        processedFront = await this.extendEdges(flippedFront, bleed);
+        processedBack = await this.extendEdges(flippedBack, bleed);
       } else {
-        // Scale up cards to include bleed
-        processedFront = await sharp(front)
-          .resize(scaledWidth, scaledHeight, { fit: 'fill' })
-          .toBuffer();
-        processedBack = await sharp(back)
-          .resize(scaledWidth, scaledHeight, { fit: 'fill' })
-          .toBuffer();
+        // Extend edges to create bleed
+        processedFront = await this.extendEdges(front, bleed);
+        processedBack = await this.extendEdges(back, bleed);
       }
 
       // Create canvas with white background at full resolution
@@ -121,7 +110,7 @@ export class CardVariantGenerator {
       return await sharp(canvas)
         .composite([
           { input: processedBack, left: padding, top: padding },
-          { input: processedFront, left: padding + scaledWidth + gap, top: padding }
+          { input: processedFront, left: padding + cardWithBleedWidth + gap, top: padding }
         ])
         .withMetadata({ density: 300 }) // Embed 300 DPI metadata
         .png({
@@ -133,6 +122,23 @@ export class CardVariantGenerator {
       logger.error('Failed to combine cards:', error);
       throw new Error('Failed to combine front and back cards');
     }
+  }
+
+  /**
+   * Extend the edges of an image to create bleed area
+   * This duplicates edge pixels outward rather than scaling
+   */
+  private async extendEdges(imageBuffer: Buffer, bleed: number): Promise<Buffer> {
+    // Use sharp's extend with edge pixel replication
+    return await sharp(imageBuffer)
+      .extend({
+        top: bleed,
+        bottom: bleed,
+        left: bleed,
+        right: bleed,
+        extendWith: 'mirror' // Mirror edges for smooth bleed
+      })
+      .toBuffer();
   }
 
   /**

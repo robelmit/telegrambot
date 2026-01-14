@@ -27,7 +27,7 @@ const CARD_MARGIN_PT = 7.20;    // Margin around cutting guides (matches 30px at
 const BLEED_PT = 8.40;          // Bleed area in points (35px at 300dpi)
 
 // Multi-card layout settings
-const CARDS_PER_PAGE = 5;    // 5 ID cards per page
+const CARDS_PER_PAGE = 4;    // 4 ID cards per page (with bleed area)
 const MULTI_CARD_GAP = 8;    // Gap between cards in multi-card layout
 const PAGE_MARGIN = 20;      // Page margin for multi-card layout
 
@@ -317,8 +317,8 @@ export class PDFGenerator {
         const scaledCardWidth = totalCardWidth * scale;
         const scaledCardHeight = cardHeightWithBleed * scale;
         
-        // Calculate vertical spacing for 5 cards
-        const availableHeight = A4_HEIGHT_PT - (PAGE_MARGIN * 2) - 30; // 30pt for footer
+        // Calculate vertical spacing for 4 cards
+        const availableHeight = A4_HEIGHT_PT - (PAGE_MARGIN * 2);
         const totalCardsHeight = (scaledCardHeight * CARDS_PER_PAGE) + (MULTI_CARD_GAP * (CARDS_PER_PAGE - 1));
         const verticalScale = Math.min(1, availableHeight / totalCardsHeight);
         
@@ -368,17 +368,6 @@ export class PDFGenerator {
 
           cardOnPage++;
         }
-
-        // Add footer on last page
-        doc.undash()
-           .fontSize(7)
-           .fillColor('#999999')
-           .text(
-             `Bulk Print - ${cardImagePaths.length} ID card(s) | Print at 100% scale | Card size: 8.67cm × 5.47cm`,
-             0,
-             A4_HEIGHT_PT - 25,
-             { align: 'center', width: A4_WIDTH_PT }
-           );
 
         doc.end();
 
@@ -431,7 +420,7 @@ export class PDFGenerator {
         const scaledCardWidth = totalCardWidth * scale;
         const scaledCardHeight = cardHeightWithBleed * scale;
         
-        const availableHeight = A4_HEIGHT_PT - (PAGE_MARGIN * 2) - 30;
+        const availableHeight = A4_HEIGHT_PT - (PAGE_MARGIN * 2);
         const totalCardsHeight = (scaledCardHeight * CARDS_PER_PAGE) + (MULTI_CARD_GAP * (CARDS_PER_PAGE - 1));
         const verticalScale = Math.min(1, availableHeight / totalCardsHeight);
         
@@ -466,16 +455,6 @@ export class PDFGenerator {
 
           cardOnPage++;
         }
-
-        doc.undash()
-           .fontSize(7)
-           .fillColor('#999999')
-           .text(
-             `Bulk Print - ${imageBuffers.length} ID card(s) | Print at 100% scale`,
-             0,
-             A4_HEIGHT_PT - 25,
-             { align: 'center', width: A4_WIDTH_PT }
-           );
 
         doc.end();
 
