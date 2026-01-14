@@ -54,7 +54,7 @@ export class CardVariantGenerator {
    * Combine front and back cards into a single image (side by side)
    * @param mirrored - If true, flip both cards horizontally for printing
    * Output maintains 300 DPI for proper printing
-   * Standard card size: 8.85cm × 5.78cm = 1044×684px at 300 DPI
+   * Standard card size: 8.85cm × 5.78cm = 1045×683px at 300 DPI
    */
   private async combineCards(front: Buffer, back: Buffer, template?: TemplateType, mirrored: boolean = false): Promise<Buffer> {
     try {
