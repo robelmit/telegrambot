@@ -55,42 +55,60 @@ export class CardVariantGenerator {
    * @param mirrored - If true, flip both cards horizontally for printing
    * Output maintains 300 DPI for proper printing
    * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
+   * 
+   * BLEED AREA: Cards are scaled up slightly (3mm bleed = ~35px at 300 DPI)
+   * so when cut, there's card content at edges instead of white paper
    */
   private async combineCards(front: Buffer, back: Buffer, template?: TemplateType, mirrored: boolean = false): Promise<Buffer> {
     try {
       const { width, height } = getCardDimensions(template);
       const gap = 80; // Good spacing between cards for cutting
       const padding = 30; // Padding around the entire image
-      const totalWidth = width * 2 + gap + (padding * 2);
-      const totalHeight = height + (padding * 2);
+      
+      // Bleed area: 3mm = ~35px at 300 DPI (standard print bleed)
+      // This extends card content beyond the cut line
+      const bleed = 35;
+      
+      // Scale factor to extend card content into bleed area
+      // Card is scaled up so content extends beyond cut line on all sides
+      const scaleX = (width + bleed * 2) / width;
+      const scaleY = (height + bleed * 2) / height;
+      const scaledWidth = Math.round(width * scaleX);
+      const scaledHeight = Math.round(height * scaleY);
+      
+      // Total dimensions include bleed area
+      const totalWidth = scaledWidth * 2 + gap + (padding * 2);
+      const totalHeight = scaledHeight + (padding * 2);
 
-      // Keep original dimensions at 300 DPI for proper printing
-      // No scaling - maintain pixel-perfect quality
-      const outputWidth = totalWidth;
-      const outputHeight = totalHeight;
-
-      // Optionally flip both cards for mirrored version (no resize)
+      // Scale up cards to include bleed area
       let processedFront: Buffer;
       let processedBack: Buffer;
       
       if (mirrored) {
-        // Flip both cards horizontally for printing
+        // Flip and scale both cards for mirrored version
         processedFront = await sharp(front)
           .flop()
+          .resize(scaledWidth, scaledHeight, { fit: 'fill' })
           .toBuffer();
         processedBack = await sharp(back)
           .flop()
+          .resize(scaledWidth, scaledHeight, { fit: 'fill' })
           .toBuffer();
       } else {
-        processedFront = front;
-        processedBack = back;
+        // Scale up cards to include bleed
+        processedFront = await sharp(front)
+          .resize(scaledWidth, scaledHeight, { fit: 'fill' })
+          .toBuffer();
+        processedBack = await sharp(back)
+          .resize(scaledWidth, scaledHeight, { fit: 'fill' })
+          .toBuffer();
       }
 
-      // Create canvas with white background at full 300 DPI resolution
+      // Create canvas with white background at full resolution
       const canvas = await sharp({
         create: {
-          width: outputWidth,
-          height: outputHeight,
+          width: totalWidth,
+          height: totalHeight,
           channels: 4,
           background: { r: 255, g: 255, b: 255, alpha: 1 } // White background
         }
@@ -103,7 +121,7 @@ export class CardVariantGenerator {
       return await sharp(canvas)
         .composite([
           { input: processedBack, left: padding, top: padding },
-          { input: processedFront, left: padding + width + gap, top: padding }
+          { input: processedFront, left: padding + scaledWidth + gap, top: padding }
         ])
         .withMetadata({ density: 300 }) // Embed 300 DPI metadata
         .png({

@@ -22,6 +22,10 @@ const CARD_HEIGHT_PT = CARD_HEIGHT_CM * CM_TO_PT; // 155.01pt
 const CARD_GAP_PT = 19.20;      // Gap between front and back cards (matches 80px at 300dpi)
 const CARD_MARGIN_PT = 7.20;    // Margin around cutting guides (matches 30px at 300dpi)
 
+// Bleed area: 3mm = ~35px at 300 DPI = 8.40pt
+// Cards are scaled up by this amount so content extends beyond cut line
+const BLEED_PT = 8.40;          // Bleed area in points (35px at 300dpi)
+
 // Multi-card layout settings
 const CARDS_PER_PAGE = 5;    // 5 ID cards per page
 const MULTI_CARD_GAP = 8;    // Gap between cards in multi-card layout
@@ -63,22 +67,26 @@ export class PDFGenerator {
         doc.pipe(writeStream);
 
         // Position card at top of page with margin
-        // PNG dimensions: (1024*2 + 80 + 60) x (646 + 60) = 2188 x 706 px at 300dpi
-        const totalWidthWithPadding = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
-        const totalHeightWithPadding = CARD_HEIGHT_PT + (CARD_MARGIN_PT * 2);
+        // PNG dimensions now include bleed area (35px = ~8.40pt on each side)
+        // Card with bleed: (1024 + 70) x (646 + 70) = 1094 x 716 px per card at 300dpi
+        // Total: (1094*2 + 80 + 60) x (716 + 60) = 2328 x 776 px
+        const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
+        const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
+        const totalWidthWithPadding = cardWidthWithBleed * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
+        const totalHeightWithPadding = cardHeightWithBleed + (CARD_MARGIN_PT * 2);
         const topMargin = 30; // 30pt margin from top
         const startX = (A4_WIDTH_PT - totalWidthWithPadding) / 2; // Center horizontally
         const startY = topMargin; // Start from top with margin
 
         // Add the card image at top of page
-        // The image contains both front and back side by side with padding
+        // The image contains both front and back side by side with padding and bleed
         doc.image(cardImagePath, startX, startY, {
           width: totalWidthWithPadding,
           height: totalHeightWithPadding
         });
 
-        // Add cutting guides with increased margins
-        this.addCuttingGuides(doc, startX, startY);
+        // Add cutting guides (at original card size, inside the bleed area)
+        this.addCuttingGuides(doc, startX, startY, cardWidthWithBleed);
 
         // Add footer text with print instructions
         doc.undash()
@@ -148,9 +156,11 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Position card at top of page with margin
-        const totalWidthWithPadding = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
-        const totalHeightWithPadding = CARD_HEIGHT_PT + (CARD_MARGIN_PT * 2);
+        // Position card at top of page with margin (includes bleed area)
+        const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
+        const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
+        const totalWidthWithPadding = cardWidthWithBleed * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
+        const totalHeightWithPadding = cardHeightWithBleed + (CARD_MARGIN_PT * 2);
         const topMargin = 30; // 30pt margin from top
         const startX = (A4_WIDTH_PT - totalWidthWithPadding) / 2; // Center horizontally
         const startY = topMargin; // Start from top with margin
@@ -161,8 +171,8 @@ export class PDFGenerator {
           height: totalHeightWithPadding
         });
 
-        // Add cutting guides
-        this.addCuttingGuides(doc, startX, startY);
+        // Add cutting guides (at original card size, inside the bleed area)
+        this.addCuttingGuides(doc, startX, startY, cardWidthWithBleed);
 
         // Add footer with print instructions
         doc.undash()
@@ -208,20 +218,23 @@ export class PDFGenerator {
 
   /**
    * Add cutting guide lines to PDF
-   * Guides are drawn around the actual cards (inside the padding area)
+   * Guides are drawn at the original card size (inside the bleed area)
+   * The bleed area extends beyond these guides so cutting imprecision
+   * still shows card content instead of white paper
    */
-  private addCuttingGuides(doc: PDFKit.PDFDocument, centerX: number, centerY: number): void {
+  private addCuttingGuides(doc: PDFKit.PDFDocument, centerX: number, centerY: number, _cardWidthWithBleed: number): void {
     // The centerX/centerY point to the top-left of the padded image
     // Cards start at centerX + CARD_MARGIN_PT, centerY + CARD_MARGIN_PT
-    const cardStartX = centerX + CARD_MARGIN_PT;
-    const cardStartY = centerY + CARD_MARGIN_PT;
-    const totalCardWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT;
+    // But cutting guides should be at original card size (inside bleed)
+    const cardStartX = centerX + CARD_MARGIN_PT + BLEED_PT;
+    const cardStartY = centerY + CARD_MARGIN_PT + BLEED_PT;
+    const totalCardWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (BLEED_PT * 2); // Gap between original card edges
     
     doc.strokeColor('#cccccc')
        .lineWidth(0.5)
        .dash(5, { space: 3 });
 
-    // Horizontal lines (top and bottom of cards)
+    // Horizontal lines (top and bottom of cards - at original size)
     doc.moveTo(cardStartX - 5, cardStartY)
        .lineTo(cardStartX + totalCardWidth + 5, cardStartY)
        .stroke();
@@ -230,13 +243,13 @@ export class PDFGenerator {
        .lineTo(cardStartX + totalCardWidth + 5, cardStartY + CARD_HEIGHT_PT)
        .stroke();
 
-    // Vertical lines (left, middle, right)
+    // Vertical lines (left, middle, right - at original card edges)
     doc.moveTo(cardStartX, cardStartY - 5)
        .lineTo(cardStartX, cardStartY + CARD_HEIGHT_PT + 5)
        .stroke();
 
     // Middle cutting line (between front and back)
-    const middleX = cardStartX + CARD_WIDTH_PT + CARD_GAP_PT / 2;
+    const middleX = cardStartX + CARD_WIDTH_PT + BLEED_PT + CARD_GAP_PT / 2;
     doc.moveTo(middleX, cardStartY - 5)
        .lineTo(middleX, cardStartY + CARD_HEIGHT_PT + 5)
        .stroke();
@@ -294,13 +307,15 @@ export class PDFGenerator {
         doc.pipe(writeStream);
 
         // Calculate card dimensions for 5 cards per page
-        // Each card has front+back side by side
-        const totalCardWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT; // ~522pt
+        // Each card has front+back side by side with bleed area
+        const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
+        const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
+        const totalCardWidth = cardWidthWithBleed * 2 + CARD_GAP_PT; // ~540pt with bleed
         const availableWidth = A4_WIDTH_PT - (PAGE_MARGIN * 2);
         const scale = Math.min(1, availableWidth / totalCardWidth);
         
         const scaledCardWidth = totalCardWidth * scale;
-        const scaledCardHeight = CARD_HEIGHT_PT * scale;
+        const scaledCardHeight = cardHeightWithBleed * scale;
         
         // Calculate vertical spacing for 5 cards
         const availableHeight = A4_HEIGHT_PT - (PAGE_MARGIN * 2) - 30; // 30pt for footer
@@ -406,13 +421,15 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Calculate dimensions (same as above)
-        const totalCardWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT;
+        // Calculate dimensions (same as above, with bleed area)
+        const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
+        const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
+        const totalCardWidth = cardWidthWithBleed * 2 + CARD_GAP_PT;
         const availableWidth = A4_WIDTH_PT - (PAGE_MARGIN * 2);
         const scale = Math.min(1, availableWidth / totalCardWidth);
         
         const scaledCardWidth = totalCardWidth * scale;
-        const scaledCardHeight = CARD_HEIGHT_PT * scale;
+        const scaledCardHeight = cardHeightWithBleed * scale;
         
         const availableHeight = A4_HEIGHT_PT - (PAGE_MARGIN * 2) - 30;
         const totalCardsHeight = (scaledCardHeight * CARDS_PER_PAGE) + (MULTI_CARD_GAP * (CARDS_PER_PAGE - 1));
