@@ -16,9 +16,11 @@ const CM_TO_PT = 28.3465;
 const CARD_WIDTH_PT = CARD_WIDTH_CM * CM_TO_PT;   // 250.87pt
 const CARD_HEIGHT_PT = CARD_HEIGHT_CM * CM_TO_PT; // 163.84pt
 
-// Increased gap between cards for better transparency/cutting
-const CARD_GAP_PT = 30;      // Gap between front and back cards
-const CARD_MARGIN_PT = 15;   // Margin around cutting guides
+// Gap and padding must match PNG dimensions (80px gap, 30px padding at 300 DPI)
+// 80px at 300 DPI = 80/300 * 2.54cm = 0.677cm = 19.20pt
+// 30px at 300 DPI = 30/300 * 2.54cm = 0.254cm = 7.20pt
+const CARD_GAP_PT = 19.20;      // Gap between front and back cards (matches 80px at 300dpi)
+const CARD_MARGIN_PT = 7.20;    // Margin around cutting guides (matches 30px at 300dpi)
 
 // Multi-card layout settings
 const CARDS_PER_PAGE = 5;    // 5 ID cards per page
@@ -60,16 +62,19 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Calculate center position for the card with increased gap
-        const totalWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT;
-        const centerX = (A4_WIDTH_PT - totalWidth) / 2;
-        const centerY = (A4_HEIGHT_PT - CARD_HEIGHT_PT) / 2;
+        // Calculate center position for the card with gap and padding
+        // PNG dimensions: (1044*2 + 80 + 60) x (684 + 60) = 2228 x 744 px at 300dpi
+        // In PDF points: 18.89cm x 6.31cm = 535.33pt x 178.84pt
+        const totalWidthWithPadding = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
+        const totalHeightWithPadding = CARD_HEIGHT_PT + (CARD_MARGIN_PT * 2);
+        const centerX = (A4_WIDTH_PT - totalWidthWithPadding) / 2;
+        const centerY = (A4_HEIGHT_PT - totalHeightWithPadding) / 2;
 
         // Add the card image centered on the page
-        // The image contains both front and back side by side
+        // The image contains both front and back side by side with padding
         doc.image(cardImagePath, centerX, centerY, {
-          width: totalWidth,
-          height: CARD_HEIGHT_PT
+          width: totalWidthWithPadding,
+          height: totalHeightWithPadding
         });
 
         // Add cutting guides with increased margins
@@ -141,15 +146,16 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Calculate center position with increased gap
-        const totalWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT;
-        const centerX = (A4_WIDTH_PT - totalWidth) / 2;
-        const centerY = (A4_HEIGHT_PT - CARD_HEIGHT_PT) / 2;
+        // Calculate center position with gap and padding
+        const totalWidthWithPadding = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
+        const totalHeightWithPadding = CARD_HEIGHT_PT + (CARD_MARGIN_PT * 2);
+        const centerX = (A4_WIDTH_PT - totalWidthWithPadding) / 2;
+        const centerY = (A4_HEIGHT_PT - totalHeightWithPadding) / 2;
 
         // Add the card image from buffer
         doc.image(imageBuffer, centerX, centerY, {
-          width: totalWidth,
-          height: CARD_HEIGHT_PT
+          width: totalWidthWithPadding,
+          height: totalHeightWithPadding
         });
 
         // Add cutting guides
@@ -196,37 +202,42 @@ export class PDFGenerator {
   }
 
   /**
-   * Add cutting guide lines to PDF with increased margins for transparency
+   * Add cutting guide lines to PDF
+   * Guides are drawn around the actual cards (inside the padding area)
    */
   private addCuttingGuides(doc: PDFKit.PDFDocument, centerX: number, centerY: number): void {
-    const totalWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT;
+    // The centerX/centerY point to the top-left of the padded image
+    // Cards start at centerX + CARD_MARGIN_PT, centerY + CARD_MARGIN_PT
+    const cardStartX = centerX + CARD_MARGIN_PT;
+    const cardStartY = centerY + CARD_MARGIN_PT;
+    const totalCardWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT;
     
     doc.strokeColor('#cccccc')
        .lineWidth(0.5)
        .dash(5, { space: 3 });
 
-    // Horizontal lines (top and bottom)
-    doc.moveTo(centerX - CARD_MARGIN_PT, centerY - CARD_MARGIN_PT / 2)
-       .lineTo(centerX + totalWidth + CARD_MARGIN_PT, centerY - CARD_MARGIN_PT / 2)
+    // Horizontal lines (top and bottom of cards)
+    doc.moveTo(cardStartX - 5, cardStartY)
+       .lineTo(cardStartX + totalCardWidth + 5, cardStartY)
        .stroke();
 
-    doc.moveTo(centerX - CARD_MARGIN_PT, centerY + CARD_HEIGHT_PT + CARD_MARGIN_PT / 2)
-       .lineTo(centerX + totalWidth + CARD_MARGIN_PT, centerY + CARD_HEIGHT_PT + CARD_MARGIN_PT / 2)
+    doc.moveTo(cardStartX - 5, cardStartY + CARD_HEIGHT_PT)
+       .lineTo(cardStartX + totalCardWidth + 5, cardStartY + CARD_HEIGHT_PT)
        .stroke();
 
     // Vertical lines (left, middle, right)
-    doc.moveTo(centerX - CARD_MARGIN_PT / 2, centerY - CARD_MARGIN_PT)
-       .lineTo(centerX - CARD_MARGIN_PT / 2, centerY + CARD_HEIGHT_PT + CARD_MARGIN_PT)
+    doc.moveTo(cardStartX, cardStartY - 5)
+       .lineTo(cardStartX, cardStartY + CARD_HEIGHT_PT + 5)
        .stroke();
 
-    // Middle cutting line (between front and back) - centered in the gap
-    const middleX = centerX + CARD_WIDTH_PT + CARD_GAP_PT / 2;
-    doc.moveTo(middleX, centerY - CARD_MARGIN_PT)
-       .lineTo(middleX, centerY + CARD_HEIGHT_PT + CARD_MARGIN_PT)
+    // Middle cutting line (between front and back)
+    const middleX = cardStartX + CARD_WIDTH_PT + CARD_GAP_PT / 2;
+    doc.moveTo(middleX, cardStartY - 5)
+       .lineTo(middleX, cardStartY + CARD_HEIGHT_PT + 5)
        .stroke();
 
-    doc.moveTo(centerX + totalWidth + CARD_MARGIN_PT / 2, centerY - CARD_MARGIN_PT)
-       .lineTo(centerX + totalWidth + CARD_MARGIN_PT / 2, centerY + CARD_HEIGHT_PT + CARD_MARGIN_PT)
+    doc.moveTo(cardStartX + totalCardWidth, cardStartY - 5)
+       .lineTo(cardStartX + totalCardWidth, cardStartY + CARD_HEIGHT_PT + 5)
        .stroke();
   }
 
