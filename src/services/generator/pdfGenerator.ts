@@ -62,23 +62,23 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Calculate center position for the card with gap and padding
-        // PNG dimensions: (1044*2 + 80 + 60) x (684 + 60) = 2228 x 744 px at 300dpi
-        // In PDF points: 18.89cm x 6.31cm = 535.33pt x 178.84pt
+        // Position card at top of page with margin
+        // PNG dimensions: (1024*2 + 80 + 60) x (646 + 60) = 2188 x 706 px at 300dpi
         const totalWidthWithPadding = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
         const totalHeightWithPadding = CARD_HEIGHT_PT + (CARD_MARGIN_PT * 2);
-        const centerX = (A4_WIDTH_PT - totalWidthWithPadding) / 2;
-        const centerY = (A4_HEIGHT_PT - totalHeightWithPadding) / 2;
+        const topMargin = 30; // 30pt margin from top
+        const startX = (A4_WIDTH_PT - totalWidthWithPadding) / 2; // Center horizontally
+        const startY = topMargin; // Start from top with margin
 
-        // Add the card image centered on the page
+        // Add the card image at top of page
         // The image contains both front and back side by side with padding
-        doc.image(cardImagePath, centerX, centerY, {
+        doc.image(cardImagePath, startX, startY, {
           width: totalWidthWithPadding,
           height: totalHeightWithPadding
         });
 
         // Add cutting guides with increased margins
-        this.addCuttingGuides(doc, centerX, centerY);
+        this.addCuttingGuides(doc, startX, startY);
 
         // Add footer text with print instructions
         doc.undash()
@@ -146,20 +146,21 @@ export class PDFGenerator {
         const writeStream = fs.createWriteStream(outputPath);
         doc.pipe(writeStream);
 
-        // Calculate center position with gap and padding
+        // Position card at top of page with margin
         const totalWidthWithPadding = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
         const totalHeightWithPadding = CARD_HEIGHT_PT + (CARD_MARGIN_PT * 2);
-        const centerX = (A4_WIDTH_PT - totalWidthWithPadding) / 2;
-        const centerY = (A4_HEIGHT_PT - totalHeightWithPadding) / 2;
+        const topMargin = 30; // 30pt margin from top
+        const startX = (A4_WIDTH_PT - totalWidthWithPadding) / 2; // Center horizontally
+        const startY = topMargin; // Start from top with margin
 
         // Add the card image from buffer
-        doc.image(imageBuffer, centerX, centerY, {
+        doc.image(imageBuffer, startX, startY, {
           width: totalWidthWithPadding,
           height: totalHeightWithPadding
         });
 
         // Add cutting guides
-        this.addCuttingGuides(doc, centerX, centerY);
+        this.addCuttingGuides(doc, startX, startY);
 
         // Add footer with print instructions
         doc.undash()
