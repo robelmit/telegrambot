@@ -601,8 +601,8 @@ export class PDFParserImpl implements PDFParser {
       fcn: parsed.fcn,
       fin: parsed.fin,
       fan: parsed.fcn,
-      // Use extracted serial number or generate random fallback
-      serialNumber: parsed.serialNumber || String(Math.floor(1000000 + Math.random() * 9000000)),
+      // Use extracted serial number or generate random fallback (8 digits)
+      serialNumber: parsed.serialNumber || String(Math.floor(10000000 + Math.random() * 90000000)),
       // Use OCR-extracted expiry dates or fallback to calculated dates
       issueDate: this.calculateIssueDate(parsed.dateOfBirthGregorian),
       issueDateEthiopian: this.calculateIssueDateEthiopian(parsed.dateOfBirthEthiopian),

@@ -471,7 +471,7 @@ export class CardRenderer {
 
     // FAN - EXACTLY like test script
     ctx.fillStyle = front.fan.color;
-    ctx.font = `bold ${front.fan.fontSize}px Consolas`;
+    ctx.font = `bold ${front.fan.fontSize}px monospace`;
     ctx.fillText(data.fcn, front.fan.x, front.fan.y);
 
     // Barcode - EXACTLY like test script
@@ -595,7 +595,7 @@ export class CardRenderer {
 
     // FIN - EXACTLY like test script
     ctx.fillStyle = back.fin.color;
-    ctx.font = `bold ${back.fin.fontSize}px Consolas`;
+    ctx.font = `bold ${back.fin.fontSize}px monospace`;
     ctx.fillText(data.fin, back.fin.x, back.fin.y);
 
     // Serial Number - EXACTLY like test script

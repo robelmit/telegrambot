@@ -532,7 +532,7 @@ async function render() {
 
   // FAN
   fctx.fillStyle = front.fan.color;
-  fctx.font = `bold ${front.fan.fontSize}px Consolas`;
+  fctx.font = `bold ${front.fan.fontSize}px monospace`;
   fctx.fillText(data.fcn, front.fan.x, front.fan.y);
 
   // Barcode
@@ -650,7 +650,7 @@ async function render() {
 
   // FIN
   bctx.fillStyle = back.fin.color;
-  bctx.font = `bold ${back.fin.fontSize}px Consolas`;
+  bctx.font = `bold ${back.fin.fontSize}px monospace`;
   bctx.fillText(data.fin, back.fin.x, back.fin.y);
 
   // Serial
