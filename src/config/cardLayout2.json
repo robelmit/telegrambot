@@ -84,8 +84,8 @@
       "fontFamily": "Inter"
     },
     "fan": {
-      "x": 455,
-      "y": 492,
+      "x": 457,
+      "y": 486,
       "fontSize": 28,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
