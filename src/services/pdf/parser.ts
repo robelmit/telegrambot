@@ -100,7 +100,6 @@ export class PDFParserImpl implements PDFParser {
     woredaEnglish: string;
     fcn: string;
     fin: string;
-    serialNumber: string;
   } {
     const data = {
       fullNameAmharic: '',
@@ -119,8 +118,7 @@ export class PDFParserImpl implements PDFParser {
       woredaAmharic: '',
       woredaEnglish: '',
       fcn: '',
-      fin: '',
-      serialNumber: ''
+      fin: ''
     };
 
     // Extract ALL dates from PDF
@@ -356,28 +354,6 @@ export class PDFParserImpl implements PDFParser {
       data.woredaEnglish = woredaEnglishMatch[0];
     }
 
-    // Serial Number - typically a 7-digit number
-    // Look for standalone 7-digit numbers that aren't part of phone numbers or dates
-    const serialPatterns = [
-      /\b(\d{7})\b/g,  // Exactly 7 digits
-      /Serial[:\s]*(\d{7})/i,  // After "Serial" keyword
-      /S\/N[:\s]*(\d{7})/i,  // After "S/N" keyword
-    ];
-    
-    for (const pattern of serialPatterns) {
-      const matches = [...text.matchAll(pattern)];
-      for (const match of matches) {
-        const num = match[1];
-        // Exclude phone numbers (start with 09) and years
-        if (!num.startsWith('09') && !num.startsWith('19') && !num.startsWith('20')) {
-          data.serialNumber = num;
-          logger.info(`Found serial number: ${num}`);
-          break;
-        }
-      }
-      if (data.serialNumber) break;
-    }
-
     return data;
   }
 
@@ -583,7 +559,7 @@ export class PDFParserImpl implements PDFParser {
     // Use OCR to extract expiry dates from images
     const ocrExpiry = await this.extractExpiryFromImages(images);
 
-    logger.info(`Parsed: FCN=${parsed.fcn}, FIN=${parsed.fin}, Serial=${parsed.serialNumber}`);
+    logger.info(`Parsed: FCN=${parsed.fcn}, FIN=${parsed.fin}`);
     logger.info(`Parsed Amharic: region=${parsed.regionAmharic}, zone=${parsed.zoneAmharic}, woreda=${parsed.woredaAmharic}`);
     logger.info(`OCR Expiry: Gregorian=${ocrExpiry.expiryDateGregorian}, Ethiopian=${ocrExpiry.expiryDateEthiopian}`);
 
@@ -601,8 +577,8 @@ export class PDFParserImpl implements PDFParser {
       fcn: parsed.fcn,
       fin: parsed.fin,
       fan: parsed.fcn,
-      // Use extracted serial number or generate random fallback (8 digits)
-      serialNumber: parsed.serialNumber || String(Math.floor(10000000 + Math.random() * 90000000)),
+      // 8-digit random serial number
+      serialNumber: String(Math.floor(10000000 + Math.random() * 90000000)),
       // Use OCR-extracted expiry dates or fallback to calculated dates
       issueDate: this.calculateIssueDate(parsed.dateOfBirthGregorian),
       issueDateEthiopian: this.calculateIssueDateEthiopian(parsed.dateOfBirthEthiopian),
