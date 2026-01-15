@@ -62,7 +62,7 @@ export function registerFonts(): void {
       { file: 'Inter-Bold.otf', family: 'Inter', weight: 'bold' },
       { file: 'Inter-SemiBold.otf', family: 'Inter', weight: '600' },
       { file: 'Inter-Medium.otf', family: 'Inter', weight: '500' },
-      { file: 'OCR.ttf', family: 'OCR-B', weight: 'normal' },
+      { file: 'OCR.ttf', family: 'OCR', weight: 'normal' },
     ];
 
     for (const font of fontFiles) {
@@ -471,7 +471,7 @@ export class CardRenderer {
 
     // FAN - EXACTLY like test script
     ctx.fillStyle = front.fan.color;
-    ctx.font = `bold ${front.fan.fontSize}px monospace`;
+    ctx.font = `bold ${front.fan.fontSize}px Arial`;
     ctx.fillText(data.fcn, front.fan.x, front.fan.y);
 
     // Barcode - EXACTLY like test script
@@ -595,7 +595,7 @@ export class CardRenderer {
 
     // FIN - EXACTLY like test script
     ctx.fillStyle = back.fin.color;
-    ctx.font = `bold ${back.fin.fontSize}px monospace`;
+    ctx.font = `bold ${back.fin.fontSize}px Arial`;
     ctx.fillText(data.fin, back.fin.x, back.fin.y);
 
     // Serial Number - EXACTLY like test script

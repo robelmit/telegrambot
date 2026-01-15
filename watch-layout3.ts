@@ -84,7 +84,7 @@ const fontsToRegister = [
   { file: 'Inter-Bold.otf', family: 'Inter', weight: 'bold' },
   { file: 'Inter-SemiBold.otf', family: 'Inter', weight: '600' },
   { file: 'Inter-Medium.otf', family: 'Inter', weight: '500' },
-  { file: 'OCR.ttf', family: 'OCR-B', weight: 'normal' },
+  { file: 'OCR.ttf', family: 'OCR', weight: 'normal' },
 ];
 
 for (const font of fontsToRegister) {
@@ -532,7 +532,7 @@ async function render() {
 
   // FAN
   fctx.fillStyle = front.fan.color;
-  fctx.font = `bold ${front.fan.fontSize}px monospace`;
+  fctx.font = `bold ${front.fan.fontSize}px Arial`;
   fctx.fillText(data.fcn, front.fan.x, front.fan.y);
 
   // Barcode
@@ -650,7 +650,7 @@ async function render() {
 
   // FIN
   bctx.fillStyle = back.fin.color;
-  bctx.font = `bold ${back.fin.fontSize}px monospace`;
+  bctx.font = `bold ${back.fin.fontSize}px Arial`;
   bctx.fillText(data.fin, back.fin.x, back.fin.y);
 
   // Serial
