@@ -1,6 +1,7 @@
 /**
  * Watch cardLayout2.json (Template 3) with halefront/haleback templates
  * Uses fayda.pdf from root folder
+ * BLEEDED VERSION - adds 3mm bleed to all edges
  * Run with: npx ts-node watch-layout3.ts
  */
 
@@ -11,6 +12,10 @@ import { createCanvas, loadImage, registerFont } from 'canvas';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
+import PDFDocument from 'pdfkit';
+
+// Bleed area: 3mm = ~35px at 300 DPI (standard print bleed)
+const BLEED = 35;
 
 const LAYOUT_PATH = 'src/config/cardLayout2.json';
 const TEMPLATE_DIR = 'src/assets';
@@ -69,14 +74,17 @@ interface ParsedData {
   serialNumber: string;
 }
 
-// Register fonts
+// Register fonts - EXACTLY like cardRenderer.ts
 const fontsToRegister = [
-  { file: 'Inter-Medium.otf', family: 'InterMedium', weight: 'normal' },
-  { file: 'Inter-SemiBold.otf', family: 'InterSemiBold', weight: 'normal' },
-  { file: 'Inter-Bold.otf', family: 'InterBold', weight: 'normal' },
-  { file: 'OCR.ttf', family: 'OCRB', weight: 'normal' },
+  { file: 'nyala.ttf', family: 'Nyala', weight: 'normal' },
   { file: 'ARIAL.TTF', family: 'Arial', weight: 'normal' },
   { file: 'ARIALBD.TTF', family: 'Arial', weight: 'bold' },
+  { file: 'ebrima.ttf', family: 'Ebrima', weight: 'normal' },
+  { file: 'Inter-Regular.otf', family: 'Inter', weight: 'normal' },
+  { file: 'Inter-Bold.otf', family: 'Inter', weight: 'bold' },
+  { file: 'Inter-SemiBold.otf', family: 'Inter', weight: '600' },
+  { file: 'Inter-Medium.otf', family: 'Inter', weight: '500' },
+  { file: 'OCR.ttf', family: 'OCR-B', weight: 'normal' },
 ];
 
 for (const font of fontsToRegister) {
@@ -90,17 +98,6 @@ for (const font of fontsToRegister) {
     }
   } else {
     console.log(`✗ Missing: ${font.file}`);
-  }
-}
-
-// Register Ebrima from root directory
-const ebrimaPath = path.resolve(__dirname, 'ebrima.ttf');
-if (fs.existsSync(ebrimaPath)) {
-  try {
-    registerFont(ebrimaPath, { family: 'Ebrima', weight: 'normal' });
-    console.log(`✓ Registered: ebrima.ttf as Ebrima`);
-  } catch (err) {
-    console.log(`✗ Failed to register: ebrima.ttf - ${err}`);
   }
 }
 
@@ -352,6 +349,39 @@ async function removeWhiteBackgroundSharp(photoBuffer: Buffer, threshold: number
 // Cache for processed photos
 let processedPhotoCache: Buffer | null = null;
 
+/**
+ * Add bleed to an image by mirroring edges
+ */
+async function addBleed(imageBuffer: Buffer): Promise<Buffer> {
+  return await sharp(imageBuffer)
+    .extend({
+      top: BLEED,
+      bottom: BLEED,
+      left: BLEED,
+      right: BLEED,
+      extendWith: 'mirror'
+    })
+    .toBuffer();
+}
+
+/**
+ * Load and normalize template image to sRGB color space for consistent printing
+ * EXACTLY like cardRenderer.ts
+ */
+async function loadNormalizedTemplate(templatePath: string): Promise<Buffer> {
+  try {
+    const normalized = await sharp(templatePath)
+      .toColorspace('srgb')
+      .png()
+      .toBuffer();
+    console.log(`✓ Normalized template to sRGB: ${templatePath}`);
+    return normalized;
+  } catch (error) {
+    console.error(`Failed to normalize template ${templatePath}:`, error);
+    return fs.readFileSync(templatePath);
+  }
+}
+
 function loadLayout() {
   delete require.cache[require.resolve('./' + LAYOUT_PATH)];
   const content = fs.readFileSync(LAYOUT_PATH, 'utf-8');
@@ -431,7 +461,9 @@ async function render() {
     return;
   }
   
-  const frontTemplate = await loadImage(frontTemplatePath);
+  // Load normalized template (sRGB) - EXACTLY like cardRenderer.ts
+  const normalizedFrontTemplate = await loadNormalizedTemplate(frontTemplatePath);
+  const frontTemplate = await loadImage(normalizedFrontTemplate);
   fctx.drawImage(frontTemplate, 0, 0, dimensions.width, dimensions.height);
 
   // Draw photo with transparent background
@@ -547,7 +579,9 @@ async function render() {
     return;
   }
   
-  const backTemplate = await loadImage(backTemplatePath);
+  // Load normalized template (sRGB) - EXACTLY like cardRenderer.ts
+  const normalizedBackTemplate = await loadNormalizedTemplate(backTemplatePath);
+  const backTemplate = await loadImage(normalizedBackTemplate);
   bctx.drawImage(backTemplate, 0, 0, dimensions.width, dimensions.height);
 
   // QR Code
@@ -624,13 +658,90 @@ async function render() {
   bctx.font = `bold ${back.serialNumber.fontSize}px Arial`;
   bctx.fillText(data.serialNumber, back.serialNumber.x, back.serialNumber.y);
 
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'back3_color.png'), backCanvas.toBuffer('image/png'));
+  // Save raw versions first
+  const frontBuffer = frontCanvas.toBuffer('image/png');
+  const backBuffer = backCanvas.toBuffer('image/png');
 
-  console.log(`[${new Date().toLocaleTimeString()}] ✓ Rendered front3_color.png & back3_color.png (Template 3 with halefront/haleback)`);
+  // Save WITHOUT bleed for comparison
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'front3_no_bleed.png'), frontBuffer);
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'back3_no_bleed.png'), backBuffer);
+
+  // Add bleed to individual cards
+  const frontWithBleed = await addBleed(frontBuffer);
+  const backWithBleed = await addBleed(backBuffer);
+
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'front3_color.png'), frontWithBleed);
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'back3_color.png'), backWithBleed);
+
+  // === COMBINED OUTPUT (like telegram bot) ===
+  const gap = 80; // spacing between cards for cutting
+  const padding = 30; // padding around entire image
+  
+  const cardWithBleedWidth = dimensions.width + BLEED * 2;
+  const cardWithBleedHeight = dimensions.height + BLEED * 2;
+  
+  const totalWidth = cardWithBleedWidth * 2 + gap + (padding * 2);
+  const totalHeight = cardWithBleedHeight + (padding * 2);
+
+  // Create white canvas and composite both cards (back | front)
+  const combinedBuffer = await sharp({
+    create: {
+      width: totalWidth,
+      height: totalHeight,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
+    }
+  })
+  .composite([
+    { input: backWithBleed, left: padding, top: padding },
+    { input: frontWithBleed, left: padding + cardWithBleedWidth + gap, top: padding }
+  ])
+  .withMetadata({ density: 300 })
+  .png({ compressionLevel: 9 })
+  .toBuffer();
+
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'template3_combined.png'), combinedBuffer);
+
+  // === GENERATE PDF (exactly like telegram bot) ===
+  const A4_WIDTH_PT = 595.28;
+  const CARD_WIDTH_CM = 8.67;
+  const CM_TO_PT = 28.3465;
+  const CARD_WIDTH_PT = CARD_WIDTH_CM * CM_TO_PT;
+  const BLEED_PT = 8.40;
+  const CARD_GAP_PT = 19.20;
+  const CARD_MARGIN_PT = 7.20;
+  
+  const cardWidthWithBleedPt = CARD_WIDTH_PT + (BLEED_PT * 2);
+  const totalWidthWithPaddingPt = cardWidthWithBleedPt * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
+  const topMarginPt = 30;
+  const startXPt = (A4_WIDTH_PT - totalWidthWithPaddingPt) / 2;
+  
+  await new Promise<void>((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 0 });
+    const pdfPath = path.join(OUTPUT_DIR, 'template3_combined.pdf');
+    const writeStream = fs.createWriteStream(pdfPath);
+    doc.pipe(writeStream);
+    
+    // Only specify width to preserve aspect ratio exactly (like the fix)
+    doc.image(combinedBuffer, startXPt, topMarginPt, {
+      width: totalWidthWithPaddingPt
+    });
+    
+    doc.end();
+    writeStream.on('finish', () => resolve());
+    writeStream.on('error', reject);
+  });
+
+  console.log(`[${new Date().toLocaleTimeString()}] ✓ Rendered:`);
+  console.log(`   - front3_no_bleed.png & back3_no_bleed.png (raw ${dimensions.width}x${dimensions.height})`);
+  console.log(`   - front3_color.png & back3_color.png (individual with ${BLEED}px bleed)`);
+  console.log(`   - template3_combined.png (${totalWidth}x${totalHeight})`);
+  console.log(`   - template3_combined.pdf (A4 - like telegram bot)`);
 }
 
 // Initial render
-console.log('🎨 Template 3 Watcher with halefront/haleback templates');
+console.log('🎨 Template 3 Watcher with halefront/haleback templates (BLEEDED)');
+console.log(`📐 Bleed: ${BLEED}px (3mm) on all edges`);
 console.log('📁 Using fayda.pdf from root folder');
 console.log('📝 Edit src/config/cardLayout2.json and save to see updates.\n');
 

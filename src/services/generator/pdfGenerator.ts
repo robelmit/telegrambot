@@ -71,18 +71,16 @@ export class PDFGenerator {
         // Card with bleed: (1024 + 70) x (646 + 70) = 1094 x 716 px per card
         // Total: (1094*2 + 80 + 60) x (716 + 60) = 2328 x 776 px
         const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
-        const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
         const totalWidthWithPadding = cardWidthWithBleed * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
-        const totalHeightWithPadding = cardHeightWithBleed + (CARD_MARGIN_PT * 2);
         const topMargin = 30; // 30pt margin from top
         const startX = (A4_WIDTH_PT - totalWidthWithPadding) / 2; // Center horizontally
         const startY = topMargin; // Start from top with margin
 
         // Add the card image at top of page
         // The image contains both front and back side by side with padding and bleed
+        // Only specify width to preserve aspect ratio exactly
         doc.image(cardImagePath, startX, startY, {
-          width: totalWidthWithPadding,
-          height: totalHeightWithPadding
+          width: totalWidthWithPadding
         });
 
         // Add cutting guides (at original card size, inside the bleed area)
@@ -158,17 +156,15 @@ export class PDFGenerator {
 
         // Position card at top of page with margin (each card has bleed on all edges)
         const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
-        const cardHeightWithBleed = CARD_HEIGHT_PT + (BLEED_PT * 2);
         const totalWidthWithPadding = cardWidthWithBleed * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
-        const totalHeightWithPadding = cardHeightWithBleed + (CARD_MARGIN_PT * 2);
         const topMargin = 30; // 30pt margin from top
         const startX = (A4_WIDTH_PT - totalWidthWithPadding) / 2; // Center horizontally
         const startY = topMargin; // Start from top with margin
 
         // Add the card image from buffer
+        // Only specify width to preserve aspect ratio exactly
         doc.image(imageBuffer, startX, startY, {
-          width: totalWidthWithPadding,
-          height: totalHeightWithPadding
+          width: totalWidthWithPadding
         });
 
         // Add cutting guides (at original card size, inside the bleed area)
