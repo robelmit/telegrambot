@@ -1,6 +1,8 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 import { Language, UserSettings } from '../types';
 
+export type TemplateType = 'template0' | 'template1' | 'template2';
+
 export interface IUser extends Document {
   telegramId: number;
   language: Language;
@@ -19,6 +21,8 @@ export interface IUser extends Document {
   totalOrders: number;
   isBanned: boolean;
   banReason: string | null;
+  // Template preference (persisted)
+  selectedTemplate: TemplateType;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -99,6 +103,12 @@ const UserSchema = new Schema<IUser>({
   banReason: {
     type: String,
     default: null
+  },
+  // Template preference (persisted across sessions)
+  selectedTemplate: {
+    type: String,
+    enum: ['template0', 'template1', 'template2'],
+    default: 'template0'
   }
 }, {
   timestamps: true

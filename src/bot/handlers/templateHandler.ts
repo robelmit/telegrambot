@@ -5,11 +5,22 @@ import { getAvailableTemplates } from '../../services/generator/cardRenderer';
 import { getTemplatePreview } from '../../services/generator/templatePreview';
 import { Input } from 'telegraf';
 import logger from '../../utils/logger';
+import User from '../../models/User';
 
 export async function handleTemplate(ctx: BotContext): Promise<void> {
   const lang = ctx.session.language || 'en';
+  const telegramId = ctx.from?.id;
   const templates = getAvailableTemplates();
-  const currentTemplate = ctx.session.selectedTemplate || 'template0';
+  
+  // Load template from database if available
+  let currentTemplate = ctx.session.selectedTemplate || 'template0';
+  if (telegramId) {
+    const user = await User.findOne({ telegramId });
+    if (user?.selectedTemplate) {
+      currentTemplate = user.selectedTemplate;
+      ctx.session.selectedTemplate = currentTemplate;
+    }
+  }
   
   const buttons = templates.map(template => {
     const isSelected = template.id === currentTemplate;
@@ -39,13 +50,26 @@ export async function handleTemplate(ctx: BotContext): Promise<void> {
 
 export async function handleTemplateCallback(ctx: BotContext): Promise<void> {
   const lang = ctx.session.language || 'en';
+  const telegramId = ctx.from?.id;
   
   if (!ctx.callbackQuery || !('data' in ctx.callbackQuery)) {
     return;
   }
   
   const templateId = ctx.callbackQuery.data.replace('template_', '') as TemplateType;
+  
+  // Save to session
   ctx.session.selectedTemplate = templateId;
+  
+  // Save to database for persistence
+  if (telegramId) {
+    await User.findOneAndUpdate(
+      { telegramId },
+      { selectedTemplate: templateId },
+      { upsert: false }
+    );
+    logger.info(`User ${telegramId} selected template: ${templateId}`);
+  }
   
   const templates = getAvailableTemplates();
   const selectedTemplate = templates.find(t => t.id === templateId);

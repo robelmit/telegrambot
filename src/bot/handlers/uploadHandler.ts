@@ -129,6 +129,9 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
       attempts: 0
     });
 
+    // Get template from database (persisted) or session (fallback)
+    const template = user.selectedTemplate || ctx.session.selectedTemplate || 'template0';
+
     // Add to queue
     const jobQueue = getJobQueue();
     await jobQueue.add(job._id.toString(), {
@@ -137,7 +140,7 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
       telegramId,
       pdfPath,
       chatId: ctx.chat!.id,
-      template: ctx.session.selectedTemplate || 'template0'
+      template
     });
 
     getAuditLogger().logJob('created', job._id.toString(), user._id.toString());
