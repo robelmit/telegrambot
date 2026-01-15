@@ -35,7 +35,7 @@
     },
     "nameEnglish": {
       "x": 407,
-      "y": 230,
+      "y": 235,
       "fontSize": 32,
       "fontWeight": "700",
       "color": "rgb(33, 33, 33)",
@@ -164,9 +164,9 @@
       "fontFamily": "Inter"
     },
     "fin": {
-      "x": 166,
-      "y": 535,
-      "fontSize": 32,
+      "x": 168,
+      "y": 537,
+      "fontSize": 21,
       "fontWeight": "700",
       "color": "rgb(0, 0, 0)",
       "fontFamily": "OCR-B"
