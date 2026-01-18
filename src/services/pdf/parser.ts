@@ -58,7 +58,7 @@ export class PDFParserImpl implements PDFParser {
     // - Image 1 (index 0) = actual photo for rendering
     // - Image 2 (index 1) = QR code  
     // - Image 3 (index 2) = front card with expiry date (for OCR only)
-    // - Image 4 (index 3) = back card
+    // - Image 4 (index 3) = back card with FIN (for OCR only)
     
     if (images.length >= 1) {
       result.photo = images[0]; // Use image 1 (index 0) for actual photo rendering
@@ -74,6 +74,12 @@ export class PDFParserImpl implements PDFParser {
     if (images.length >= 3) {
       result.frontCardImage = images[2]; // Image 3 for OCR expiry extraction only
       logger.info(`Front card image for OCR: ${images[2].length} bytes`);
+    }
+
+    // Store image 4 separately for OCR FIN extraction
+    if (images.length >= 4) {
+      result.backCardImage = images[3]; // Image 4 for OCR FIN extraction only
+      logger.info(`Back card image for OCR: ${images[3].length} bytes`);
     }
 
     return result;
@@ -170,8 +176,9 @@ export class PDFParserImpl implements PDFParser {
           // Extract woreda after zone (before FCN)
           const afterZone = afterRegion.substring(zoneMatch.index! + zoneMatch[0].length);
           
-          // Woreda pattern: Amharic line, English line, then FCN
-          const woredaPattern = /\s*([\u1200-\u137F\s]+?)\s*\n\s*([A-Za-z\s']+?)\s*\n\s*(?:FCN:|6\d{3})/;
+          // Woreda pattern: Amharic line (may include / and special chars), English line, then FCN
+          // Handle patterns like: ቐ/ወያነ ክ/ከተማ or ወያነ ክ/ከተማ
+          const woredaPattern = /\s*([\u1200-\u137F\/\s]+?)\s*\n\s*([A-Za-z\s']+?)\s*\n\s*(?:FCN:|FIN:|\d{4}\s+\d{4})/;
           const woredaMatch = afterZone.match(woredaPattern);
           
           if (woredaMatch) {
@@ -195,10 +202,11 @@ export class PDFParserImpl implements PDFParser {
     if (finMatch) {
       data.fin = finMatch[1];
     } else {
-      // If no separate FIN found, generate from FCN (first 12 digits)
+      // If no separate FIN found, generate from FCN (LAST 12 digits, not first!)
       const fcnDigits = data.fcn.replace(/\s/g, '');
       if (fcnDigits.length >= 12) {
-        const finDigits = fcnDigits.substring(0, 12);
+        // FIN is the LAST 12 digits of FCN
+        const finDigits = fcnDigits.substring(fcnDigits.length - 12);
         data.fin = `${finDigits.substring(0,4)} ${finDigits.substring(4,8)} ${finDigits.substring(8,12)}`;
       }
     }
@@ -348,6 +356,253 @@ export class PDFParserImpl implements PDFParser {
     }
 
     return data;
+  }
+
+  /**
+   * Validate if extracted FIN looks correct
+   * Returns true if FIN appears valid, false if suspicious
+   */
+  private validateFIN(fin: string, fcn: string): boolean {
+    if (!fin || fin.length < 12) {
+      return false;
+    }
+
+    // Remove spaces for comparison
+    const finDigits = fin.replace(/\s/g, '');
+    const fcnDigits = fcn.replace(/\s/g, '');
+
+    // Check 1: FIN should be exactly 12 digits
+    if (finDigits.length !== 12 || !/^\d{12}$/.test(finDigits)) {
+      logger.warn('FIN validation failed: Not 12 digits');
+      return false;
+    }
+
+    // Check 2: FIN should NOT be the last 12 digits of FCN (that's a fallback, not real FIN)
+    if (fcnDigits.length >= 12) {
+      const fcnLast12 = fcnDigits.substring(fcnDigits.length - 12);
+      if (finDigits === fcnLast12) {
+        logger.warn('FIN validation failed: FIN is last 12 digits of FCN (likely fallback)');
+        return false;
+      }
+    }
+
+    // Check 3: FIN should have reasonable digit distribution (not all same digit)
+    const uniqueDigits = new Set(finDigits.split('')).size;
+    if (uniqueDigits < 3) {
+      logger.warn('FIN validation failed: Too few unique digits');
+      return false;
+    }
+
+    logger.info('FIN validation passed');
+    return true;
+  }
+
+  /**
+   * Extract address and FIN from back card image using OCR
+   * Uses hybrid approach: Try Tesseract first (fast), then scribe.js-ocr if needed (accurate)
+   */
+  private async extractBackCardData(images: ExtractedImages, fcn: string = ''): Promise<{
+    fin: string;
+    phoneNumber: string;
+    regionAmharic: string;
+    regionEnglish: string;
+    zoneAmharic: string;
+    zoneEnglish: string;
+    woredaAmharic: string;
+    woredaEnglish: string;
+  }> {
+    const result = {
+      fin: '',
+      phoneNumber: '',
+      regionAmharic: '',
+      regionEnglish: '',
+      zoneAmharic: '',
+      zoneEnglish: '',
+      woredaAmharic: '',
+      woredaEnglish: ''
+    };
+
+    try {
+      if (images.backCardImage) {
+        // STRATEGY: Try Tesseract first (fast ~3s), validate, then retry with scribe.js-ocr if needed
+        
+        // Step 1: Try Tesseract (fast)
+        logger.info('Extracting data from back card image using Tesseract (fast)...');
+        const startTime = Date.now();
+        
+        const tesseractResult = await Tesseract.recognize(images.backCardImage, 'eng+amh', {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              logger.debug(`Back card OCR progress: ${Math.round(m.progress * 100)}%`);
+            }
+          }
+        });
+
+        let ocrText = tesseractResult.data.text;
+        const tesseractTime = Date.now() - startTime;
+        logger.info(`Tesseract OCR completed in ${tesseractTime}ms, extracted ${ocrText.length} characters`);
+        logger.debug('Tesseract OCR text:', ocrText);
+
+        // Extract FIN (12 digits: XXXX XXXX XXXX)
+        const finPattern = /(\d{4}\s+\d{4}\s+\d{4})(?!\s+\d)/;
+        const finMatch = ocrText.match(finPattern);
+        
+        if (finMatch) {
+          result.fin = finMatch[1];
+          logger.info(`Extracted FIN from back card (Tesseract): ${result.fin}`);
+        } else {
+          logger.warn('FIN not found in Tesseract OCR text');
+          // Try to find any 12-digit sequence
+          const allDigits = ocrText.match(/\d+/g);
+          if (allDigits) {
+            logger.debug('All digit groups found:', allDigits);
+            // Look for groups that could form a FIN
+            for (let i = 0; i < allDigits.length - 2; i++) {
+              if (allDigits[i].length === 4 && allDigits[i+1].length === 4 && allDigits[i+2].length === 4) {
+                result.fin = `${allDigits[i]} ${allDigits[i+1]} ${allDigits[i+2]}`;
+                logger.info(`Reconstructed FIN from digit groups: ${result.fin}`);
+                break;
+              }
+            }
+          }
+        }
+
+        // Extract phone number
+        const phonePattern = /(09\d{8})/;
+        const phoneMatch = ocrText.match(phonePattern);
+        if (phoneMatch) {
+          result.phoneNumber = phoneMatch[1];
+          logger.info(`Extracted phone from back card: ${result.phoneNumber}`);
+        }
+
+        // Step 2: Validate FIN quality
+        const finIsValid = result.fin && this.validateFIN(result.fin, fcn);
+        
+        // Step 3: If FIN not found OR looks suspicious, retry with scribe.js-ocr (slower but more accurate)
+        if (!finIsValid) {
+          if (!result.fin) {
+            logger.warn('FIN not found with Tesseract, retrying with scribe.js-ocr for better accuracy...');
+          } else {
+            logger.warn('FIN validation failed, retrying with scribe.js-ocr for better accuracy...');
+          }
+          
+          // Import scribe.js-ocr dynamically
+          const scribe = await import('scribe.js-ocr');
+          
+          // Save image temporarily for scribe.js-ocr
+          const fs = await import('fs');
+          const path = await import('path');
+          const os = await import('os');
+          
+          const tempDir = os.tmpdir();
+          const tempImagePath = path.join(tempDir, `back-card-${Date.now()}.jpg`);
+          fs.writeFileSync(tempImagePath, images.backCardImage);
+          
+          try {
+            const scribeStartTime = Date.now();
+            // Use scribe.js-ocr for better accuracy
+            ocrText = await scribe.default.extractText([tempImagePath]);
+            const scribeTime = Date.now() - scribeStartTime;
+            
+            logger.info(`scribe.js-ocr completed in ${scribeTime}ms, extracted ${ocrText.length} characters`);
+            logger.debug('scribe.js-ocr text:', ocrText);
+            
+            // Clean up temp file
+            fs.unlinkSync(tempImagePath);
+            
+            // Re-extract FIN with better OCR
+            const finMatch2 = ocrText.match(finPattern);
+            if (finMatch2) {
+              result.fin = finMatch2[1];
+              logger.info(`Extracted FIN from back card (scribe.js-ocr): ${result.fin}`);
+            } else {
+              // Try reconstruction again
+              const allDigits2 = ocrText.match(/\d+/g);
+              if (allDigits2) {
+                for (let i = 0; i < allDigits2.length - 2; i++) {
+                  if (allDigits2[i].length === 4 && allDigits2[i+1].length === 4 && allDigits2[i+2].length === 4) {
+                    result.fin = `${allDigits2[i]} ${allDigits2[i+1]} ${allDigits2[i+2]}`;
+                    logger.info(`Reconstructed FIN from scribe.js-ocr digit groups: ${result.fin}`);
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // Re-extract phone if not found
+            if (!result.phoneNumber) {
+              const phoneMatch2 = ocrText.match(phonePattern);
+              if (phoneMatch2) {
+                result.phoneNumber = phoneMatch2[1];
+                logger.info(`Extracted phone from back card (scribe.js-ocr): ${result.phoneNumber}`);
+              }
+            }
+          } catch (ocrError) {
+            // Clean up temp file on error
+            if (fs.existsSync(tempImagePath)) {
+              fs.unlinkSync(tempImagePath);
+            }
+            logger.error('scribe.js-ocr failed:', ocrError);
+            // Continue with Tesseract results
+          }
+        } else if (finIsValid) {
+          logger.info('✅ FIN validation passed, using Tesseract result (fast path)');
+        }
+
+        // Extract address fields from OCR text
+        // The back card has structured format:
+        // Phone Number | FIN
+        // Nationality
+        // Region (Amharic)
+        // Region (English)
+        // Zone (Amharic)
+        // Zone (English)
+        // Woreda (Amharic)
+        // Woreda (English)
+
+        // Find phone number position and extract address after it
+        const phoneIndex = ocrText.indexOf(result.phoneNumber || '09');
+        if (phoneIndex !== -1) {
+          const afterPhone = ocrText.substring(phoneIndex);
+          
+          // Extract region (first Amharic line after nationality, then English)
+          const regionPattern = /(?:Ethiopian|ኢትዮጵያዊ)[^\n]*\n\s*([\u1200-\u137F]+)\s*\n\s*([A-Za-z\s]+?)\s*\n/;
+          const regionMatch = afterPhone.match(regionPattern);
+          
+          if (regionMatch) {
+            result.regionAmharic = regionMatch[1].trim();
+            result.regionEnglish = regionMatch[2].trim();
+            logger.info(`Extracted region from back card: ${result.regionAmharic} / ${result.regionEnglish}`);
+            
+            // Extract zone after region
+            const afterRegion = afterPhone.substring(regionMatch.index! + regionMatch[0].length);
+            const zonePattern = /\s*([\u1200-\u137F\s]+?)\s*\n\s*([A-Za-z\s]+?)\s*\n/;
+            const zoneMatch = afterRegion.match(zonePattern);
+            
+            if (zoneMatch) {
+              result.zoneAmharic = zoneMatch[1].trim();
+              result.zoneEnglish = zoneMatch[2].trim();
+              logger.info(`Extracted zone from back card: ${result.zoneAmharic} / ${result.zoneEnglish}`);
+              
+              // Extract woreda after zone
+              const afterZone = afterRegion.substring(zoneMatch.index! + zoneMatch[0].length);
+              const woredaPattern = /\s*([\u1200-\u137F\/\s]+?)\s*\n\s*([A-Za-z\s']+?)\s*\n/;
+              const woredaMatch = afterZone.match(woredaPattern);
+              
+              if (woredaMatch) {
+                result.woredaAmharic = woredaMatch[1].trim();
+                result.woredaEnglish = woredaMatch[2].trim();
+                logger.info(`Extracted woreda from back card: ${result.woredaAmharic} / ${result.woredaEnglish}`);
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to extract data from back card image:', error);
+    }
+
+    return result;
   }
 
   /**
@@ -581,9 +836,27 @@ export class PDFParserImpl implements PDFParser {
     // Use OCR to extract expiry dates from images
     const ocrExpiry = await this.extractExpiryFromImages(images);
 
+    // Use OCR to extract FIN and address from back card image (PRIMARY SOURCE)
+    const backCardData = await this.extractBackCardData(images, parsed.fcn);
+
     logger.info(`Parsed: FCN=${parsed.fcn}, FIN=${parsed.fin}`);
+    logger.info(`OCR Back Card: FIN=${backCardData.fin}, Phone=${backCardData.phoneNumber}`);
+    logger.info(`OCR Back Card Address: region=${backCardData.regionAmharic}/${backCardData.regionEnglish}, zone=${backCardData.zoneAmharic}/${backCardData.zoneEnglish}, woreda=${backCardData.woredaAmharic}/${backCardData.woredaEnglish}`);
     logger.info(`Parsed Amharic: region=${parsed.regionAmharic}, zone=${parsed.zoneAmharic}, woreda=${parsed.woredaAmharic}`);
     logger.info(`OCR Expiry: Gregorian=${ocrExpiry.expiryDateGregorian}, Ethiopian=${ocrExpiry.expiryDateEthiopian}`);
+
+    // Priority: Use OCR data from back card, fallback to text parsing
+    const finalRegionAmharic = backCardData.regionAmharic || parsed.regionAmharic;
+    const finalRegionEnglish = backCardData.regionEnglish || parsed.regionEnglish;
+    const finalZoneAmharic = backCardData.zoneAmharic || parsed.zoneAmharic;
+    const finalZoneEnglish = backCardData.zoneEnglish || parsed.zoneEnglish;
+    const finalWoredaAmharic = backCardData.woredaAmharic || parsed.woredaAmharic;
+    const finalWoredaEnglish = backCardData.woredaEnglish || parsed.woredaEnglish;
+    const finalPhoneNumber = backCardData.phoneNumber || parsed.phoneNumber;
+    const finalFin = backCardData.fin || parsed.fin;
+
+    logger.info(`Final values: FIN=${finalFin}, Phone=${finalPhoneNumber}`);
+    logger.info(`Final Address: region=${finalRegionAmharic}/${finalRegionEnglish}, zone=${finalZoneAmharic}/${finalZoneEnglish}, woreda=${finalWoredaAmharic}/${finalWoredaEnglish}`);
 
     return {
       fullNameAmharic: parsed.fullNameAmharic,
@@ -592,12 +865,12 @@ export class PDFParserImpl implements PDFParser {
       dateOfBirthGregorian: parsed.dateOfBirthGregorian,
       sex: parsed.sex,
       nationality: 'Ethiopian',
-      phoneNumber: parsed.phoneNumber,
-      region: parsed.regionEnglish,
-      city: parsed.zoneEnglish,
-      subcity: parsed.woredaEnglish,
+      phoneNumber: finalPhoneNumber,
+      region: finalRegionEnglish,
+      city: finalZoneEnglish,
+      subcity: finalWoredaEnglish,
       fcn: parsed.fcn,
-      fin: parsed.fin,
+      fin: finalFin, // Use OCR FIN from back card (primary), fallback to parsed
       fan: parsed.fcn,
       // 8-digit random serial number
       serialNumber: String(Math.floor(10000000 + Math.random() * 90000000)),
@@ -610,10 +883,10 @@ export class PDFParserImpl implements PDFParser {
       photo: images.photo || undefined,
       qrCode: images.qrCode || undefined,
       barcode: images.barcode || undefined,
-      // Store Amharic values for rendering
-      regionAmharic: parsed.regionAmharic,
-      zoneAmharic: parsed.zoneAmharic,
-      woredaAmharic: parsed.woredaAmharic,
+      // Store Amharic values for rendering (use OCR data as primary source)
+      regionAmharic: finalRegionAmharic,
+      zoneAmharic: finalZoneAmharic,
+      woredaAmharic: finalWoredaAmharic,
       sexAmharic: parsed.sexAmharic
     } as EfaydaData;
   }

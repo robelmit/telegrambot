@@ -5,6 +5,7 @@ export interface ExtractedImages {
   qrCode: Buffer | null;
   barcode: string | null;
   frontCardImage?: Buffer | null; // Image 3 for OCR expiry extraction
+  backCardImage?: Buffer | null;  // Image 4 for OCR FIN extraction
 }
 
 export interface PDFParseResult {
