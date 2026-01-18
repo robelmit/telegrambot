@@ -110,7 +110,7 @@ const JobSchema = new Schema<IJob>({
   },
   template: {
     type: String,
-    default: 'template0'
+    default: 'template2'  // Template 3 is the default
   }
 }, {
   timestamps: { createdAt: true, updatedAt: false }

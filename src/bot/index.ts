@@ -66,7 +66,7 @@ export function createBot(token: string): Telegraf<BotContext> {
       awaitingTransactionId: false,
       awaitingPdf: false,
       awaitingBulkPdf: false,
-      selectedTemplate: 'template0'
+      selectedTemplate: 'template2'  // Template 3 is the default
     })
   }));
 

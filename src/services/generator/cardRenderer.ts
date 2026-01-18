@@ -403,7 +403,7 @@ export class CardRenderer {
    * Uses sRGB normalized templates for consistent color printing
    */
   async renderFront(data: EfaydaData, options: CardRenderOptions = { variant: 'color' }): Promise<Buffer> {
-    const templateType = options.template || 'template0';
+    const templateType = options.template || 'template2';  // Template 3 is the default
     const layout = layoutConfigs[templateType];
     const { dimensions, front } = layout;
     const templateFile = layout.templateFiles?.front || 'front_template.png';
@@ -515,7 +515,7 @@ export class CardRenderer {
    * Uses sRGB normalized templates for consistent color printing
    */
   async renderBack(data: EfaydaData, options: CardRenderOptions = { variant: 'color' }): Promise<Buffer> {
-    const templateType = options.template || 'template0';
+    const templateType = options.template || 'template2';  // Template 3 is the default
     const layout = layoutConfigs[templateType];
     const { dimensions, back } = layout;
     const templateFile = layout.templateFiles?.back || 'back_template.png';
@@ -626,7 +626,7 @@ export class CardRenderer {
 
 export default CardRenderer;
 
-export function getCardDimensions(template: TemplateType = 'template0'): { width: number; height: number } {
+export function getCardDimensions(template: TemplateType = 'template2'): { width: number; height: number } {
   const layout = layoutConfigs[template];
   return { width: layout.dimensions.width, height: layout.dimensions.height };
 }

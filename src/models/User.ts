@@ -108,7 +108,7 @@ const UserSchema = new Schema<IUser>({
   selectedTemplate: {
     type: String,
     enum: ['template0', 'template1', 'template2'],
-    default: 'template0'
+    default: 'template2'  // Template 3 is the default
   }
 }, {
   timestamps: true

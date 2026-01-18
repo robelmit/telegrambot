@@ -299,7 +299,7 @@ export async function handleBulkDone(ctx: BotContext): Promise<void> {
     }
 
     // Process all files and combine into batched PDFs
-    const template = ctx.session.selectedTemplate || 'template0';
+    const template = ctx.session.selectedTemplate || 'template2';
     const jobQueue = getJobQueue();
 
     // Calculate batch info

@@ -130,7 +130,7 @@ export async function handleDocument(ctx: BotContext): Promise<void> {
     });
 
     // Get template from database (persisted) or session (fallback)
-    const template = user.selectedTemplate || ctx.session.selectedTemplate || 'template0';
+    const template = user.selectedTemplate || ctx.session.selectedTemplate || 'template2';
 
     // Add to queue
     const jobQueue = getJobQueue();

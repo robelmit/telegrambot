@@ -13,7 +13,7 @@ export async function handleTemplate(ctx: BotContext): Promise<void> {
   const templates = getAvailableTemplates();
   
   // Load template from database if available
-  let currentTemplate = ctx.session.selectedTemplate || 'template0';
+  let currentTemplate = ctx.session.selectedTemplate || 'template2';
   if (telegramId) {
     const user = await User.findOne({ telegramId });
     if (user?.selectedTemplate) {
