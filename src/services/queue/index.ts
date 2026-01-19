@@ -184,6 +184,8 @@ const bulkJobFiles = new Map<string, {
   completedFiles: number;
   filesPerPdf: number;
   batches: Map<number, { normal: string[]; mirrored: string[] }>;
+  allNormalPngs: string[];  // Track all normal PNGs for final combined PDF
+  allMirroredPngs: string[];  // Track all mirrored PNGs for final combined PDF
   chatId: number;
   telegramId: number;
 }>();
@@ -191,6 +193,7 @@ const bulkJobFiles = new Map<string, {
 /**
  * Track bulk job completion and generate combined PDFs when batch is complete
  * Generates both normal and mirrored PDFs for each batch
+ * Also generates final combined PDFs with ALL cards when all jobs complete
  */
 async function trackBulkJobCompletion(
   bulkGroupId: string,
@@ -210,6 +213,8 @@ async function trackBulkJobCompletion(
       completedFiles: 0,
       filesPerPdf,
       batches: new Map(),
+      allNormalPngs: [],
+      allMirroredPngs: [],
       chatId,
       telegramId
     });
@@ -217,6 +222,12 @@ async function trackBulkJobCompletion(
 
   const tracker = bulkJobFiles.get(bulkGroupId)!;
   tracker.completedFiles++;
+
+  // Add to overall tracking for final combined PDFs
+  tracker.allNormalPngs.push(colorNormalPngPath);
+  if (colorMirroredPngPath) {
+    tracker.allMirroredPngs.push(colorMirroredPngPath);
+  }
 
   // Add to batch (both normal and mirrored)
   if (!tracker.batches.has(batchIndex)) {
@@ -269,9 +280,42 @@ async function trackBulkJobCompletion(
     }
   }
 
-  // Cleanup tracker when all files are done
+  // Check if ALL jobs are complete - generate final combined PDFs
   if (tracker.completedFiles === tracker.totalFiles) {
-    // Small delay to ensure all callbacks complete
+    try {
+      const outputDir = process.env.OUTPUT_DIR || 'temp';
+      await fs.mkdir(outputDir, { recursive: true });
+      
+      const finalNormalPdfPath = path.join(outputDir, `${bulkGroupId}_ALL_NORMAL.pdf`);
+      const finalMirroredPdfPath = path.join(outputDir, `${bulkGroupId}_ALL_MIRRORED.pdf`);
+
+      // Generate final combined normal PDF with ALL cards
+      await deps.pdfGenerator!.generateBulkNormalPDF(tracker.allNormalPngs, finalNormalPdfPath, {
+        title: `All ID Cards - Normal (${tracker.totalFiles} cards)`
+      });
+      logger.info(`Generated FINAL combined normal PDF: ${finalNormalPdfPath}`);
+
+      // Generate final combined mirrored PDF with ALL cards
+      if (tracker.allMirroredPngs.length === tracker.totalFiles) {
+        await deps.pdfGenerator!.generateBulkMirroredPDF(tracker.allMirroredPngs, finalMirroredPdfPath, {
+          title: `All ID Cards - Mirrored for Printing (${tracker.totalFiles} cards)`
+        });
+        logger.info(`Generated FINAL combined mirrored PDF: ${finalMirroredPdfPath}`);
+      }
+
+      // Notify via callback with final combined files
+      if (deps.onBulkBatchComplete) {
+        const finalFiles = [finalNormalPdfPath];
+        if (tracker.allMirroredPngs.length === tracker.totalFiles) {
+          finalFiles.push(finalMirroredPdfPath);
+        }
+        await deps.onBulkBatchComplete(bulkGroupId, -1, finalFiles, chatId, telegramId);
+      }
+    } catch (error) {
+      logger.error(`Failed to generate FINAL combined PDFs:`, error);
+    }
+
+    // Cleanup tracker when all files are done
     setTimeout(() => {
       bulkJobFiles.delete(bulkGroupId);
       logger.info(`Bulk job ${bulkGroupId} fully completed and cleaned up`);

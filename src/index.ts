@@ -78,6 +78,9 @@ async function main() {
       },
       onBulkBatchComplete: async (_bulkGroupId, batchIndex, combinedFiles, chatId, _telegramId) => {
         try {
+          // Check if this is the final combined PDFs (batchIndex = -1)
+          const isFinalCombined = batchIndex === -1;
+          
           // Send combined PDFs to user (normal and mirrored)
           const fs = await import('fs');
           
@@ -87,18 +90,38 @@ async function main() {
             const fileType = isNormal ? 'Normal' : 'Mirrored';
             
             if (fs.existsSync(filePath)) {
-              await bot.telegram.sendDocument(chatId, {
-                source: filePath,
-                filename: `bulk_ids_batch_${batchIndex + 1}_${fileType.toLowerCase()}.pdf`
-              }, {
-                caption: `📄 Bulk ID Cards - Batch ${batchIndex + 1} (${fileType})\n\n` +
-                  (isNormal 
-                    ? `Normal orientation for viewing.`
-                    : `Mirrored for printing - flip paper to print back side.`) +
-                  `\nPrint at 100% scale for correct size.`
-              });
-              
-              logger.info(`Delivered bulk batch ${batchIndex + 1} (${fileType}) to chat ${chatId}`);
+              if (isFinalCombined) {
+                // Final combined PDFs with ALL cards
+                await bot.telegram.sendDocument(chatId, {
+                  source: filePath,
+                  filename: `ALL_IDs_${fileType.toLowerCase()}.pdf`
+                }, {
+                  caption: `📦 **ALL ID Cards Combined** (${fileType})\n\n` +
+                    `✅ This PDF contains ALL your ID cards in one file!\n` +
+                    (isNormal 
+                      ? `📄 Normal orientation for viewing and reference.`
+                      : `🖨️ Mirrored for printing - flip paper to print back side.`) +
+                    `\n\n💡 Print at 100% scale for correct size.\n` +
+                    `📏 4 cards per page for efficient printing.`,
+                  parse_mode: 'Markdown'
+                });
+                
+                logger.info(`Delivered FINAL combined ${fileType} PDF to chat ${chatId}`);
+              } else {
+                // Regular batch PDFs
+                await bot.telegram.sendDocument(chatId, {
+                  source: filePath,
+                  filename: `bulk_ids_batch_${batchIndex + 1}_${fileType.toLowerCase()}.pdf`
+                }, {
+                  caption: `📄 Bulk ID Cards - Batch ${batchIndex + 1} (${fileType})\n\n` +
+                    (isNormal 
+                      ? `Normal orientation for viewing.`
+                      : `Mirrored for printing - flip paper to print back side.`) +
+                    `\nPrint at 100% scale for correct size.`
+                });
+                
+                logger.info(`Delivered bulk batch ${batchIndex + 1} (${fileType}) to chat ${chatId}`);
+              }
               
               // Cleanup after 2 minutes
               setTimeout(async () => {
@@ -115,7 +138,7 @@ async function main() {
           logger.error('Bulk batch delivery failed:', error);
           try {
             await bot.telegram.sendMessage(chatId, 
-              `❌ Failed to deliver batch ${batchIndex + 1}. Please contact support.`
+              `❌ Failed to deliver ${batchIndex === -1 ? 'final combined PDFs' : `batch ${batchIndex + 1}`}. Please contact support.`
             );
           } catch (e) {
             // Ignore notification errors

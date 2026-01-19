@@ -29,7 +29,7 @@ const BLEED_PT = 8.40;          // Bleed area in points (35px at 300dpi)
 // Multi-card layout settings
 const CARDS_PER_PAGE = 4;    // 4 ID cards per page (with bleed area)
 const MULTI_CARD_GAP = 8;    // Gap between cards in multi-card layout
-const PAGE_MARGIN = 20;      // Page margin for multi-card layout
+const PAGE_MARGIN = 12;      // Page margin for multi-card layout
 
 export interface A4PDFOptions {
   title?: string;
@@ -72,7 +72,7 @@ export class PDFGenerator {
         // Total: (1094*2 + 80 + 60) x (716 + 60) = 2328 x 776 px
         const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
         const totalWidthWithPadding = cardWidthWithBleed * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
-        const topMargin = 30; // 30pt margin from top
+        const topMargin = 12; // 12pt margin from top
         const startX = (A4_WIDTH_PT - totalWidthWithPadding) / 2; // Center horizontally
         const startY = topMargin; // Start from top with margin
 
@@ -157,7 +157,7 @@ export class PDFGenerator {
         // Position card at top of page with margin (each card has bleed on all edges)
         const cardWidthWithBleed = CARD_WIDTH_PT + (BLEED_PT * 2);
         const totalWidthWithPadding = cardWidthWithBleed * 2 + CARD_GAP_PT + (CARD_MARGIN_PT * 2);
-        const topMargin = 30; // 30pt margin from top
+        const topMargin = 12; // 12pt margin from top
         const startX = (A4_WIDTH_PT - totalWidthWithPadding) / 2; // Center horizontally
         const startY = topMargin; // Start from top with margin
 
@@ -390,6 +390,41 @@ export class PDFGenerator {
       }
     });
   }
+
+  /**
+   * Generate single combined PDF with all normal cards (4 per page)
+   * For bulk printing: all normal cards in one file
+   * @param normalCardPaths - Array of paths to normal (non-mirrored) card images
+   */
+  async generateBulkNormalPDF(
+    normalCardPaths: string[],
+    outputPath: string,
+    options: A4PDFOptions = {}
+  ): Promise<string> {
+    return this.generateCombinedPDF(normalCardPaths, outputPath, {
+      ...options,
+      title: options.title || 'Ethiopian National ID Cards - Normal (Bulk)',
+      subject: options.subject || 'Normal cards for bulk printing'
+    });
+  }
+
+  /**
+   * Generate single combined PDF with all mirrored cards (4 per page)
+   * For bulk printing: all mirrored cards in one file
+   * @param mirroredCardPaths - Array of paths to mirrored card images
+   */
+  async generateBulkMirroredPDF(
+    mirroredCardPaths: string[],
+    outputPath: string,
+    options: A4PDFOptions = {}
+  ): Promise<string> {
+    return this.generateCombinedPDF(mirroredCardPaths, outputPath, {
+      ...options,
+      title: options.title || 'Ethiopian National ID Cards - Mirrored (Bulk)',
+      subject: options.subject || 'Mirrored cards for bulk printing'
+    });
+  }
+
 
   /**
    * Generate combined PDF from image buffers
