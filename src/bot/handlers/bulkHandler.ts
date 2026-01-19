@@ -24,7 +24,7 @@ const bulkSessions = new Map<number, {
 // Maximum files per bulk upload
 const MAX_BULK_FILES = 20;
 // Files per combined PDF output
-const FILES_PER_PDF = 5;
+const FILES_PER_PDF = 4;
 // Session timeout (10 minutes for larger uploads)
 const SESSION_TIMEOUT = 10 * 60 * 1000;
 // Price per file in bulk
