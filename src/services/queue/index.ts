@@ -186,6 +186,7 @@ const bulkJobFiles = new Map<string, {
   batches: Map<number, { normal: string[]; mirrored: string[] }>;
   allNormalPngs: string[];  // Track all normal PNGs for final combined PDF
   allMirroredPngs: string[];  // Track all mirrored PNGs for final combined PDF
+  finalCombinedSent: boolean;  // Flag to prevent duplicate final combined PDFs
   chatId: number;
   telegramId: number;
 }>();
@@ -215,6 +216,7 @@ async function trackBulkJobCompletion(
       batches: new Map(),
       allNormalPngs: [],
       allMirroredPngs: [],
+      finalCombinedSent: false,
       chatId,
       telegramId
     });
@@ -281,7 +283,10 @@ async function trackBulkJobCompletion(
   }
 
   // Check if ALL jobs are complete - generate final combined PDFs
-  if (tracker.completedFiles === tracker.totalFiles) {
+  if (tracker.completedFiles === tracker.totalFiles && !tracker.finalCombinedSent) {
+    // Mark as sent to prevent duplicates
+    tracker.finalCombinedSent = true;
+    
     // Add small delay to ensure batch PDFs are fully sent before generating final combined
     await new Promise(resolve => setTimeout(resolve, 2000));
     
