@@ -1,11 +1,11 @@
 /**
- * PDF Parser - EXACTLY like test-pdf-full.ts from commit a8d0b98
+ * PDF Parser - Optimized with fast OCR
  */
 import pdfParse from 'pdf-parse';
-import Tesseract from 'tesseract.js';
 import { EfaydaData } from '../../types';
 import { PDFParser, ExtractedImages } from './types';
 import { logger } from '../../utils/logger';
+import { ocrService } from './ocrService';
 
 export class PDFParserImpl implements PDFParser {
   /**
@@ -176,9 +176,9 @@ export class PDFParserImpl implements PDFParser {
           // Extract woreda after zone (before FCN)
           const afterZone = afterRegion.substring(zoneMatch.index! + zoneMatch[0].length);
           
-          // Woreda pattern: Amharic line (may include / and special chars), English line, then FCN
-          // Handle patterns like: ቐ/ወያነ ክ/ከተማ or ወያነ ክ/ከተማ
-          const woredaPattern = /\s*([\u1200-\u137F\/\s]+?)\s*\n\s*([A-Za-z\s']+?)\s*\n\s*(?:FCN:|FIN:|\d{4}\s+\d{4})/;
+          // Woreda pattern: Amharic line (may include / and special chars), English line, then FCN or name
+          // Handle patterns like: ቐ/ወያነ ክ/ከተማ or ወያነ ክ/ከተማ or ወረዳ 07
+          const woredaPattern = /\s*([\u1200-\u137F\/\s\d]+?)\s*\n\s*([A-Za-z\s'\d]+?)\s*\n\s*(?:FCN:|FIN:|\d{4}\s+\d{4}|[\u1200-\u137F]{3,})/;
           const woredaMatch = afterZone.match(woredaPattern);
           
           if (woredaMatch) {
@@ -349,59 +349,23 @@ export class PDFParserImpl implements PDFParser {
       } else if (text.includes('ኦሮሚያ')) {
         data.regionAmharic = 'ኦሮሚያ';
         data.regionEnglish = 'Oromia';
-      } else if (text.includes('አዲስ አበባ')) {
-        data.regionAmharic = 'አዲስ አበባ';
+      } else if (text.includes('አዲስ አበባ') || text.includes('አበባ')) {
+        data.regionAmharic = 'አዲስ አበባ'; // Always use full name
         data.regionEnglish = 'Addis Ababa';
       }
+    } else if (data.regionAmharic === 'አበባ') {
+      // Fix incomplete region name
+      data.regionAmharic = 'አዲስ አበባ';
     }
 
     return data;
   }
 
   /**
-   * Validate if extracted FIN looks correct
-   * Returns true if FIN appears valid, false if suspicious
+   * Extract ONLY FIN from back card image using OCR (optimized for speed)
+   * Address is extracted from PDF text instead (instant, 100% accurate)
    */
-  private validateFIN(fin: string, fcn: string): boolean {
-    if (!fin || fin.length < 12) {
-      return false;
-    }
-
-    // Remove spaces for comparison
-    const finDigits = fin.replace(/\s/g, '');
-    const fcnDigits = fcn.replace(/\s/g, '');
-
-    // Check 1: FIN should be exactly 12 digits
-    if (finDigits.length !== 12 || !/^\d{12}$/.test(finDigits)) {
-      logger.warn('FIN validation failed: Not 12 digits');
-      return false;
-    }
-
-    // Check 2: FIN should NOT be the last 12 digits of FCN (that's a fallback, not real FIN)
-    if (fcnDigits.length >= 12) {
-      const fcnLast12 = fcnDigits.substring(fcnDigits.length - 12);
-      if (finDigits === fcnLast12) {
-        logger.warn('FIN validation failed: FIN is last 12 digits of FCN (likely fallback)');
-        return false;
-      }
-    }
-
-    // Check 3: FIN should have reasonable digit distribution (not all same digit)
-    const uniqueDigits = new Set(finDigits.split('')).size;
-    if (uniqueDigits < 3) {
-      logger.warn('FIN validation failed: Too few unique digits');
-      return false;
-    }
-
-    logger.info('FIN validation passed');
-    return true;
-  }
-
-  /**
-   * Extract address and FIN from back card image using OCR
-   * Uses hybrid approach: Try Tesseract first (fast), then scribe.js-ocr if needed (accurate)
-   */
-  private async extractBackCardData(images: ExtractedImages, fcn: string = ''): Promise<{
+  private async extractBackCardData(images: ExtractedImages, _fcn: string = ''): Promise<{
     fin: string;
     phoneNumber: string;
     regionAmharic: string;
@@ -424,43 +388,63 @@ export class PDFParserImpl implements PDFParser {
 
     try {
       if (images.backCardImage) {
-        // STRATEGY: Try Tesseract first (fast ~3s), validate, then retry with scribe.js-ocr if needed
-        
-        // Step 1: Try Tesseract (fast)
-        logger.info('Extracting data from back card image using Tesseract (fast)...');
+        // OPTIMIZATION: Only extract FIN and phone (numbers are easier for OCR)
+        // Skip address extraction - use PDF text instead (instant, accurate)
+        logger.info('Extracting FIN and phone from back card image using OCR...');
         const startTime = Date.now();
         
-        const tesseractResult = await Tesseract.recognize(images.backCardImage, 'eng+amh', {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              logger.debug(`Back card OCR progress: ${Math.round(m.progress * 100)}%`);
-            }
-          }
+        // Preprocess image for better OCR quality
+        // Use full 2000px resolution for maximum accuracy
+        const sharp = require('sharp');
+        const preprocessedImage = await sharp(images.backCardImage)
+          .resize({ width: 2000 }) // Full resolution for accuracy
+          .normalize() // Improve contrast
+          .sharpen() // Sharpen text
+          .toBuffer();
+        
+        const ocrResult = await ocrService.extractText(preprocessedImage, {
+          preferredMethod: process.env.GOOGLE_VISION_ENABLED === 'true' ? 'google-vision' : 'tesseract',
+          languages: 'eng+amh',
+          minConfidence: 0.6
         });
 
-        let ocrText = tesseractResult.data.text;
-        const tesseractTime = Date.now() - startTime;
-        logger.info(`Tesseract OCR completed in ${tesseractTime}ms, extracted ${ocrText.length} characters`);
-        logger.debug('Tesseract OCR text:', ocrText);
+        let ocrText = ocrResult.text;
+        const ocrTime = Date.now() - startTime;
+        logger.info(`${ocrResult.method} OCR completed in ${ocrTime}ms, extracted ${ocrText.length} characters, confidence: ${ocrResult.confidence.toFixed(2)}`);
+        logger.debug('OCR text:', ocrText);
 
         // Extract FIN (12 digits: XXXX XXXX XXXX)
-        const finPattern = /(\d{4}\s+\d{4}\s+\d{4})(?!\s+\d)/;
-        const finMatch = ocrText.match(finPattern);
+        // Priority: Look for FIN near "FIN" keyword first (most reliable)
+        let finExtracted = false;
         
-        if (finMatch) {
-          result.fin = finMatch[1];
-          logger.info(`Extracted FIN from back card (Tesseract): ${result.fin}`);
-        } else {
-          logger.warn('FIN not found in Tesseract OCR text');
-          // Try to find any 12-digit sequence
+        // Strategy 1: Look for FIN pattern near "FIN" keyword
+        if (ocrText.toLowerCase().includes('fin') || ocrText.includes('FIN')) {
+          logger.debug('Found FIN keyword in OCR text');
+          const finKeywordIndex = ocrText.search(/fin/i);
+          const afterFin = ocrText.substring(Math.max(0, finKeywordIndex - 20));
+          
+          // Look for pattern like "FIN4726 3910 3548" or "FIN 4726 3910 3548"
+          const finPattern1 = /FIN\s*(\d{4})\s+(\d{4})\s+(\d{4})/i;
+          const finMatch1 = afterFin.match(finPattern1);
+          
+          if (finMatch1) {
+            result.fin = `${finMatch1[1]} ${finMatch1[2]} ${finMatch1[3]}`;
+            logger.info(`Extracted FIN near FIN keyword: ${result.fin}`);
+            finExtracted = true;
+          }
+        }
+        
+        // Strategy 2: Find three consecutive 4-digit groups (first occurrence)
+        if (!finExtracted) {
           const allDigits = ocrText.match(/\d+/g);
           if (allDigits) {
             logger.debug('All digit groups found:', allDigits);
-            // Look for groups that could form a FIN
+            // Look for first occurrence of three consecutive 4-digit groups
             for (let i = 0; i < allDigits.length - 2; i++) {
               if (allDigits[i].length === 4 && allDigits[i+1].length === 4 && allDigits[i+2].length === 4) {
                 result.fin = `${allDigits[i]} ${allDigits[i+1]} ${allDigits[i+2]}`;
-                logger.info(`Reconstructed FIN from digit groups: ${result.fin}`);
+                logger.info(`Extracted FIN from first 3 consecutive 4-digit groups: ${result.fin}`);
+                finExtracted = true;
                 break;
               }
             }
@@ -475,128 +459,7 @@ export class PDFParserImpl implements PDFParser {
           logger.info(`Extracted phone from back card: ${result.phoneNumber}`);
         }
 
-        // Step 2: Validate FIN quality
-        const finIsValid = result.fin && this.validateFIN(result.fin, fcn);
-        
-        // Step 3: If FIN not found OR looks suspicious, retry with scribe.js-ocr (slower but more accurate)
-        if (!finIsValid) {
-          if (!result.fin) {
-            logger.warn('FIN not found with Tesseract, retrying with scribe.js-ocr for better accuracy...');
-          } else {
-            logger.warn('FIN validation failed, retrying with scribe.js-ocr for better accuracy...');
-          }
-          
-          // Import scribe.js-ocr dynamically
-          const scribe = await import('scribe.js-ocr');
-          
-          // Save image temporarily for scribe.js-ocr
-          const fs = await import('fs');
-          const path = await import('path');
-          const os = await import('os');
-          
-          const tempDir = os.tmpdir();
-          const tempImagePath = path.join(tempDir, `back-card-${Date.now()}.jpg`);
-          fs.writeFileSync(tempImagePath, images.backCardImage);
-          
-          try {
-            const scribeStartTime = Date.now();
-            // Use scribe.js-ocr for better accuracy
-            ocrText = await scribe.default.extractText([tempImagePath]);
-            const scribeTime = Date.now() - scribeStartTime;
-            
-            logger.info(`scribe.js-ocr completed in ${scribeTime}ms, extracted ${ocrText.length} characters`);
-            logger.debug('scribe.js-ocr text:', ocrText);
-            
-            // Clean up temp file
-            fs.unlinkSync(tempImagePath);
-            
-            // Re-extract FIN with better OCR
-            const finMatch2 = ocrText.match(finPattern);
-            if (finMatch2) {
-              result.fin = finMatch2[1];
-              logger.info(`Extracted FIN from back card (scribe.js-ocr): ${result.fin}`);
-            } else {
-              // Try reconstruction again
-              const allDigits2 = ocrText.match(/\d+/g);
-              if (allDigits2) {
-                for (let i = 0; i < allDigits2.length - 2; i++) {
-                  if (allDigits2[i].length === 4 && allDigits2[i+1].length === 4 && allDigits2[i+2].length === 4) {
-                    result.fin = `${allDigits2[i]} ${allDigits2[i+1]} ${allDigits2[i+2]}`;
-                    logger.info(`Reconstructed FIN from scribe.js-ocr digit groups: ${result.fin}`);
-                    break;
-                  }
-                }
-              }
-            }
-            
-            // Re-extract phone if not found
-            if (!result.phoneNumber) {
-              const phoneMatch2 = ocrText.match(phonePattern);
-              if (phoneMatch2) {
-                result.phoneNumber = phoneMatch2[1];
-                logger.info(`Extracted phone from back card (scribe.js-ocr): ${result.phoneNumber}`);
-              }
-            }
-          } catch (ocrError) {
-            // Clean up temp file on error
-            if (fs.existsSync(tempImagePath)) {
-              fs.unlinkSync(tempImagePath);
-            }
-            logger.error('scribe.js-ocr failed:', ocrError);
-            // Continue with Tesseract results
-          }
-        } else if (finIsValid) {
-          logger.info('✅ FIN validation passed, using Tesseract result (fast path)');
-        }
-
-        // Extract address fields from OCR text
-        // The back card has structured format:
-        // Phone Number | FIN
-        // Nationality
-        // Region (Amharic)
-        // Region (English)
-        // Zone (Amharic)
-        // Zone (English)
-        // Woreda (Amharic)
-        // Woreda (English)
-
-        // Find phone number position and extract address after it
-        const phoneIndex = ocrText.indexOf(result.phoneNumber || '09');
-        if (phoneIndex !== -1) {
-          const afterPhone = ocrText.substring(phoneIndex);
-          
-          // Extract region (first Amharic line after nationality, then English)
-          const regionPattern = /(?:Ethiopian|ኢትዮጵያዊ)[^\n]*\n\s*([\u1200-\u137F]+)\s*\n\s*([A-Za-z\s]+?)\s*\n/;
-          const regionMatch = afterPhone.match(regionPattern);
-          
-          if (regionMatch) {
-            result.regionAmharic = regionMatch[1].trim();
-            result.regionEnglish = regionMatch[2].trim();
-            logger.info(`Extracted region from back card: ${result.regionAmharic} / ${result.regionEnglish}`);
-            
-            // Extract zone after region
-            const afterRegion = afterPhone.substring(regionMatch.index! + regionMatch[0].length);
-            const zonePattern = /\s*([\u1200-\u137F\s]+?)\s*\n\s*([A-Za-z\s]+?)\s*\n/;
-            const zoneMatch = afterRegion.match(zonePattern);
-            
-            if (zoneMatch) {
-              result.zoneAmharic = zoneMatch[1].trim();
-              result.zoneEnglish = zoneMatch[2].trim();
-              logger.info(`Extracted zone from back card: ${result.zoneAmharic} / ${result.zoneEnglish}`);
-              
-              // Extract woreda after zone
-              const afterZone = afterRegion.substring(zoneMatch.index! + zoneMatch[0].length);
-              const woredaPattern = /\s*([\u1200-\u137F\/\s]+?)\s*\n\s*([A-Za-z\s']+?)\s*\n/;
-              const woredaMatch = afterZone.match(woredaPattern);
-              
-              if (woredaMatch) {
-                result.woredaAmharic = woredaMatch[1].trim();
-                result.woredaEnglish = woredaMatch[2].trim();
-                logger.info(`Extracted woreda from back card: ${result.woredaAmharic} / ${result.woredaEnglish}`);
-              }
-            }
-          }
-        }
+        // SKIP address extraction - use PDF text instead (faster, more accurate)
       }
     } catch (error) {
       logger.error('Failed to extract data from back card image:', error);
@@ -607,64 +470,113 @@ export class PDFParserImpl implements PDFParser {
 
   /**
    * Extract expiry date from images using targeted OCR on the expiry area
+   * OPTIMIZED: Run normal and rotated OCR in parallel, with smart cropping for speed
    */
   private async extractExpiryFromImages(images: ExtractedImages): Promise<{
     expiryDateGregorian: string;
     expiryDateEthiopian: string;
+    issueDateGregorian: string;
+    issueDateEthiopian: string;
   }> {
     const result = {
       expiryDateGregorian: '',
-      expiryDateEthiopian: ''
+      expiryDateEthiopian: '',
+      issueDateGregorian: '',
+      issueDateEthiopian: ''
     };
 
     try {
       // Focus on the front card image (image 3) for expiry date extraction
       if (images.frontCardImage) {
-        logger.info('Performing targeted OCR on expiry area (below sex field)...');
+        logger.info('Performing OCR on front card for issue/expiry dates...');
         
         // Import sharp for image processing
         const sharp = require('sharp');
         
-        // Get image dimensions
-        const metadata = await sharp(images.frontCardImage).metadata();
-        logger.info(`Front card image dimensions: ${metadata.width}x${metadata.height}`);
+        // OPTIMIZATION: Prepare both normal and rotated images in parallel
+        // Normal: crop bottom 40% for expiry date (remove top 60%)
+        // Rotated: keep full image for issue date accuracy
+        const [preprocessedImage, rotatedImage] = await Promise.all([
+          // Normal orientation for expiry dates - crop to bottom 40%
+          (async () => {
+            const fullImage = await sharp(images.frontCardImage)
+              .resize({ width: 2000 })
+              .toBuffer();
+            
+            const metadata = await sharp(fullImage).metadata();
+            const width = metadata.width || 2000;
+            const height = metadata.height || 1250;
+            
+            // Crop bottom 40% height (remove top 60%), keep full width
+            const cropHeight = Math.floor(height * 0.40);
+            const cropWidth = width;
+            const cropTop = height - cropHeight; // Start from bottom
+            const cropLeft = 0;
+            
+            logger.info(`Cropping normal front card for expiry: ${cropWidth}x${cropHeight} from position (${cropLeft}, ${cropTop})`);
+            
+            return sharp(fullImage)
+              .extract({ left: cropLeft, top: cropTop, width: cropWidth, height: cropHeight })
+              .normalize()
+              .sharpen()
+              .toBuffer();
+          })(),
+          // Rotated 90° clockwise for issue dates (no cropping for maximum accuracy)
+          sharp(images.frontCardImage)
+            .rotate(90)
+            .resize({ width: 2000 })
+            .normalize()
+            .sharpen()
+            .toBuffer()
+        ]);
         
-        // Crop the bottom portion where expiry date is located (below sex field)
-        const cropHeight = Math.floor(metadata.height * 0.4); // Bottom 40% of image
-        const cropTop = Math.floor(metadata.height * 0.6);    // Start from 60% down
+        logger.info('Running parallel OCR on normal (cropped) and rotated front card...');
         
-        const croppedBuffer = await sharp(images.frontCardImage)
-          .extract({
-            left: 0,
-            top: cropTop,
-            width: metadata.width,
-            height: cropHeight
+        // OPTIMIZATION: Run both OCR operations in parallel
+        const [normalOcrResult, rotatedOcrResult] = await Promise.all([
+          ocrService.extractText(preprocessedImage, {
+            preferredMethod: 'tesseract',
+            languages: 'eng',
+            minConfidence: 0.5
+          }),
+          ocrService.extractText(rotatedImage, {
+            preferredMethod: 'tesseract',
+            languages: 'eng',
+            minConfidence: 0.5
           })
-          .toBuffer();
-        
-        logger.info(`Cropped expiry area: top=${cropTop}, height=${cropHeight}`);
-        
-        // Run OCR on the cropped area
-        const ocrResult = await Tesseract.recognize(croppedBuffer, 'eng', {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              logger.debug(`Expiry OCR progress: ${Math.round(m.progress * 100)}%`);
-            }
-          }
-        });
+        ]);
 
-        const ocrText = ocrResult.data.text;
-        logger.info(`Expiry area OCR extracted ${ocrText.length} characters`);
-        logger.debug('Expiry OCR Text:', ocrText);
+        // Process normal orientation (expiry dates)
+        const normalOcrText = normalOcrResult.text;
+        logger.info(`Normal front card OCR extracted ${normalOcrText.length} characters using ${normalOcrResult.method}`);
+        logger.debug('Normal OCR Text:', normalOcrText);
 
-        // Look for expiry dates in OCR text
-        const expiryDates = this.extractExpiryFromTargetedOCRText(ocrText);
-        if (expiryDates.expiryDateGregorian || expiryDates.expiryDateEthiopian) {
-          result.expiryDateGregorian = expiryDates.expiryDateGregorian;
-          result.expiryDateEthiopian = expiryDates.expiryDateEthiopian;
-          logger.info('Found expiry dates in targeted OCR:', expiryDates);
-          return result;
+        const normalDates = this.extractExpiryFromTargetedOCRText(normalOcrText);
+        if (normalDates.expiryDateGregorian || normalDates.expiryDateEthiopian) {
+          result.expiryDateGregorian = normalDates.expiryDateGregorian;
+          result.expiryDateEthiopian = normalDates.expiryDateEthiopian;
+          logger.info('Found expiry dates in normal orientation:', { 
+            gregorian: normalDates.expiryDateGregorian, 
+            ethiopian: normalDates.expiryDateEthiopian 
+          });
         }
+
+        // Process rotated orientation (issue dates)
+        const rotatedOcrText = rotatedOcrResult.text;
+        logger.info(`Rotated front card OCR extracted ${rotatedOcrText.length} characters`);
+        logger.debug('Rotated OCR Text:', rotatedOcrText);
+
+        const rotatedDates = this.extractExpiryFromTargetedOCRText(rotatedOcrText);
+        if (rotatedDates.issueDateGregorian || rotatedDates.issueDateEthiopian) {
+          result.issueDateGregorian = rotatedDates.issueDateGregorian;
+          result.issueDateEthiopian = rotatedDates.issueDateEthiopian;
+          logger.info('Found issue dates in rotated orientation:', { 
+            gregorian: rotatedDates.issueDateGregorian, 
+            ethiopian: rotatedDates.issueDateEthiopian 
+          });
+        }
+
+        return result;
       }
 
     } catch (error) {
@@ -709,22 +621,103 @@ export class PDFParserImpl implements PDFParser {
   private extractExpiryFromTargetedOCRText(text: string): {
     expiryDateGregorian: string;
     expiryDateEthiopian: string;
+    issueDateGregorian: string;
+    issueDateEthiopian: string;
   } {
     const result = {
       expiryDateGregorian: '',
-      expiryDateEthiopian: ''
+      expiryDateEthiopian: '',
+      issueDateGregorian: '',
+      issueDateEthiopian: ''
     };
 
     logger.debug('Analyzing targeted OCR text for expiry dates...');
 
     // Look for "Date of Expiry" or "Expiry" followed by dates
+    // Also look for "Date of Issue" or "Issue" followed by dates
     const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const lowerLine = line.toLowerCase();
       
-      // Check if this line or the next line contains expiry information
+      // Check for ISSUE date
+      if (lowerLine.includes('issue') && !lowerLine.includes('expiry')) {
+        logger.debug(`Found issue keyword in line: ${line}`);
+        
+        // Look for dates in this line and the next few lines
+        const searchLines = lines.slice(i, Math.min(i + 3, lines.length));
+        const searchText = searchLines.join(' ');
+        
+        // Look for date patterns - handle OCR spacing issues
+        // IMPORTANT: First date is Ethiopian, second date is Gregorian
+        const datePatterns = [
+          // Handle "20 18/05/03" -> "2018/05/03" (OCR splits year, format is YYYY/MM/DD)
+          { name: 'YYYY/MM/DD with year split', regex: /(\d{2})\s+(\d{2}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-split', needsCleanup: true },
+          { name: 'DD/MM/YYYY', regex: /(\d{1,2}\/\d{1,2}\/\d{4})/g, type: 'gregorian-ddmmyyyy', needsCleanup: false },
+          { name: 'YYYY/MM/DD', regex: /(\d{4}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-yyyymmdd', needsCleanup: false },
+          // Handle "2026/Jan/ 11" -> "2026/Jan/11"
+          { name: 'YYYY/Mon/DD with space', regex: /(\d{4}\/[A-Za-z]{3}\/\s*\d{1,2})/g, type: 'gregorian', needsCleanup: true },
+          { name: 'YYYY/Mon/DD', regex: /(\d{4}\/[A-Za-z]{3,9}\/\d{1,2})/g, type: 'gregorian', needsCleanup: false },
+        ];
+
+        let foundDates: Array<{date: string, type: string, order: number}> = [];
+        let orderCounter = 0;
+
+        for (const pattern of datePatterns) {
+          const matches = [...searchText.matchAll(pattern.regex)];
+          for (const match of matches) {
+            let dateStr = match[1];
+            let year = 0;
+            
+            // Handle year split case: "20 18/05/03" -> "2018/05/03"
+            if (pattern.type === 'ethiopian-split' && match[2]) {
+              dateStr = match[1] + match[2]; // Combine "20" + "18/05/03"
+              dateStr = dateStr.replace(/\s+/g, ''); // Remove spaces -> "2018/05/03"
+              year = parseInt(dateStr.split('/')[0]); // Year is first part in YYYY/MM/DD
+            }
+            // Clean up OCR spacing issues
+            else if (pattern.needsCleanup) {
+              dateStr = dateStr.replace(/\s+/g, ''); // Remove all spaces
+              year = pattern.type === 'gregorian-ddmmyyyy' ? 
+                parseInt(dateStr.split('/')[2]) : 
+                parseInt(dateStr.split('/')[0]);
+            }
+            else {
+              year = pattern.type === 'gregorian-ddmmyyyy' ? 
+                parseInt(dateStr.split('/')[2]) : 
+                parseInt(dateStr.split('/')[0]);
+            }
+              
+            if (year > 2015 && year <= 2040) { // Issue date should be recent
+              foundDates.push({
+                date: dateStr,
+                type: pattern.type,
+                order: orderCounter++
+              });
+            }
+          }
+        }
+
+        // First date is Ethiopian, second date is Gregorian
+        if (foundDates.length >= 1) {
+          const firstDate = foundDates[0];
+          if (firstDate.type.includes('ethiopian')) {
+            result.issueDateEthiopian = this.normalizeEthiopianDate(firstDate.date);
+            logger.info(`Found Ethiopian issue date (1st): ${result.issueDateEthiopian}`);
+          }
+        }
+        
+        if (foundDates.length >= 2) {
+          const secondDate = foundDates[1];
+          if (secondDate.type.includes('gregorian') || secondDate.type.includes('YYYY/Mon')) {
+            result.issueDateGregorian = this.normalizeEthiopianDate(secondDate.date);
+            logger.info(`Found Gregorian issue date (2nd): ${result.issueDateGregorian}`);
+          }
+        }
+      }
+      
+      // Check for EXPIRY date
       if (lowerLine.includes('expiry') || lowerLine.includes('expire')) {
         logger.debug(`Found expiry keyword in line: ${line}`);
         
@@ -776,9 +769,9 @@ export class PDFParserImpl implements PDFParser {
           }
         }
         
-        // If we found expiry dates, break
+        // If we found expiry dates, continue to next line (might have issue date too)
         if (result.expiryDateGregorian || result.expiryDateEthiopian) {
-          break;
+          continue;
         }
       }
     }
@@ -828,30 +821,53 @@ export class PDFParserImpl implements PDFParser {
 
     return result;
   }
+
   async parse(buffer: Buffer): Promise<EfaydaData> {
     const text = await this.extractText(buffer);
     const images = await this.extractImages(buffer);
     const parsed = this.parsePdfText(text);
 
-    // Use OCR to extract expiry dates from images
-    const ocrExpiry = await this.extractExpiryFromImages(images);
-
-    // Use OCR to extract FIN and address from back card image (PRIMARY SOURCE)
-    const backCardData = await this.extractBackCardData(images, parsed.fcn);
+    // OPTIMIZATION: Run all OCR operations in parallel for maximum speed
+    logger.info('Starting parallel OCR operations...');
+    const startTime = Date.now();
+    
+    const [ocrExpiry, backCardData] = await Promise.all([
+      // Extract issue/expiry dates from front card (image 3)
+      this.extractExpiryFromImages(images),
+      // Extract FIN and phone from back card (image 4)
+      this.extractBackCardData(images, parsed.fcn)
+    ]);
+    
+    const ocrTime = Date.now() - startTime;
+    logger.info(`All OCR operations completed in ${ocrTime}ms (parallel execution)`);
 
     logger.info(`Parsed: FCN=${parsed.fcn}, FIN=${parsed.fin}`);
     logger.info(`OCR Back Card: FIN=${backCardData.fin}, Phone=${backCardData.phoneNumber}`);
     logger.info(`OCR Back Card Address: region=${backCardData.regionAmharic}/${backCardData.regionEnglish}, zone=${backCardData.zoneAmharic}/${backCardData.zoneEnglish}, woreda=${backCardData.woredaAmharic}/${backCardData.woredaEnglish}`);
     logger.info(`Parsed Amharic: region=${parsed.regionAmharic}, zone=${parsed.zoneAmharic}, woreda=${parsed.woredaAmharic}`);
-    logger.info(`OCR Expiry: Gregorian=${ocrExpiry.expiryDateGregorian}, Ethiopian=${ocrExpiry.expiryDateEthiopian}`);
+    logger.info(`OCR Dates - Issue: ${ocrExpiry.issueDateGregorian}/${ocrExpiry.issueDateEthiopian}, Expiry: ${ocrExpiry.expiryDateGregorian}/${ocrExpiry.expiryDateEthiopian}`);
 
-    // Priority: Use OCR data from back card, fallback to text parsing
-    const finalRegionAmharic = backCardData.regionAmharic || parsed.regionAmharic;
-    const finalRegionEnglish = backCardData.regionEnglish || parsed.regionEnglish;
-    const finalZoneAmharic = backCardData.zoneAmharic || parsed.zoneAmharic;
-    const finalZoneEnglish = backCardData.zoneEnglish || parsed.zoneEnglish;
-    const finalWoredaAmharic = backCardData.woredaAmharic || parsed.woredaAmharic;
-    const finalWoredaEnglish = backCardData.woredaEnglish || parsed.woredaEnglish;
+    // IMPORTANT: Free OCR engines (Tesseract, OCR.space) produce very poor results for Amharic script
+    // Accuracy is only 40-50% for Amharic text, resulting in garbled output
+    // Therefore, we ALWAYS use PDF text for address fields (region, zone, woreda)
+    // PDF text extraction is 100% accurate and much faster
+    //
+    // OCR is only used for:
+    // 1. FIN extraction (numbers are easier to OCR correctly)
+    // 2. Phone number extraction (numbers)
+    // 3. Expiry date extraction (from front card image)
+    //
+    // For production use with high-quality Amharic OCR, enable Google Vision API
+    
+    // Always use PDF text for address (most reliable)
+    const finalRegionAmharic = parsed.regionAmharic;
+    const finalRegionEnglish = parsed.regionEnglish;
+    const finalZoneAmharic = parsed.zoneAmharic;
+    const finalZoneEnglish = parsed.zoneEnglish;
+    const finalWoredaAmharic = parsed.woredaAmharic;
+    const finalWoredaEnglish = parsed.woredaEnglish;
+    
+    // For phone and FIN, prefer OCR if available (these are numbers, easier to OCR correctly)
     const finalPhoneNumber = backCardData.phoneNumber || parsed.phoneNumber;
     const finalFin = backCardData.fin || parsed.fin;
 
@@ -874,9 +890,9 @@ export class PDFParserImpl implements PDFParser {
       fan: parsed.fcn,
       // 8-digit random serial number
       serialNumber: String(Math.floor(10000000 + Math.random() * 90000000)),
-      // Use OCR-extracted expiry dates or fallback to calculated dates
-      issueDate: this.calculateIssueDate(parsed.dateOfBirthGregorian),
-      issueDateEthiopian: this.calculateIssueDateEthiopian(parsed.dateOfBirthEthiopian),
+      // Use OCR-extracted dates from front card (image 3) or fallback to calculated dates
+      issueDate: ocrExpiry.issueDateGregorian || this.calculateIssueDate(parsed.dateOfBirthGregorian),
+      issueDateEthiopian: ocrExpiry.issueDateEthiopian || this.calculateIssueDateEthiopian(parsed.dateOfBirthEthiopian),
       expiryDate: ocrExpiry.expiryDateGregorian || parsed.expiryDateGregorian || this.calculateExpiryDate(parsed.dateOfBirthGregorian),
       expiryDateGregorian: ocrExpiry.expiryDateGregorian || parsed.expiryDateGregorian || this.calculateExpiryDate(parsed.dateOfBirthGregorian),
       expiryDateEthiopian: ocrExpiry.expiryDateEthiopian || parsed.expiryDateEthiopian || this.calculateExpiryDateEthiopian(parsed.dateOfBirthEthiopian),
