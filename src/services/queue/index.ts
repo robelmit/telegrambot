@@ -282,12 +282,17 @@ async function trackBulkJobCompletion(
 
   // Check if ALL jobs are complete - generate final combined PDFs
   if (tracker.completedFiles === tracker.totalFiles) {
+    // Add small delay to ensure batch PDFs are fully sent before generating final combined
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     try {
       const outputDir = process.env.OUTPUT_DIR || 'temp';
       await fs.mkdir(outputDir, { recursive: true });
       
       const finalNormalPdfPath = path.join(outputDir, `${bulkGroupId}_ALL_NORMAL.pdf`);
       const finalMirroredPdfPath = path.join(outputDir, `${bulkGroupId}_ALL_MIRRORED.pdf`);
+
+      logger.info(`Generating FINAL combined PDFs for ${tracker.totalFiles} cards...`);
 
       // Generate final combined normal PDF with ALL cards
       await deps.pdfGenerator!.generateBulkNormalPDF(tracker.allNormalPngs, finalNormalPdfPath, {
@@ -313,6 +318,7 @@ async function trackBulkJobCompletion(
       }
     } catch (error) {
       logger.error(`Failed to generate FINAL combined PDFs:`, error);
+      // Don't throw - just log the error so other operations can continue
     }
 
     // Cleanup tracker when all files are done

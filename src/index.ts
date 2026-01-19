@@ -81,6 +81,12 @@ async function main() {
           // Check if this is the final combined PDFs (batchIndex = -1)
           const isFinalCombined = batchIndex === -1;
           
+          if (isFinalCombined) {
+            logger.info(`Delivering FINAL combined PDFs (${combinedFiles.length} files) to chat ${chatId}`);
+          } else {
+            logger.info(`Delivering batch ${batchIndex + 1} PDFs (${combinedFiles.length} files) to chat ${chatId}`);
+          }
+          
           // Send combined PDFs to user (normal and mirrored)
           const fs = await import('fs');
           
@@ -89,7 +95,12 @@ async function main() {
             const isNormal = i === 0;
             const fileType = isNormal ? 'Normal' : 'Mirrored';
             
-            if (fs.existsSync(filePath)) {
+            if (!fs.existsSync(filePath)) {
+              logger.error(`File not found: ${filePath}`);
+              continue;
+            }
+            
+            try {
               if (isFinalCombined) {
                 // Final combined PDFs with ALL cards
                 await bot.telegram.sendDocument(chatId, {
@@ -132,16 +143,19 @@ async function main() {
                   // Ignore cleanup errors
                 }
               }, 120000);
+            } catch (fileError) {
+              logger.error(`Failed to send file ${filePath}:`, fileError);
+              throw fileError; // Re-throw to trigger outer catch
             }
           }
         } catch (error) {
-          logger.error('Bulk batch delivery failed:', error);
+          logger.error(`Bulk ${batchIndex === -1 ? 'final combined' : `batch ${batchIndex + 1}`} delivery failed:`, error);
           try {
             await bot.telegram.sendMessage(chatId, 
               `❌ Failed to deliver ${batchIndex === -1 ? 'final combined PDFs' : `batch ${batchIndex + 1}`}. Please contact support.`
             );
           } catch (e) {
-            // Ignore notification errors
+            logger.error('Failed to send error notification:', e);
           }
         }
       },
