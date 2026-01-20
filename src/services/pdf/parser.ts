@@ -95,6 +95,8 @@ export class PDFParserImpl implements PDFParser {
     dateOfBirthGregorian: string;
     expiryDateEthiopian: string;
     expiryDateGregorian: string;
+    issueDateEthiopian: string;
+    issueDateGregorian: string;
     sex: 'Male' | 'Female';
     sexAmharic: string;
     phoneNumber: string;
@@ -114,6 +116,8 @@ export class PDFParserImpl implements PDFParser {
       dateOfBirthGregorian: '',
       expiryDateEthiopian: '',
       expiryDateGregorian: '',
+      issueDateEthiopian: '',
+      issueDateGregorian: '',
       sex: 'Male' as 'Male' | 'Female',
       sexAmharic: '',
       phoneNumber: '',
@@ -130,18 +134,78 @@ export class PDFParserImpl implements PDFParser {
     // Extract ALL dates from PDF
     // Format 1: DD/MM/YYYY (Gregorian style)
     // Format 2: YYYY/MM/DD (Ethiopian style)
+    // Format 3: YYYY/Mon/DD (Gregorian with month name)
     const datePattern1 = /(\d{2}\/\d{2}\/\d{4})/g;
     const datePattern2 = /(\d{4}\/\d{2}\/\d{2})/g;
+    const datePattern3 = /(\d{4}\/[A-Za-z]{3,9}\/\d{1,2})/g;
 
     const dates1 = text.match(datePattern1) || [];
     const dates2 = text.match(datePattern2) || [];
+    const dates3 = text.match(datePattern3) || [];
 
-    // DOB is typically the first date, expiry is typically the second date
+    // Try to extract issue dates from PDF text
+    // Look for "Date of Issue" or "Issue" keyword followed by dates
+    let issueDateGregorian = '';
+    let issueDateEthiopian = '';
+    
+    const issueKeywordPattern = /(?:Date\s+of\s+Issue|Issue\s+Date|Issued|Issue)[:\s]*/gi;
+    const issueMatch = text.search(issueKeywordPattern);
+    
+    if (issueMatch !== -1) {
+      // Extract text after issue keyword (next 100 chars)
+      const afterIssue = text.substring(issueMatch, issueMatch + 100);
+      
+      // Look for Ethiopian date (YYYY/MM/DD)
+      const ethIssueMatch = afterIssue.match(/(\d{4}\/\d{1,2}\/\d{1,2})/);
+      if (ethIssueMatch) {
+        issueDateEthiopian = ethIssueMatch[1];
+        logger.info(`Found Ethiopian issue date in PDF text: ${issueDateEthiopian}`);
+      }
+      
+      // Look for Gregorian date (YYYY/Mon/DD or DD/MM/YYYY)
+      const gregIssueMatch = afterIssue.match(/(\d{4}\/[A-Za-z]{3,9}\/\d{1,2}|\d{1,2}\/\d{1,2}\/\d{4})/);
+      if (gregIssueMatch) {
+        issueDateGregorian = gregIssueMatch[1];
+        logger.info(`Found Gregorian issue date in PDF text: ${issueDateGregorian}`);
+      }
+    }
+    
+    // If no issue keyword found, try to infer from date order
+    // Typical order: DOB, Issue Date (Ethiopian), Issue Date (Gregorian), Expiry Date (Ethiopian), Expiry Date (Gregorian)
+    if (!issueDateEthiopian && dates2.length >= 3) {
+      // dates2[0] = DOB Ethiopian, dates2[1] = Issue Ethiopian, dates2[2] = Expiry Ethiopian
+      issueDateEthiopian = dates2[1];
+      logger.info(`Inferred Ethiopian issue date from position: ${issueDateEthiopian}`);
+    }
+    
+    if (!issueDateGregorian && dates3.length >= 1) {
+      // First YYYY/Mon/DD is likely issue date
+      issueDateGregorian = dates3[0];
+      logger.info(`Inferred Gregorian issue date from position: ${issueDateGregorian}`);
+    } else if (!issueDateGregorian && dates1.length >= 3) {
+      // dates1[0] = DOB Gregorian, dates1[1] = Issue Gregorian, dates1[2] = Expiry Gregorian
+      issueDateGregorian = dates1[1];
+      logger.info(`Inferred Gregorian issue date from position: ${issueDateGregorian}`);
+    }
+
+    // DOB is typically the first date, expiry is typically the last date
     if (dates1.length > 0) data.dateOfBirthGregorian = dates1[0] || '';
-    if (dates1.length > 1) data.expiryDateGregorian = dates1[1] || '';
+    if (dates1.length > 1 && !issueDateGregorian) {
+      // If we haven't identified issue date, assume dates1[1] is expiry
+      data.expiryDateGregorian = dates1[dates1.length - 1] || '';
+    } else if (dates1.length > 2) {
+      // If we have issue date, last date is expiry
+      data.expiryDateGregorian = dates1[dates1.length - 1] || '';
+    }
     
     if (dates2.length > 0) data.dateOfBirthEthiopian = dates2[0] || '';
-    if (dates2.length > 1) data.expiryDateEthiopian = dates2[1] || '';
+    if (dates2.length > 1 && !issueDateEthiopian) {
+      // If we haven't identified issue date, assume dates2[1] is expiry
+      data.expiryDateEthiopian = dates2[dates2.length - 1] || '';
+    } else if (dates2.length > 2) {
+      // If we have issue date, last date is expiry
+      data.expiryDateEthiopian = dates2[dates2.length - 1] || '';
+    }
 
     // Region - extract from structured format after phone number
     // Pattern: Phone number -> Amharic Region -> English Region
@@ -361,6 +425,10 @@ export class PDFParserImpl implements PDFParser {
       // Fix incomplete region name
       data.regionAmharic = 'አዲስ አበባ';
     }
+
+    // Assign extracted issue dates
+    data.issueDateEthiopian = issueDateEthiopian;
+    data.issueDateGregorian = issueDateGregorian;
 
     return data;
   }
@@ -1003,6 +1071,11 @@ export class PDFParserImpl implements PDFParser {
     logger.info(`Final values: FIN=${finalFin}, Phone=${finalPhoneNumber}`);
     logger.info(`Final Address: region=${finalRegionAmharic}/${finalRegionEnglish}, zone=${finalZoneAmharic}/${finalZoneEnglish}, woreda=${finalWoredaAmharic}/${finalWoredaEnglish}`);
 
+    // Log issue date sources
+    const issueDateSource = parsed.issueDateGregorian ? 'PDF text' : (ocrExpiry.issueDateGregorian ? 'OCR' : 'calculated');
+    logger.info(`Issue dates source: ${issueDateSource}`);
+    logger.info(`Final Issue Dates - Gregorian: ${parsed.issueDateGregorian || ocrExpiry.issueDateGregorian || 'calculated'}, Ethiopian: ${parsed.issueDateEthiopian || ocrExpiry.issueDateEthiopian || 'calculated'}`);
+
     return {
       fullNameAmharic: parsed.fullNameAmharic,
       fullNameEnglish: parsed.fullNameEnglish,
@@ -1019,9 +1092,10 @@ export class PDFParserImpl implements PDFParser {
       fan: parsed.fcn,
       // 8-digit random serial number
       serialNumber: String(Math.floor(10000000 + Math.random() * 90000000)),
-      // Use OCR-extracted dates from front card (image 3) or fallback to calculated dates
-      issueDate: ocrExpiry.issueDateGregorian || this.calculateIssueDate(parsed.dateOfBirthGregorian),
-      issueDateEthiopian: ocrExpiry.issueDateEthiopian || this.calculateIssueDateEthiopian(parsed.dateOfBirthEthiopian),
+      // Use PDF text dates first (fast, reliable), then OCR dates, then calculated dates
+      // Priority: PDF text > OCR > Calculated
+      issueDate: parsed.issueDateGregorian || ocrExpiry.issueDateGregorian || this.calculateIssueDate(parsed.dateOfBirthGregorian),
+      issueDateEthiopian: parsed.issueDateEthiopian || ocrExpiry.issueDateEthiopian || this.calculateIssueDateEthiopian(parsed.dateOfBirthEthiopian),
       expiryDate: ocrExpiry.expiryDateGregorian || parsed.expiryDateGregorian || this.calculateExpiryDate(parsed.dateOfBirthGregorian),
       expiryDateGregorian: ocrExpiry.expiryDateGregorian || parsed.expiryDateGregorian || this.calculateExpiryDate(parsed.dateOfBirthGregorian),
       expiryDateEthiopian: ocrExpiry.expiryDateEthiopian || parsed.expiryDateEthiopian || this.calculateExpiryDateEthiopian(parsed.dateOfBirthEthiopian),
