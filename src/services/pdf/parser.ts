@@ -400,44 +400,112 @@ export class PDFParserImpl implements PDFParser {
         let ocrText = ocrResult.text;
         const ocrTime = Date.now() - startTime;
         logger.info(`${ocrResult.method} OCR completed in ${ocrTime}ms, extracted ${ocrText.length} characters, confidence: ${ocrResult.confidence.toFixed(2)}`);
-        logger.debug('OCR text:', ocrText);
+        
+        // Log first 500 chars of OCR text for debugging
+        if (ocrText.length > 0) {
+          logger.debug('OCR text (first 500 chars):', ocrText.substring(0, 500));
+        } else {
+          logger.error('OCR returned empty text from back card image!');
+        }
 
         // Extract FIN (12 digits: XXXX XXXX XXXX)
-        // Priority: Look for FIN near "FIN" keyword first (most reliable)
+        // Multiple strategies for robust extraction with OCR error handling
         let finExtracted = false;
         
-        // Strategy 1: Look for FIN pattern near "FIN" keyword
-        if (ocrText.toLowerCase().includes('fin') || ocrText.includes('FIN')) {
-          logger.debug('Found FIN keyword in OCR text');
-          const finKeywordIndex = ocrText.search(/fin/i);
-          const afterFin = ocrText.substring(Math.max(0, finKeywordIndex - 20));
+        // Strategy 1: Look for FIN/EIN keyword (OCR often reads F as E)
+        const hasFinKeyword = ocrText.toLowerCase().includes('fin') || ocrText.includes('FIN') || 
+                              ocrText.toLowerCase().includes('ein') || ocrText.includes('EIN');
+        
+        if (hasFinKeyword) {
+          logger.debug('Found FIN/EIN keyword in OCR text');
+          const finKeywordIndex = ocrText.search(/[fe]in/i);
+          const afterFin = ocrText.substring(Math.max(0, finKeywordIndex - 20), Math.min(ocrText.length, finKeywordIndex + 100));
           
-          // Look for pattern like "FIN4726 3910 3548" or "FIN 4726 3910 3548"
-          const finPattern1 = /FIN\s*(\d{4})\s+(\d{4})\s+(\d{4})/i;
+          // Pattern 1: FIN/EIN followed by 12 digits with spaces: "FIN 4726 3910 3548"
+          const finPattern1 = /[FE]IN\s*(\d{4})\s+(\d{4})\s+(\d{4})/i;
           const finMatch1 = afterFin.match(finPattern1);
           
           if (finMatch1) {
             result.fin = `${finMatch1[1]} ${finMatch1[2]} ${finMatch1[3]}`;
-            logger.info(`Extracted FIN near FIN keyword: ${result.fin}`);
+            logger.info(`Extracted FIN with keyword (spaced): ${result.fin}`);
             finExtracted = true;
+          }
+          
+          // Pattern 2: FIN/EIN followed by digits (handle OCR errors like "4314 6981 62175")
+          if (!finExtracted) {
+            // Look for pattern: keyword + 4digits + 4digits + 4-5digits
+            const finPattern2 = /[FE]IN\s*(\d{4})\s+(\d{4})\s+(\d{4,5})/i;
+            const finMatch2 = afterFin.match(finPattern2);
+            
+            if (finMatch2) {
+              const group1 = finMatch2[1];
+              const group2 = finMatch2[2];
+              let group3 = finMatch2[3];
+              
+              // If third group has 5 digits, take only first 4
+              if (group3.length === 5) {
+                group3 = group3.substring(0, 4);
+                logger.info(`OCR error: third group had 5 digits, using first 4`);
+              }
+              
+              result.fin = `${group1} ${group2} ${group3}`;
+              logger.info(`Extracted FIN with keyword (OCR corrected): ${result.fin}`);
+              finExtracted = true;
+            }
+          }
+          
+          // Pattern 3: FIN/EIN followed by 12 digits without spaces
+          if (!finExtracted) {
+            const finPattern3 = /[FE]IN\s*(\d{12})/i;
+            const finMatch3 = afterFin.match(finPattern3);
+            
+            if (finMatch3) {
+              const digits = finMatch3[1];
+              result.fin = `${digits.substring(0,4)} ${digits.substring(4,8)} ${digits.substring(8,12)}`;
+              logger.info(`Extracted FIN with keyword (no spaces): ${result.fin}`);
+              finExtracted = true;
+            }
           }
         }
         
-        // Strategy 2: Find three consecutive 4-digit groups (first occurrence)
+        // Strategy 2: Find pattern 4digits + 4digits + 4-5digits (handle OCR errors)
         if (!finExtracted) {
           const allDigits = ocrText.match(/\d+/g);
           if (allDigits) {
             logger.debug('All digit groups found:', allDigits);
-            // Look for first occurrence of three consecutive 4-digit groups
+            // Look for pattern: 4 + 4 + 4-5 digits
             for (let i = 0; i < allDigits.length - 2; i++) {
-              if (allDigits[i].length === 4 && allDigits[i+1].length === 4 && allDigits[i+2].length === 4) {
-                result.fin = `${allDigits[i]} ${allDigits[i+1]} ${allDigits[i+2]}`;
-                logger.info(`Extracted FIN from first 3 consecutive 4-digit groups: ${result.fin}`);
+              if (allDigits[i].length === 4 && allDigits[i+1].length === 4 && 
+                  (allDigits[i+2].length === 4 || allDigits[i+2].length === 5)) {
+                let group3 = allDigits[i+2];
+                if (group3.length === 5) {
+                  group3 = group3.substring(0, 4);
+                  logger.info(`OCR error: third group had 5 digits, using first 4`);
+                }
+                result.fin = `${allDigits[i]} ${allDigits[i+1]} ${group3}`;
+                logger.info(`Extracted FIN from digit groups (OCR corrected): ${result.fin}`);
                 finExtracted = true;
                 break;
               }
             }
           }
+        }
+        
+        // Strategy 3: Look for any 12-digit sequence and split it
+        if (!finExtracted) {
+          const twelveDigitPattern = /\b(\d{12})\b/;
+          const twelveDigitMatch = ocrText.match(twelveDigitPattern);
+          
+          if (twelveDigitMatch) {
+            const digits = twelveDigitMatch[1];
+            result.fin = `${digits.substring(0,4)} ${digits.substring(4,8)} ${digits.substring(8,12)}`;
+            logger.info(`Extracted FIN from 12-digit sequence: ${result.fin}`);
+            finExtracted = true;
+          }
+        }
+        
+        if (!finExtracted) {
+          logger.warn('Could not extract FIN from back card OCR');
         }
 
         // Extract phone number
