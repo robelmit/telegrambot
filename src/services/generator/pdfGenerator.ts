@@ -83,8 +83,8 @@ export class PDFGenerator {
           width: totalWidthWithPadding
         });
 
-        // Add cutting guides (at original card size, inside the bleed area)
-        this.addCuttingGuides(doc, startX, startY);
+        // Cutting guides removed - clean A4 output for user delivery
+        // (Cutting guides are only needed for professional printing services)
 
         doc.end();
 
@@ -140,8 +140,8 @@ export class PDFGenerator {
           width: totalWidthWithPadding
         });
 
-        // Add cutting guides (at original card size, inside the bleed area)
-        this.addCuttingGuides(doc, startX, startY);
+        // Cutting guides removed - clean A4 output for user delivery
+        // (Cutting guides are only needed for professional printing services)
 
         doc.end();
 
@@ -308,13 +308,8 @@ export class PDFGenerator {
             height: finalCardHeight
           });
 
-          // Add light cutting guide
-          doc.strokeColor('#dddddd')
-             .lineWidth(0.3)
-             .dash(3, { space: 2 })
-             .rect(startX - 2, y - 2, finalCardWidth + 4, finalCardHeight + 4)
-             .stroke()
-             .undash();
+          // Cutting guides removed - clean A4 output for user delivery
+          // (Cutting guides are only needed for professional printing services)
 
           cardOnPage++;
         }

@@ -195,10 +195,25 @@ export class PDFParserImpl implements PDFParser {
     const fcnMatch = text.match(fcnPattern);
     if (fcnMatch) data.fcn = fcnMatch[1];
 
-    // FIN extraction is ONLY done via OCR from back card image (image 4)
-    // Do NOT extract FIN from PDF text - it's unreliable
-    // Leave data.fin empty here, will be filled by OCR extraction
-    data.fin = '';
+    // Try to extract FIN from PDF text as fallback (12 digits with spaces)
+    // Look for 12-digit pattern that's NOT the FCN
+    const finPattern = /(\d{4}\s+\d{4}\s+\d{4})(?!\s+\d{4})/g;
+    const finMatches = [...text.matchAll(finPattern)];
+    
+    // Find FIN that's different from FCN
+    for (const match of finMatches) {
+      const potentialFin = match[1];
+      if (potentialFin !== data.fcn && !data.fcn.startsWith(potentialFin)) {
+        data.fin = potentialFin;
+        logger.info(`Found potential FIN in PDF text: ${potentialFin}`);
+        break;
+      }
+    }
+    
+    // If no FIN found yet, leave empty - will be filled by OCR extraction
+    if (!data.fin) {
+      logger.debug('No FIN found in PDF text, will use OCR extraction');
+    }
 
     // Extract sex
     if (text.includes('ወንድ')) {
@@ -386,9 +401,9 @@ export class PDFParserImpl implements PDFParser {
         // Use full 2000px resolution for maximum accuracy
         const sharp = require('sharp');
         const preprocessedImage = await sharp(images.backCardImage)
-          .resize({ width: 2000 }) // Full resolution for accuracy
-          .normalize() // Improve contrast
-          .sharpen() // Sharpen text
+          .resize({ width: 2000 })
+          .normalize()
+          .sharpen()
           .toBuffer();
         
         const ocrResult = await ocrService.extractText(preprocessedImage, {
@@ -397,7 +412,7 @@ export class PDFParserImpl implements PDFParser {
           minConfidence: 0.6
         });
 
-        let ocrText = ocrResult.text;
+        const ocrText = ocrResult.text;
         const ocrTime = Date.now() - startTime;
         logger.info(`${ocrResult.method} OCR completed in ${ocrTime}ms, extracted ${ocrText.length} characters, confidence: ${ocrResult.confidence.toFixed(2)}`);
         
@@ -419,7 +434,9 @@ export class PDFParserImpl implements PDFParser {
         if (hasFinKeyword) {
           logger.debug('Found FIN/EIN keyword in OCR text');
           const finKeywordIndex = ocrText.search(/[fe]in/i);
-          const afterFin = ocrText.substring(Math.max(0, finKeywordIndex - 20), Math.min(ocrText.length, finKeywordIndex + 100));
+          
+          // Look in a larger window (200 chars) after the keyword
+          const afterFin = ocrText.substring(Math.max(0, finKeywordIndex - 20), Math.min(ocrText.length, finKeywordIndex + 200));
           
           // Pattern 1: FIN/EIN followed by 12 digits with spaces: "FIN 4726 3910 3548"
           const finPattern1 = /[FE]IN\s*(\d{4})\s+(\d{4})\s+(\d{4})/i;
@@ -464,6 +481,42 @@ export class PDFParserImpl implements PDFParser {
               result.fin = `${digits.substring(0,4)} ${digits.substring(4,8)} ${digits.substring(8,12)}`;
               logger.info(`Extracted FIN with keyword (no spaces): ${result.fin}`);
               finExtracted = true;
+            }
+          }
+          
+          // Pattern 4: FIN/EIN on one line, number on next line (common OCR layout)
+          if (!finExtracted) {
+            const lines = ocrText.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i];
+              if (line.toLowerCase().includes('fin') || line.toLowerCase().includes('ein')) {
+                // Check next 3 lines for FIN pattern
+                for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+                  const nextLine = lines[j];
+                  
+                  // Look for 4+4+4 pattern
+                  const linePattern1 = /(\d{4})\s+(\d{4})\s+(\d{4})/;
+                  const lineMatch1 = nextLine.match(linePattern1);
+                  if (lineMatch1) {
+                    result.fin = `${lineMatch1[1]} ${lineMatch1[2]} ${lineMatch1[3]}`;
+                    logger.info(`Extracted FIN from line after keyword: ${result.fin}`);
+                    finExtracted = true;
+                    break;
+                  }
+                  
+                  // Look for 12-digit sequence
+                  const linePattern2 = /(\d{12})/;
+                  const lineMatch2 = nextLine.match(linePattern2);
+                  if (lineMatch2) {
+                    const digits = lineMatch2[1];
+                    result.fin = `${digits.substring(0,4)} ${digits.substring(4,8)} ${digits.substring(8,12)}`;
+                    logger.info(`Extracted FIN (12-digit) from line after keyword: ${result.fin}`);
+                    finExtracted = true;
+                    break;
+                  }
+                }
+                if (finExtracted) break;
+              }
             }
           }
         }
@@ -932,14 +985,19 @@ export class PDFParserImpl implements PDFParser {
     const finalWoredaAmharic = parsed.woredaAmharic;
     const finalWoredaEnglish = parsed.woredaEnglish;
     
-    // For phone and FIN, use OCR ONLY (from back card image 4)
-    // FIN is NOT extracted from PDF text, only from OCR
+    // For phone and FIN, prefer OCR (from back card image 4), fallback to PDF text
     const finalPhoneNumber = backCardData.phoneNumber || parsed.phoneNumber;
-    const finalFin = backCardData.fin; // ONLY from OCR, no fallback to parsed.fin
     
-    // Warn if FIN was not extracted via OCR
+    // FIN priority: OCR first, then PDF text fallback
+    let finalFin = backCardData.fin;
+    if (!finalFin && parsed.fin) {
+      finalFin = parsed.fin;
+      logger.info(`Using FIN from PDF text as fallback: ${finalFin}`);
+    }
+    
+    // Warn if FIN was not extracted at all
     if (!finalFin) {
-      logger.warn('FIN was not extracted from back card image (OCR failed). FIN will be empty.');
+      logger.warn('FIN was not extracted from back card image (OCR failed) or PDF text. FIN will be empty.');
     }
 
     logger.info(`Final values: FIN=${finalFin}, Phone=${finalPhoneNumber}`);
