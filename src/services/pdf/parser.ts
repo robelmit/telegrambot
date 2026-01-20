@@ -195,21 +195,10 @@ export class PDFParserImpl implements PDFParser {
     const fcnMatch = text.match(fcnPattern);
     if (fcnMatch) data.fcn = fcnMatch[1];
 
-    // Extract FIN (12 digits with spaces) - look for different pattern
-    // FIN format is typically XXXX XXXX XXXX (12 digits)
-    const finPattern = /(\d{4}\s+\d{4}\s+\d{4})(?!\s+\d)/;
-    const finMatch = text.match(finPattern);
-    if (finMatch) {
-      data.fin = finMatch[1];
-    } else {
-      // If no separate FIN found, generate from FCN (LAST 12 digits, not first!)
-      const fcnDigits = data.fcn.replace(/\s/g, '');
-      if (fcnDigits.length >= 12) {
-        // FIN is the LAST 12 digits of FCN
-        const finDigits = fcnDigits.substring(fcnDigits.length - 12);
-        data.fin = `${finDigits.substring(0,4)} ${finDigits.substring(4,8)} ${finDigits.substring(8,12)}`;
-      }
-    }
+    // FIN extraction is ONLY done via OCR from back card image (image 4)
+    // Do NOT extract FIN from PDF text - it's unreliable
+    // Leave data.fin empty here, will be filled by OCR extraction
+    data.fin = '';
 
     // Extract sex
     if (text.includes('ወንድ')) {
@@ -867,9 +856,15 @@ export class PDFParserImpl implements PDFParser {
     const finalWoredaAmharic = parsed.woredaAmharic;
     const finalWoredaEnglish = parsed.woredaEnglish;
     
-    // For phone and FIN, prefer OCR if available (these are numbers, easier to OCR correctly)
+    // For phone and FIN, use OCR ONLY (from back card image 4)
+    // FIN is NOT extracted from PDF text, only from OCR
     const finalPhoneNumber = backCardData.phoneNumber || parsed.phoneNumber;
-    const finalFin = backCardData.fin || parsed.fin;
+    const finalFin = backCardData.fin; // ONLY from OCR, no fallback to parsed.fin
+    
+    // Warn if FIN was not extracted via OCR
+    if (!finalFin) {
+      logger.warn('FIN was not extracted from back card image (OCR failed). FIN will be empty.');
+    }
 
     logger.info(`Final values: FIN=${finalFin}, Phone=${finalPhoneNumber}`);
     logger.info(`Final Address: region=${finalRegionAmharic}/${finalRegionEnglish}, zone=${finalZoneAmharic}/${finalZoneEnglish}, woreda=${finalWoredaAmharic}/${finalWoredaEnglish}`);

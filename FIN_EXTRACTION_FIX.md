@@ -1,89 +1,104 @@
-# FIN Extraction Issue
+# FIN Extraction Fix - Hgigat Aregawi Hagos PDF Issue
 
-## Problem
+## Date: January 20, 2026
 
-From the mahtot result image, we can see:
-- **FCN (FAN)**: `5795 4976 0359 1430` (16 digits)
-- **FIN**: `4976 0359 1430` (12 digits)
+## Issue Reported
+FIN field was showing a **subset of FCN** instead of the actual FIN value from the PDF.
 
-The FIN is the **LAST 12 digits** of the FCN, not the first 12!
+## Root Cause
+The PDF text extraction was attempting to extract FIN from PDF text, which was unreliable and resulted in extracting the last 12 digits of the FCN (16 digits) instead of the actual FIN field.
 
-## Current Logic (WRONG)
+**Example**:
+- FCN (16 digits): `1234 5678 9012 3456`
+- Old behavior: Extracted `9012 3456` (last 12 digits of FCN) ❌
+- Correct behavior: Extract actual FIN from back card image via OCR ✓
 
+## Solution
+**FIN is now extracted ONLY from back card image (image 4) via OCR, NOT from PDF text.**
+
+### Changes Made
+
+**File**: `src/services/pdf/parser.ts`
+
+#### Change 1: Removed FIN extraction from PDF text (line ~200)
 ```typescript
-// Extract FIN (12 digits with spaces)
+// OLD CODE (REMOVED):
 const finPattern = /(\d{4}\s+\d{4}\s+\d{4})(?!\s+\d)/;
 const finMatch = text.match(finPattern);
 if (finMatch) {
   data.fin = finMatch[1];
 } else {
-  // Generate from FCN (first 12 digits) ← WRONG!
+  // If no separate FIN found, generate from FCN (LAST 12 digits, not first!)
   const fcnDigits = data.fcn.replace(/\s/g, '');
   if (fcnDigits.length >= 12) {
-    const finDigits = fcnDigits.substring(0, 12); // ← Takes FIRST 12
+    const finDigits = fcnDigits.substring(fcnDigits.length - 12);
     data.fin = `${finDigits.substring(0,4)} ${finDigits.substring(4,8)} ${finDigits.substring(8,12)}`;
   }
 }
+
+// NEW CODE:
+// FIN extraction is ONLY done via OCR from back card image (image 4)
+// Do NOT extract FIN from PDF text - it's unreliable
+// Leave data.fin empty here, will be filled by OCR extraction
+data.fin = '';
 ```
 
-## The Issue
-
-The pattern `(?!\s+\d)` tries to ensure we don't match part of a longer number, but:
-1. If FIN appears separately in text, it should match ✓
-2. If FIN doesn't appear separately, we generate from FCN
-3. **BUT** we're taking the FIRST 12 digits instead of LAST 12 digits ✗
-
-## Correct Logic
-
-FIN should be the **LAST 12 digits** of FCN:
-
+#### Change 2: Updated final FIN assignment to use ONLY OCR (line ~870)
 ```typescript
-// Extract FIN (12 digits with spaces) - look for separate FIN field
-const finPattern = /(\d{4}\s+\d{4}\s+\d{4})(?!\s+\d)/;
-const finMatch = text.match(finPattern);
-if (finMatch) {
-  data.fin = finMatch[1];
-} else {
-  // If no separate FIN found, generate from FCN (LAST 12 digits)
-  const fcnDigits = data.fcn.replace(/\s/g, '');
-  if (fcnDigits.length >= 12) {
-    const finDigits = fcnDigits.substring(fcnDigits.length - 12); // ← Take LAST 12
-    data.fin = `${finDigits.substring(0,4)} ${finDigits.substring(4,8)} ${finDigits.substring(8,12)}`;
-  }
+// OLD CODE:
+const finalFin = backCardData.fin || parsed.fin; // Had fallback to parsed.fin
+
+// NEW CODE:
+const finalFin = backCardData.fin; // ONLY from OCR, no fallback to parsed.fin
+
+// Warn if FIN was not extracted via OCR
+if (!finalFin) {
+  logger.warn('FIN was not extracted from back card image (OCR failed). FIN will be empty.');
 }
 ```
 
-## Example
+## How FIN Extraction Works Now
 
-FCN: `5795 4976 0359 1430` → `5795497603591430` (16 digits)
+1. **PDF is uploaded** → 4 images are extracted:
+   - Image 1: Photo
+   - Image 2: QR code
+   - Image 3: Front card (for expiry dates)
+   - **Image 4: Back card (for FIN extraction)** ✓
 
-**Current (WRONG)**:
-- First 12 digits: `579549760359`
-- Formatted: `5795 4976 0359` ✗
+2. **OCR runs on image 4** (back card):
+   - Preprocesses image (resize to 2000px, normalize, sharpen)
+   - Runs Tesseract OCR with English language
+   - Extracts FIN using pattern matching:
+     - Strategy 1: Look for "FIN" keyword followed by 12 digits
+     - Strategy 2: Find first occurrence of three consecutive 4-digit groups
 
-**Correct**:
-- Last 12 digits: `497603591430`
-- Formatted: `4976 0359 1430` ✓
+3. **FIN is assigned** from OCR result only:
+   - No fallback to PDF text extraction
+   - If OCR fails, FIN will be empty (with warning logged)
 
-## Woreda Issue
+## Issue Date Extraction (Confirmed Correct)
+The issue date extraction logic is already correct and was NOT changed:
+- **First date found = Ethiopian calendar**
+- **Second date found = Gregorian calendar**
 
-The woreda pattern is looking for text before "FCN:" or a number starting with 6:
+This is the expected behavior and matches the PDF format.
 
-```typescript
-const woredaPattern = /\s*([\u1200-\u137F\s]+?)\s*\n\s*([A-Za-z\s']+?)\s*\n\s*(?:FCN:|6\d{3})/;
-```
+## Testing
+Test with the Hgigat Aregawi Hagos PDF:
+1. Upload PDF through Telegram bot
+2. Check FIN field in result
+3. FIN should be the actual FIN from the back card (extracted via OCR from image 4)
+4. FIN should NOT be a subset of FCN
 
-This should work, but the issue might be:
-1. The Amharic text `ቐ/ወያነ` has special characters
-2. The pattern might not be matching correctly
+## Impact
+- ✓ FIN now extracted correctly from back card image via OCR
+- ✓ No more FCN subset confusion
+- ✓ More reliable FIN extraction
+- ✓ Clear warning if OCR fails to extract FIN
+- ✓ Issue date order confirmed correct (Ethiopian first, Gregorian second)
 
-Expected:
-- Amharic: `ቐ/ወያነ ክ/ከተማ` or `ወያነ ክ/ከተማ`
-- English: `Kedamay Weyane Sub City` or `Weyane Sub City`
+## Files Modified
+- `src/services/pdf/parser.ts` - Removed FIN extraction from PDF text, use OCR only
+- `src/services/generator/pdfGenerator.ts` - Removed footer warning text (separate fix)
 
-The pattern should be updated to handle the special character `ቐ` (which is U+1250).
-
-## Fix Required
-
-1. Change FIN extraction to use LAST 12 digits of FCN
-2. Update woreda pattern to handle special characters like `ቐ` and `/`
+## Status: READY FOR TESTING ✓
