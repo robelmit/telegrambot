@@ -648,7 +648,7 @@ export class PDFParserImpl implements PDFParser {
    */
   private normalizeEthiopianDate(dateStr: string): string {
     const monthMap: Record<string, string> = {
-      'jan': '01', 'january': '01',
+      'jan': '01', 'january': '01', 'jdan': '01', // Handle OCR error "Jdan"
       'feb': '02', 'february': '02',
       'mar': '03', 'march': '03',
       'apr': '04', 'april': '04',
@@ -709,12 +709,14 @@ export class PDFParserImpl implements PDFParser {
         // Look for date patterns - handle OCR spacing issues
         // IMPORTANT: First date is Ethiopian, second date is Gregorian
         const datePatterns = [
-          // Handle "20 18/05/03" -> "2018/05/03" (OCR splits year, format is YYYY/MM/DD)
-          { name: 'YYYY/MM/DD with year split', regex: /(\d{2})\s+(\d{2}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-split', needsCleanup: true },
+          // Handle "2 0 18/04/27" -> "2018/04/27" (OCR splits year into 3 parts)
+          { name: 'YYYY/MM/DD with year split (3 parts)', regex: /(\d)\s+(\d)\s+(\d{2}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-split-3', needsCleanup: true },
+          // Handle "20 18/05/03" -> "2018/05/03" (OCR splits year into 2 parts)
+          { name: 'YYYY/MM/DD with year split (2 parts)', regex: /(\d{2})\s+(\d{2}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-split-2', needsCleanup: true },
           { name: 'DD/MM/YYYY', regex: /(\d{1,2}\/\d{1,2}\/\d{4})/g, type: 'gregorian-ddmmyyyy', needsCleanup: false },
           { name: 'YYYY/MM/DD', regex: /(\d{4}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-yyyymmdd', needsCleanup: false },
-          // Handle "2026/Jan/ 11" -> "2026/Jan/11"
-          { name: 'YYYY/Mon/DD with space', regex: /(\d{4}\/[A-Za-z]{3}\/\s*\d{1,2})/g, type: 'gregorian', needsCleanup: true },
+          // Handle "2026/Jdan/ 05" or "2026/Jan/ 11" -> "2026/Jan/05"
+          { name: 'YYYY/Mon/DD with space', regex: /(\d{4}\/[A-Za-z]{3,5}\/\s*\d{1,2})/g, type: 'gregorian', needsCleanup: true },
           { name: 'YYYY/Mon/DD', regex: /(\d{4}\/[A-Za-z]{3,9}\/\d{1,2})/g, type: 'gregorian', needsCleanup: false },
         ];
 
@@ -727,8 +729,14 @@ export class PDFParserImpl implements PDFParser {
             let dateStr = match[1];
             let year = 0;
             
-            // Handle year split case: "20 18/05/03" -> "2018/05/03"
-            if (pattern.type === 'ethiopian-split' && match[2]) {
+            // Handle year split case (3 parts): "2 0 18/04/27" -> "2018/04/27"
+            if (pattern.type === 'ethiopian-split-3' && match[2] && match[3]) {
+              dateStr = match[1] + match[2] + match[3]; // Combine "2" + "0" + "18/04/27"
+              dateStr = dateStr.replace(/\s+/g, ''); // Remove spaces -> "2018/04/27"
+              year = parseInt(dateStr.split('/')[0]); // Year is first part in YYYY/MM/DD
+            }
+            // Handle year split case (2 parts): "20 18/05/03" -> "2018/05/03"
+            else if (pattern.type === 'ethiopian-split-2' && match[2]) {
               dateStr = match[1] + match[2]; // Combine "20" + "18/05/03"
               dateStr = dateStr.replace(/\s+/g, ''); // Remove spaces -> "2018/05/03"
               year = parseInt(dateStr.split('/')[0]); // Year is first part in YYYY/MM/DD
