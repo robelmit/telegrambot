@@ -159,57 +159,6 @@ export class PDFGenerator {
   }
 
   /**
-   * Add cutting guide lines to PDF
-   * Guides are drawn at the original card size (inside the bleed area of each card)
-   * Each card has bleed on all edges so cutting imprecision shows card content
-   */
-  private addCuttingGuides(doc: PDFKit.PDFDocument, centerX: number, centerY: number): void {
-    // The centerX/centerY point to the top-left of the padded image
-    // Each card has bleed, so the actual card content starts at padding + bleed
-    const cardStartX = centerX + CARD_MARGIN_PT + BLEED_PT;
-    const cardStartY = centerY + CARD_MARGIN_PT + BLEED_PT;
-    
-    doc.strokeColor('#cccccc')
-       .lineWidth(0.5)
-       .dash(5, { space: 3 });
-
-    // Horizontal lines (top and bottom of cards - at original size)
-    // These span across both cards
-    const totalWidth = CARD_WIDTH_PT * 2 + CARD_GAP_PT + (BLEED_PT * 2);
-    
-    doc.moveTo(cardStartX - 5, cardStartY)
-       .lineTo(cardStartX + totalWidth + 5, cardStartY)
-       .stroke();
-
-    doc.moveTo(cardStartX - 5, cardStartY + CARD_HEIGHT_PT)
-       .lineTo(cardStartX + totalWidth + 5, cardStartY + CARD_HEIGHT_PT)
-       .stroke();
-
-    // Vertical lines for back card (left edge)
-    doc.moveTo(cardStartX, cardStartY - 5)
-       .lineTo(cardStartX, cardStartY + CARD_HEIGHT_PT + 5)
-       .stroke();
-
-    // Vertical line for back card right edge / gap start
-    const backCardRightX = cardStartX + CARD_WIDTH_PT;
-    doc.moveTo(backCardRightX, cardStartY - 5)
-       .lineTo(backCardRightX, cardStartY + CARD_HEIGHT_PT + 5)
-       .stroke();
-
-    // Vertical line for front card left edge (after gap and back card's right bleed)
-    const frontCardLeftX = cardStartX + CARD_WIDTH_PT + BLEED_PT * 2 + CARD_GAP_PT;
-    doc.moveTo(frontCardLeftX, cardStartY - 5)
-       .lineTo(frontCardLeftX, cardStartY + CARD_HEIGHT_PT + 5)
-       .stroke();
-
-    // Vertical line for front card right edge
-    const frontCardRightX = frontCardLeftX + CARD_WIDTH_PT;
-    doc.moveTo(frontCardRightX, cardStartY - 5)
-       .lineTo(frontCardRightX, cardStartY + CARD_HEIGHT_PT + 5)
-       .stroke();
-  }
-
-  /**
    * Get A4 page dimensions
    */
   getA4Dimensions(): { width: number; height: number; unit: string } {

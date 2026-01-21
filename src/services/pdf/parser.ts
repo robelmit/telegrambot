@@ -178,7 +178,7 @@ export class PDFParserImpl implements PDFParser {
       logger.info(`Inferred Ethiopian issue date from position: ${issueDateEthiopian}`);
     }
     
-    if (!issueDateGregorian && dates3.length >= 1) {
+    if (!issueDateGregorian && dates3.length >= 1 && dates3[0]) {
       // First YYYY/Mon/DD is likely issue date
       issueDateGregorian = dates3[0];
       logger.info(`Inferred Gregorian issue date from position: ${issueDateGregorian}`);
