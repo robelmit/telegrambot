@@ -51,9 +51,10 @@ export class CardVariantGenerator {
   }
 
   /**
-   * Combine front and back cards into a single image (side by side)
+   * Combine front and back cards into a single image on A4 paper layout
    * @param mirrored - If true, flip both cards horizontally for printing
-   * Output maintains 300 DPI for proper printing
+   * Output maintains 300 DPI for proper printing on A4 paper
+   * A4 size at 300 DPI: 2480 × 3508 pixels (210mm × 297mm)
    * Standard card size: 8.67cm × 5.47cm = 1024×646px at 300 DPI
    * 
    * BLEED AREA: Each card has bleed on ALL edges (3mm = ~35px at 300 DPI)
@@ -61,12 +62,13 @@ export class CardVariantGenerator {
    */
   private async combineCards(front: Buffer, back: Buffer, template?: TemplateType, mirrored: boolean = false): Promise<Buffer> {
     try {
-      const { width, height } = getCardDimensions(template);
-      const gap = 80; // Good spacing between cards for cutting
-      const padding = 30; // Padding around the entire image
+      const { width } = getCardDimensions(template);
+      
+      // A4 dimensions at 300 DPI
+      const a4Width = 2480;  // 210mm at 300 DPI
+      const a4Height = 3508; // 297mm at 300 DPI
       
       // Bleed area: 3mm = ~35px at 300 DPI (standard print bleed)
-      // Applied to ALL edges of EACH card
       const bleed = 35;
 
       // Process cards (flip if mirrored)
@@ -104,27 +106,35 @@ export class CardVariantGenerator {
 
       // Card dimensions with bleed
       const cardWithBleedWidth = width + bleed * 2;
-      const cardWithBleedHeight = height + bleed * 2;
+      // Note: cardWithBleedHeight not used as cards are positioned by topMargin
       
-      // Total dimensions
-      const totalWidth = cardWithBleedWidth * 2 + gap + (padding * 2);
-      const totalHeight = cardWithBleedHeight + (padding * 2);
+      // Calculate positions to center cards on A4 paper
+      // Place cards side by side with gap between them
+      const gap = 80; // Gap between cards
+      const totalCardsWidth = cardWithBleedWidth * 2 + gap;
+      
+      // Center horizontally and place at top of A4
+      const leftMargin = Math.floor((a4Width - totalCardsWidth) / 2);
+      const topMargin = 30; // Small margin from top
 
-      // Create canvas with white background
+      // Create A4 canvas with white background
       const canvas = await sharp({
         create: {
-          width: totalWidth,
-          height: totalHeight,
+          width: a4Width,
+          height: a4Height,
           channels: 4,
           background: { r: 255, g: 255, b: 255, alpha: 1 }
         }
       }).png().toBuffer();
 
-      // Composite cards with bleed (back on left, front on right)
+      // Composite cards with bleed on A4 paper (back on left, front on right)
+      const backLeft = leftMargin;
+      const frontLeft = leftMargin + cardWithBleedWidth + gap;
+      
       return await sharp(canvas)
         .composite([
-          { input: backWithBleed, left: padding, top: padding },
-          { input: frontWithBleed, left: padding + cardWithBleedWidth + gap, top: padding }
+          { input: backWithBleed, left: backLeft, top: topMargin },
+          { input: frontWithBleed, left: frontLeft, top: topMargin }
         ])
         .withMetadata({ density: 300 })
         .png({
