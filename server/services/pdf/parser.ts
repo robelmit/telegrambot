@@ -6,6 +6,7 @@ import Tesseract from 'tesseract.js';
 import { EfaydaData } from '../../types';
 import { PDFParser, ExtractedImages } from './types';
 import { logger } from '../../utils/logger';
+import { toEthiopian } from 'ethiopian-calendar-new';
 
 export class PDFParserImpl implements PDFParser {
   /**
@@ -900,12 +901,29 @@ export class PDFParserImpl implements PDFParser {
   }
 
   /**
-   * Calculate issue date in Ethiopian calendar (approximately 7-8 years behind)
+   * Calculate issue date in Ethiopian calendar
+   * Uses current date converted to Ethiopian calendar
    */
   private calculateIssueDateEthiopian(_dobEthiopian: string): string {
-    const now = new Date();
-    const ethYear = now.getFullYear() - 8;
-    return `${ethYear}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+    try {
+      // Always use current date for issue date, not DOB + 18
+      const now = new Date();
+      const gregYear = now.getFullYear();
+      const gregMonth = now.getMonth() + 1; // 1-12
+      const gregDay = now.getDate();
+      
+      // Convert current Gregorian date to Ethiopian using the library
+      const ethiopianDate = toEthiopian(gregYear, gregMonth, gregDay);
+      
+      return `${ethiopianDate.year}/${String(ethiopianDate.month).padStart(2, '0')}/${String(ethiopianDate.day).padStart(2, '0')}`;
+    } catch (error) {
+      logger.error('Error calculating Ethiopian issue date:', error);
+      
+      // Fallback: Manual conversion if library fails
+      const now = new Date();
+      const ethYear = now.getFullYear() - 8;
+      return `${ethYear}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+    }
   }
 
   /**

@@ -1,0 +1,18 @@
+
+================================================================================
+template/efayda_Eset Tsegay Gebremeskel.pdf
+================================================================================
+English: ✅ "Eset Tsegay Gebremeskel"
+Expected: "Eset Tsegay Gebremeskel"
+
+Amharic: ✅ "እሴት ፀጋይ ገብረመስቀል"
+Expected: "እሴት ፀጋይ ገብረመስቀል"
+
+================================================================================
+template/efayda_Mulu Kidanu Haylu.pdf
+================================================================================
+English: ✅ "Mulu Kidanu Haylu"
+Expected: "Mulu Kidanu Haylu"
+
+Amharic: ✅ "ሙሉ ኪዳኑ ሃይሉ"
+Expected: "ሙሉ ኪዳኑ ሃይሉ"

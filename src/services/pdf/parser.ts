@@ -6,6 +6,7 @@ import { EfaydaData } from '../../types';
 import { PDFParser, ExtractedImages } from './types';
 import { logger } from '../../utils/logger';
 import { ocrService } from './ocrService';
+import { toEthiopian } from 'ethiopian-calendar-new';
 
 export class PDFParserImpl implements PDFParser {
   /**
@@ -259,6 +260,31 @@ export class PDFParserImpl implements PDFParser {
     const fcnMatch = text.match(fcnPattern);
     if (fcnMatch) data.fcn = fcnMatch[1];
 
+    // Extract Amharic name - it appears right after FCN, before English name
+    // PDF Structure: [Woreda] -> [FCN] -> [Amharic Name] -> [English Name]
+    // Note: "ሙሉ ስም / First, Middle, Surname" label appears at top as form template,
+    // but actual name data appears at bottom after FCN
+    // Since PDF structure is consistent, we rely on position (after FCN) without exclusions
+    if (fcnMatch) {
+      const fcnIndex = text.indexOf(fcnMatch[1]);
+      // Look in a window after FCN (up to 100 chars)
+      const afterFcn = text.substring(fcnIndex + fcnMatch[1].length, fcnIndex + fcnMatch[1].length + 100);
+      
+      // Find Amharic name pattern (2-4 words) after FCN
+      const amharicAfterFcnPattern = /([\u1200-\u137F]+(?:\s+[\u1200-\u137F]+){1,3})/;
+      const amharicMatch = afterFcn.match(amharicAfterFcnPattern);
+      
+      if (amharicMatch) {
+        const candidateName = amharicMatch[1].trim();
+        
+        // Require at least 2 words for a valid name
+        if (candidateName.split(/\s+/).length >= 2) {
+          data.fullNameAmharic = candidateName;
+          logger.info(`Found Amharic name after FCN: ${candidateName}`);
+        }
+      }
+    }
+
     // Try to extract FIN from PDF text as fallback (12 digits with spaces)
     // Look for 12-digit pattern that's NOT the FCN
     const finPattern = /(\d{4}\s+\d{4}\s+\d{4})(?!\s+\d{4})/g;
@@ -330,35 +356,28 @@ export class PDFParserImpl implements PDFParser {
     }
 
     // Extract Amharic name - look for Amharic text right before the English name
-    if (data.fullNameEnglish) {
+    // This is a fallback if FCN-based extraction didn't work
+    if (data.fullNameEnglish && !data.fullNameAmharic) {
       const englishNameIndex = text.indexOf(data.fullNameEnglish);
       if (englishNameIndex !== -1) {
-        // Look in a small window before the English name (100 chars)
-        const windowStart = Math.max(0, englishNameIndex - 100);
+        // Look in a small window before the English name (150 chars to be safe)
+        const windowStart = Math.max(0, englishNameIndex - 150);
         const nearbyText = text.substring(windowStart, englishNameIndex);
         
-        // Look for Amharic name pattern (2-4 words) right before English name
-        const amharicBeforeEnglishPattern = /([\u1200-\u137F]+(?:\s+[\u1200-\u137F]+){1,3})\s*$/;
-        const match = nearbyText.match(amharicBeforeEnglishPattern);
+        // Find ALL Amharic sequences in the window, then pick the closest one
+        const amharicPattern = /([\u1200-\u137F]+(?:\s+[\u1200-\u137F]+){1,3})/g;
+        const allMatches = [...nearbyText.matchAll(amharicPattern)];
         
-        if (match) {
-          const candidateName = match[1].trim();
-          const excludeWords = [
-            'ኢትዮጵያ', 'ብሔራዊ', 'መታወቂያ', 'ፕሮግራም', 'ዲጂታል', 'ካርድ', 
-            'ክፍለ', 'ከተማ', 'ወረዳ', 'ክልል', 'ዜግነት', 'ስልክ', 'የስነ', 
-            'ሕዝብ', 'መረጃ', 'ማሳሰቢያ', 'ፋይዳ', 'ቁጥር', 'አድራሻ', 'ጾታ',
-            'የትውልድ', 'ቀን', 'ያበቃል', 'ተሰጠ', 'እዚህ', 'ይቁረጡ', 'ቅዳ',
-            'ስም', 'ሙሉ', 'ፆታ', 'ወንድ', 'ሴት', 'ኢትዮጵያዊ', 'ተወላጅ',
-            'የማንነት', 'መገለጫዎች', 'ናቸው', 'አበባ', 'አዲስ', 'ዞን', 'ማዕከላዊ',
-            'ቀይሕ', 'ተኽሊ', 'ወሎሰፈር', 'ቦሌ', 'ጎዳና', 'ቻይና', 'ኢትዮ', 'ትግራይ',
-            'አዋጅ', 'መሠረት', 'ህጋዊ', 'ናቸው', 'ማንኛውም', 'ከብሄራዊ', 'ሲስተም',
-            'ታትሞ', 'የተገኘ', 'ወይም', 'በቀጥታ', 'የሚታተም'
-          ];
-          const isExcluded = excludeWords.some(w => candidateName.includes(w));
+        // Find the LAST (closest to English name) valid Amharic sequence
+        // No exclusions - rely on position and word count
+        for (let i = allMatches.length - 1; i >= 0; i--) {
+          const match = allMatches[i];
+          const candidateName = match[0].trim();
           
-          if (!isExcluded) {
+          if (candidateName.split(/\s+/).length >= 2) {
             data.fullNameAmharic = candidateName;
-            logger.info(`Found Amharic name before English name: ${candidateName}`);
+            logger.info(`Found Amharic name before English name (fallback): ${candidateName}`);
+            break;
           }
         }
       }
@@ -368,28 +387,16 @@ export class PDFParserImpl implements PDFParser {
     if (data.fullNameEnglish && !data.fullNameAmharic) {
       logger.warn('Found English name but no Amharic name, searching more broadly...');
       
-      // Look for any sequence of Amharic words
+      // Look for any sequence of Amharic words (2-4 words)
       const broadAmharicPattern = /([\u1200-\u137F]{2,})\s+([\u1200-\u137F]{2,})(?:\s+([\u1200-\u137F]{2,}))?/g;
       const broadAmharicMatches = [...text.matchAll(broadAmharicPattern)];
       
-      const excludeAmharic = [
-        'ኢትዮጵያ', 'ብሔራዊ', 'መታወቂያ', 'ፕሮግራም', 'ዲጂታል', 'ካርድ', 
-        'ክፍለ', 'ከተማ', 'ወረዳ', 'ክልል', 'ዜግነት', 'ስልክ', 'የስነ', 
-        'ሕዝብ', 'መረጃ', 'ማሳሰቢያ', 'ፋይዳ', 'ቁጥር', 'አድራሻ', 'ጾታ',
-        'የትውልድ', 'ቀን', 'ያበቃል', 'ተሰጠ', 'እዚህ', 'ይቁረጡ', 'ቅዳ',
-        'ስም', 'ሙሉ', 'ፆታ', 'ወንድ', 'ሴት', 'ኢትዮጵያዊ', 'ተወላጅ',
-        'የማንነት', 'መገለጫዎች', 'ናቸው', 'አበባ', 'አዲስ', 'ዞን', 'ማዕከላዊ',
-        'ቀይሕ', 'ተኽሊ', 'ወሎሰፈር', 'ቦሌ', 'ጎዳና', 'ቻይና', 'ኢትዮ', 'ትግራይ',
-        'አዋጅ', 'መሠረት', 'ህጋዊ', 'ናቸው', 'ማንኛውም', 'ከብሄራዊ', 'ሲስተም',
-        'ታትሞ', 'የተገኘ', 'ወይም', 'በቀጥታ', 'የሚታተም'
-      ];
-      
+      // Take the first match with 2+ words (no exclusions)
       for (const match of broadAmharicMatches) {
         const fullMatch = match[0];
         const words = fullMatch.split(/\s+/);
-        const isExcluded = words.some(w => excludeAmharic.some(e => w.includes(e)));
         
-        if (!isExcluded && words.length >= 2) {
+        if (words.length >= 2) {
           data.fullNameAmharic = fullMatch;
           logger.info(`Found Amharic name (broad search): ${fullMatch}`);
           break;
@@ -769,7 +776,7 @@ export class PDFParserImpl implements PDFParser {
    */
   private normalizeEthiopianDate(dateStr: string): string {
     const monthMap: Record<string, string> = {
-      'jan': '01', 'january': '01', 'jdan': '01', // Handle OCR error "Jdan"
+      'jan': '01', 'january': '01', 'jdan': '01', 'jjan': '01', // Handle OCR errors "Jdan", "Jjan"
       'feb': '02', 'february': '02',
       'mar': '03', 'march': '03',
       'apr': '04', 'april': '04',
@@ -830,14 +837,16 @@ export class PDFParserImpl implements PDFParser {
         // Look for date patterns - handle OCR spacing issues
         // IMPORTANT: First date is Ethiopian, second date is Gregorian
         const datePatterns = [
+          // Handle "2.0 18/04/27" or "2. 0 18/04/27" -> "2018/04/27" (OCR reads space as period)
+          { name: 'YYYY/MM/DD with period split', regex: /(\d)[\.\s]+(\d)[\.\s]+(\d{2}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-split-3', needsCleanup: true },
           // Handle "2 0 18/04/27" -> "2018/04/27" (OCR splits year into 3 parts)
           { name: 'YYYY/MM/DD with year split (3 parts)', regex: /(\d)\s+(\d)\s+(\d{2}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-split-3', needsCleanup: true },
           // Handle "20 18/05/03" -> "2018/05/03" (OCR splits year into 2 parts)
           { name: 'YYYY/MM/DD with year split (2 parts)', regex: /(\d{2})\s+(\d{2}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-split-2', needsCleanup: true },
           { name: 'DD/MM/YYYY', regex: /(\d{1,2}\/\d{1,2}\/\d{4})/g, type: 'gregorian-ddmmyyyy', needsCleanup: false },
           { name: 'YYYY/MM/DD', regex: /(\d{4}\/\d{1,2}\/\d{1,2})/g, type: 'ethiopian-yyyymmdd', needsCleanup: false },
-          // Handle "2026/Jdan/ 05" or "2026/Jan/ 11" -> "2026/Jan/05"
-          { name: 'YYYY/Mon/DD with space', regex: /(\d{4}\/[A-Za-z]{3,5}\/\s*\d{1,2})/g, type: 'gregorian', needsCleanup: true },
+          // Handle "2026/Jdan/ 05" or "2026/Jan/ 11" or "2026/ Jjan/ 24" -> "2026/Jan/05"
+          { name: 'YYYY/Mon/DD with space', regex: /(\d{4}\/\s*[A-Za-z]{3,5}\/\s*\d{1,2})/g, type: 'gregorian', needsCleanup: true },
           { name: 'YYYY/Mon/DD', regex: /(\d{4}\/[A-Za-z]{3,9}\/\d{1,2})/g, type: 'gregorian', needsCleanup: false },
         ];
 
@@ -1119,12 +1128,50 @@ export class PDFParserImpl implements PDFParser {
   }
 
   /**
-   * Calculate issue date in Ethiopian calendar (approximately 7-8 years behind)
+   * Calculate issue date in Ethiopian calendar
+   * Uses current date converted to Ethiopian calendar
    */
   private calculateIssueDateEthiopian(_dobEthiopian: string): string {
-    const now = new Date();
-    const ethYear = now.getFullYear() - 8;
-    return `${ethYear}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+    try {
+      // Always use current date for issue date, not DOB + 18
+      const now = new Date();
+      const gregYear = now.getFullYear();
+      const gregMonth = now.getMonth() + 1; // 1-12
+      const gregDay = now.getDate();
+      
+      // Convert current Gregorian date to Ethiopian using the library
+      const ethiopianDate = toEthiopian(gregYear, gregMonth, gregDay);
+      
+      return `${ethiopianDate.year}/${String(ethiopianDate.month).padStart(2, '0')}/${String(ethiopianDate.day).padStart(2, '0')}`;
+    } catch (error) {
+      logger.error('Error calculating Ethiopian issue date:', error);
+      
+      // Fallback: Manual conversion if library fails
+      const now = new Date();
+      const gregYear = now.getFullYear();
+      const gregMonth = now.getMonth() + 1; // 1-12
+      const gregDay = now.getDate();
+      
+      // Simple conversion: Ethiopian year = Gregorian year - 7 or 8
+      // If before September 11, subtract 8; otherwise subtract 7
+      let ethYear: number;
+      if (gregMonth < 9 || (gregMonth === 9 && gregDay < 11)) {
+        ethYear = gregYear - 8;
+      } else {
+        ethYear = gregYear - 7;
+      }
+      
+      // Ethiopian months roughly align with Gregorian months (with offset)
+      let ethMonth = gregMonth + 4;
+      let ethDay = gregDay;
+      
+      if (ethMonth > 12) {
+        ethMonth -= 12;
+        ethYear += 1;
+      }
+      
+      return `${ethYear}/${String(ethMonth).padStart(2, '0')}/${String(ethDay).padStart(2, '0')}`;
+    }
   }
 
   /**
