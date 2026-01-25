@@ -251,10 +251,9 @@ export class PDFGenerator {
           // Calculate Y position for this card
           const y = startY + (cardOnPage * (finalCardHeight + finalGap));
 
-          // Add the card image
+          // Add the card image - only specify width to preserve aspect ratio
           doc.image(imagePath, startX, y, {
-            width: finalCardWidth,
-            height: finalCardHeight
+            width: finalCardWidth
           });
 
           // Cutting guides removed - clean A4 output for user delivery
@@ -370,9 +369,9 @@ export class PDFGenerator {
 
           const y = startY + (cardOnPage * (finalCardHeight + finalGap));
 
+          // Only specify width to preserve aspect ratio
           doc.image(imageBuffers[i], startX, y, {
-            width: finalCardWidth,
-            height: finalCardHeight
+            width: finalCardWidth
           });
 
           doc.strokeColor('#dddddd')
