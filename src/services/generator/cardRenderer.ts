@@ -9,18 +9,37 @@ import fs from 'fs';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
-import { pipeline, env } from '@huggingface/transformers';
 
-// Configure transformers.js for Production Node.js
-env.allowLocalModels = true;      // Allow loading from local cache
-env.allowRemoteModels = true;     // Allow downloading if not cached
-env.useBrowserCache = false;      // Disable browser cache (not in browser)
-env.useFSCache = true;            // Use filesystem cache
-env.cacheDir = process.env.TRANSFORMERS_CACHE || './.cache/transformers';  // Custom cache directory
-env.localModelPath = process.env.TRANSFORMERS_CACHE || './.cache/transformers';  // Local model path
+// Lazy load transformers to avoid ONNX runtime errors on startup
+let transformersModule: any = null;
+let env: any = null;
 
 // Cache the segmenter pipeline
 let segmenterPipeline: any = null;
+
+// Initialize transformers module lazily
+async function initTransformers() {
+  if (!transformersModule) {
+    try {
+      transformersModule = await import('@huggingface/transformers');
+      env = transformersModule.env;
+      
+      // Configure transformers.js for Production Node.js
+      env.allowLocalModels = true;
+      env.allowRemoteModels = true;
+      env.useBrowserCache = false;
+      env.useFSCache = true;
+      env.cacheDir = process.env.TRANSFORMERS_CACHE || './.cache/transformers';
+      env.localModelPath = process.env.TRANSFORMERS_CACHE || './.cache/transformers';
+      
+      logger.info('Transformers.js module loaded successfully');
+    } catch (error) {
+      logger.error('Failed to load transformers.js:', error);
+      throw error;
+    }
+  }
+  return transformersModule;
+}
 
 // Template type
 export type TemplateType = 'template0' | 'template1' | 'template2';
@@ -88,6 +107,9 @@ export function registerFonts(): void {
  * Auto-recovers if pipeline becomes stale
  */
 async function getSegmenter(forceReinit: boolean = false) {
+  // Initialize transformers module first
+  const transformers = await initTransformers();
+  
   if (!segmenterPipeline || forceReinit) {
     if (forceReinit) {
       logger.info('Reinitializing background removal pipeline (recovery mode)...');
@@ -95,7 +117,7 @@ async function getSegmenter(forceReinit: boolean = false) {
     } else {
       logger.info('Initializing background removal pipeline (first time only)...');
     }
-    segmenterPipeline = await pipeline('image-segmentation', 'Xenova/modnet', {
+    segmenterPipeline = await transformers.pipeline('image-segmentation', 'Xenova/modnet', {
       dtype: 'fp32'
     });
     logger.info('Background removal pipeline initialized');

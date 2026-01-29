@@ -21,6 +21,8 @@ export interface SessionData {
   awaitingOtp?: boolean;
   faydaToken?: string;
   finNumber?: string;
+  verificationSessionId?: string;
+  captchaToken?: string;
 }
 
 export interface BotContext extends Context<Update> {

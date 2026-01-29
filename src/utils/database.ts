@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 import { config } from '../config';
 import logger from './logger';
+import dns from 'dns';
+
+// Fix for Windows DNS SRV resolution issues
+// Use system DNS resolver instead of Node.js c-ares resolver
+dns.setDefaultResultOrder('ipv4first');
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']); // Use Google and Cloudflare DNS
 
 let isConnected = false;
 

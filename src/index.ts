@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import express from 'express';
 import { createBot, startBot, stopBot } from './bot';
 import { connectDatabase, disconnectDatabase } from './utils/database';
 import { initializeJobQueue, shutdownJobQueue } from './services/queue';
@@ -9,7 +10,8 @@ import { IDGeneratorService } from './services/generator';
 import { WalletService } from './services/payment';
 import { FileDeliveryService } from './services/delivery';
 import { registerShutdownHandlers } from './utils/shutdown';
-import { preWarmBackgroundRemoval } from './services/generator/cardRenderer';
+import { setupCaptchaRoutes } from './services/captcha/captchaServer';
+// import { preWarmBackgroundRemoval } from './services/generator/cardRenderer';
 import logger from './utils/logger';
 import config from './config';
 
@@ -24,10 +26,24 @@ async function main() {
     await connectDatabase();
     logger.info('MongoDB connected successfully');
 
+    // Create Express app for reCAPTCHA verification
+    const app = express();
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+
     // Create bot instance
     logger.info('Creating bot instance...');
     const bot = createBot(config.telegramBotToken);
     logger.info('Bot instance created');
+
+    // Setup reCAPTCHA routes
+    logger.info('Setting up reCAPTCHA verification server...');
+    setupCaptchaRoutes(app, bot);
+    
+    const port = process.env.PORT || 3000;
+    app.listen(port, () => {
+      logger.info(`reCAPTCHA server listening on port ${port}`);
+    });
 
     // Initialize services
     logger.info('Initializing services...');
@@ -38,9 +54,11 @@ async function main() {
     logger.info('Services initialized');
 
     // Pre-warm AI background removal pipeline (loads model before first request)
-    logger.info('Pre-warming AI model...');
-    await preWarmBackgroundRemoval();
-    logger.info('AI model ready');
+    // Temporarily disabled due to ONNX runtime issues on Windows
+    // logger.info('Pre-warming AI model...');
+    // await preWarmBackgroundRemoval();
+    // logger.info('AI model ready');
+    logger.info('Skipping AI model pre-warming (disabled for testing)');
 
     // Initialize job queue (in-memory, no Redis needed)
     logger.info('Initializing job queue...');
