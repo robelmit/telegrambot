@@ -29,6 +29,8 @@ import {
   handleIdRequest,
   handleFinNumber,
   handleOtp,
+  // Stats handler
+  handleStats,
   // Bulk handlers
   handleBulk,
   handleBulkDocument,
@@ -110,6 +112,7 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.command('agent', handleAgent);
   bot.command('template', handleTemplate);
   bot.command('id', handleIdRequest);
+  bot.command('stats', handleStats);
   bot.command('admin', handleAdmin);
   
   // Bulk upload commands

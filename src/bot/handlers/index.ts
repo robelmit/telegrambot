@@ -57,3 +57,4 @@ export {
   handleFinNumber,
   handleOtp
 } from './idHandler';
+export { handleStats } from './statsHandler';

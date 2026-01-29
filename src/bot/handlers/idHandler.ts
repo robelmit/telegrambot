@@ -2,7 +2,7 @@ import { BotContext } from './types';
 import { t } from '../../locales';
 import logger from '../../utils/logger';
 import axios from 'axios';
-import { generateSimpleFaydaToken } from '../../services/captcha/simpleCaptcha';
+import { generateOptimizedFaydaToken } from '../../services/captcha/optimizedCaptcha';
 
 const FAYDA_API_BASE = 'https://api-resident.fayda.et';
 
@@ -38,9 +38,9 @@ export async function handleFinNumber(ctx: BotContext, finNumber: string): Promi
         : '⏳ Verifying...'
     );
 
-    // Generate captcha token using simple method
+    // Generate captcha token using optimized method (browser reuse)
     logger.info(`Generating captcha token for FIN: ${finNumber}`);
-    const captchaToken = await generateSimpleFaydaToken();
+    const captchaToken = await generateOptimizedFaydaToken();
     logger.info('Captcha token generated successfully');
 
     // Step 1: Verify captcha and get token

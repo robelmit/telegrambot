@@ -10,6 +10,7 @@ import { IDGeneratorService } from './services/generator';
 import { WalletService } from './services/payment';
 import { FileDeliveryService } from './services/delivery';
 import { registerShutdownHandlers } from './utils/shutdown';
+import { closeBrowser } from './services/captcha/optimizedCaptcha';
 // import { setupCaptchaRoutes } from './services/captcha/captchaServer';
 // import { preWarmBackgroundRemoval } from './services/generator/cardRenderer';
 import logger from './utils/logger';
@@ -198,6 +199,7 @@ async function main() {
     registerShutdownHandlers(async () => {
       logger.info('Shutting down...');
       await stopBot(bot);
+      await closeBrowser(); // Close shared Puppeteer browser
       shutdownJobQueue();
       await disconnectDatabase();
       logger.info('Shutdown complete');
