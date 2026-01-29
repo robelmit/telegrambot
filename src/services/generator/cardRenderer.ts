@@ -371,6 +371,8 @@ async function removeWhiteBackgroundSharp(photoBuffer: Buffer): Promise<Buffer> 
   // Check if AI removal is disabled via environment variable
   const useAI = process.env.USE_AI_BACKGROUND_REMOVAL !== 'false';
   
+  logger.info(`Background removal mode: ${useAI ? 'AI (Transformers.js)' : 'Flood-fill'}, USE_AI_BACKGROUND_REMOVAL=${process.env.USE_AI_BACKGROUND_REMOVAL}`);
+  
   if (useAI) {
     return removeBackgroundAI(photoBuffer);
   } else {
