@@ -1,9 +1,12 @@
 /**
  * Fayda reCAPTCHA Token Generator
  * Reverse engineered from official Fayda website: https://resident.fayda.et/
+ * 
+ * Site Key: 6LcSAIwqAAAAAGsZElBPqf63_0fUtp17idU-SQYC
  */
-import axios from 'axios';
 import logger from '../../utils/logger';
+
+export const FAYDA_SITE_KEY = '6LcSAIwqAAAAAGsZElBPqf63_0fUtp17idU-SQYC';
 
 /**
  * Inspect the Fayda website to find the reCAPTCHA site key
@@ -49,7 +52,7 @@ export async function inspectFaydaWebsite(): Promise<{ siteKey: string; version:
       // Method 2: Look for grecaptcha.render calls in scripts
       const scripts = Array.from(document.querySelectorAll('script'));
       for (const script of scripts) {
-        const content = script.textContent || '';
+        const content = (script as any).textContent || '';
         const siteKeyMatch = content.match(/sitekey['":\s]+['"]([^'"]+)['"]/i);
         if (siteKeyMatch) {
           return {
@@ -63,7 +66,7 @@ export async function inspectFaydaWebsite(): Promise<{ siteKey: string; version:
       // Method 3: Check for reCAPTCHA script tags
       const recaptchaScript = Array.from(document.querySelectorAll('script[src*="recaptcha"]'));
       if (recaptchaScript.length > 0) {
-        const src = recaptchaScript[0].getAttribute('src') || '';
+        const src = (recaptchaScript[0] as any).getAttribute('src') || '';
         const renderMatch = src.match(/render=([^&]+)/);
         if (renderMatch) {
           return {
@@ -275,7 +278,7 @@ export async function interceptFaydaCaptchaToken(finNumber: string): Promise<str
             if (data.captchaValue) {
               captchaToken = data.captchaValue;
               logger.info('Captured captcha token!');
-              logger.info(`Token preview: ${captchaToken.substring(0, 50)}...`);
+              logger.info(`Token preview: ${captchaToken?.substring(0, 50)}...`);
             }
           } catch (e) {
             // Ignore
@@ -291,11 +294,23 @@ export async function interceptFaydaCaptchaToken(finNumber: string): Promise<str
     
     // Fill form and submit
     try {
-      await page.type('input[name="idNumber"]', finNumber, { delay: 100 });
-      await page.click('input[value="FCN"]');
+      // Use the correct selector - ID is "userInput"
+      await page.waitForSelector('#userInput', { timeout: 5000 });
+      await page.type('#userInput', finNumber, { delay: 100 });
+      
       await page.waitForTimeout(1000);
-      await page.click('button[type="submit"]');
-      await page.waitForTimeout(5000);
+      
+      // Click the Proceed button - find button with text "Proceed"
+      await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const proceedButton = buttons.find(btn => btn.textContent?.includes('Proceed'));
+        if (proceedButton) {
+          (proceedButton as HTMLButtonElement).click();
+        }
+      });
+      
+      logger.info('Form submitted, waiting for API call...');
+      await page.waitForTimeout(10000); // Wait longer for the API call
     } catch (e) {
       logger.warn('Form interaction failed:', e);
     }

@@ -10,7 +10,7 @@ import { IDGeneratorService } from './services/generator';
 import { WalletService } from './services/payment';
 import { FileDeliveryService } from './services/delivery';
 import { registerShutdownHandlers } from './utils/shutdown';
-import { setupCaptchaRoutes } from './services/captcha/captchaServer';
+// import { setupCaptchaRoutes } from './services/captcha/captchaServer';
 // import { preWarmBackgroundRemoval } from './services/generator/cardRenderer';
 import logger from './utils/logger';
 import config from './config';
@@ -36,14 +36,13 @@ async function main() {
     const bot = createBot(config.telegramBotToken);
     logger.info('Bot instance created');
 
-    // Setup reCAPTCHA routes
-    logger.info('Setting up reCAPTCHA verification server...');
-    setupCaptchaRoutes(app, bot);
-    
-    const port = process.env.PORT || 3000;
-    app.listen(port, () => {
-      logger.info(`reCAPTCHA server listening on port ${port}`);
-    });
+    // Setup reCAPTCHA routes (disabled - using Puppeteer automation instead)
+    // logger.info('Setting up reCAPTCHA verification server...');
+    // setupCaptchaRoutes(app, bot);
+    // const port = process.env.PORT || 3000;
+    // app.listen(port, () => {
+    //   logger.info(`reCAPTCHA server listening on port ${port}`);
+    // });
 
     // Initialize services
     logger.info('Initializing services...');

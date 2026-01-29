@@ -2,7 +2,7 @@ import { BotContext } from './types';
 import { t } from '../../locales';
 import logger from '../../utils/logger';
 import axios from 'axios';
-import { generateFaydaCaptchaToken } from '../../services/captcha/faydaCaptcha';
+import { generateSimpleFaydaToken } from '../../services/captcha/simpleCaptcha';
 
 const FAYDA_API_BASE = 'https://api-resident.fayda.et';
 
@@ -34,24 +34,18 @@ export async function handleFinNumber(ctx: BotContext, finNumber: string): Promi
     
     await ctx.reply(
       lang === 'am'
-        ? '⏳ reCAPTCHA በማመንጨት ላይ...'
-        : '⏳ Generating reCAPTCHA token...'
-    );
-
-    // Generate captcha token automatically (like the official website does)
-    logger.info(`Generating captcha token for FIN: ${finNumber}`);
-    const captchaToken = await generateFaydaCaptchaToken();
-    logger.info('Captcha token generated successfully');
-    
-    await ctx.reply(
-      lang === 'am'
         ? '⏳ በማረጋገጥ ላይ...'
         : '⏳ Verifying...'
     );
 
+    // Generate captcha token using simple method
+    logger.info(`Generating captcha token for FIN: ${finNumber}`);
+    const captchaToken = await generateSimpleFaydaToken();
+    logger.info('Captcha token generated successfully');
+
     // Step 1: Verify captcha and get token
     logger.info(`Verifying FIN with Fayda API...`);
-    const verifyResponse = await axios.post(`${FAYDA_API_BASE}/verifycaptcha`, {
+    const verifyResponse = await axios.post(`${FAYDA_API_BASE}/verify`, {
       captchaValue: captchaToken,
       idNumber: finNumber,
       verificationMethod: 'FCN'
@@ -124,6 +118,11 @@ export async function handleOtp(ctx: BotContext, otp: string): Promise<void> {
       otp: otp,
       uniqueId: finNumber,
       verificationMethod: 'FCN'
+    }, {
+      headers: {
+        'Authorization': `Bearer ${faydaToken}`,
+        'Content-Type': 'application/json'
+      }
     });
 
     if (!otpResponse.data?.signature || !otpResponse.data?.uin) {
@@ -133,16 +132,15 @@ export async function handleOtp(ctx: BotContext, otp: string): Promise<void> {
     const { signature, uin, fullName } = otpResponse.data;
     logger.info(`OTP validated for ${fullName?.eng || 'user'}`);
 
-    await ctx.reply(
-      lang === 'am'
-        ? '⏳ የPDF ፋይልዎን በማውረድ ላይ...'
-        : '⏳ Downloading your PDF...'
-    );
-
     // Step 3: Download PDF
     const pdfResponse = await axios.post(`${FAYDA_API_BASE}/printableCredentialRoute`, {
       signature: signature,
       uin: uin
+    }, {
+      headers: {
+        'Authorization': `Bearer ${faydaToken}`,
+        'Content-Type': 'application/json'
+      }
     });
 
     if (!pdfResponse.data?.pdf) {
