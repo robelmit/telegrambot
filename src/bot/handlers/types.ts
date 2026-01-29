@@ -16,6 +16,11 @@ export interface SessionData {
   awaitingBulkPdf?: boolean;
   // Admin
   adminAction?: 'find_user' | 'add_balance' | 'ban_user' | 'unban_user' | 'make_admin' | 'broadcast';
+  // National ID generation
+  awaitingFinNumber?: boolean;
+  awaitingOtp?: boolean;
+  faydaToken?: string;
+  finNumber?: string;
 }
 
 export interface BotContext extends Context<Update> {

@@ -45,7 +45,13 @@ export async function handleBalance(ctx: BotContext): Promise<void> {
 
     message += `\n${t(lang, 'topup_hint')}`;
 
-    await ctx.reply(message);
+    await ctx.reply(message, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: lang === 'am' ? '❓ እርዳታ' : '❓ Help', callback_data: 'show_help' }]
+        ]
+      }
+    });
   } catch (error) {
     logger.error('Balance handler error:', error);
     await ctx.reply(t(lang, 'error_fetching_balance'));

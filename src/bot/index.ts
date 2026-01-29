@@ -25,6 +25,10 @@ import {
   handleAgentShare,
   handleAgentWithdraw,
   handleAgentBack,
+  // ID handlers
+  handleIdRequest,
+  handleFinNumber,
+  handleOtp,
   // Bulk handlers
   handleBulk,
   handleBulkDocument,
@@ -105,6 +109,7 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.command('help', handleHelp);
   bot.command('agent', handleAgent);
   bot.command('template', handleTemplate);
+  bot.command('id', handleIdRequest);
   bot.command('admin', handleAdmin);
   
   // Bulk upload commands
@@ -123,6 +128,7 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.action(/^topup_provider_/, handleTopupProviderCallback);
   bot.action('topup_cancel', handleTopupCancel);
   bot.action(/^settings_/, handleSettingsCallback);
+  bot.action('show_help', handleHelp);
   
   // Agent callback handlers
   bot.action('agent_register', handleAgentRegister);
@@ -172,6 +178,20 @@ export function createBot(token: string): Telegraf<BotContext> {
       if (handled) return;
     }
 
+    // Check if awaiting FIN number
+    if (ctx.session.awaitingFinNumber) {
+      const finNumber = ctx.message.text.trim();
+      await handleFinNumber(ctx, finNumber);
+      return;
+    }
+
+    // Check if awaiting OTP
+    if (ctx.session.awaitingOtp) {
+      const otp = ctx.message.text.trim();
+      await handleOtp(ctx, otp);
+      return;
+    }
+
     // Check if awaiting transaction ID
     if (ctx.session.awaitingTransactionId) {
       await handleTransactionIdMessage(ctx);
@@ -192,7 +212,8 @@ export function createBot(token: string): Telegraf<BotContext> {
       [t(lang, 'btn_language')]: () => handleLanguage(ctx),
       [t(lang, 'btn_help')]: () => handleHelp(ctx),
       [t(lang, 'btn_agent')]: () => handleAgent(ctx),
-      [t(lang, 'btn_template')]: () => handleTemplate(ctx)
+      [t(lang, 'btn_template')]: () => handleTemplate(ctx),
+      [t(lang, 'btn_id')]: () => handleIdRequest(ctx)
     };
 
     const handler = buttonMap[text];
@@ -214,6 +235,7 @@ export async function startBot(bot: Telegraf<BotContext>): Promise<void> {
     { command: 'topup', description: 'Top up wallet' },
     { command: 'pricing', description: 'View pricing' },
     { command: 'template', description: 'Select ID card template' },
+    { command: 'id', description: 'Generate National ID PDF' },
     { command: 'agent', description: 'Agent/Referral program' },
     { command: 'language', description: 'Change language' },
     { command: 'settings', description: 'Bot settings' },

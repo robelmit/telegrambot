@@ -52,3 +52,8 @@ export {
   handleAdminBack,
   handleAdminTextInput
 } from './adminHandler';
+export {
+  handleIdRequest,
+  handleFinNumber,
+  handleOtp
+} from './idHandler';
