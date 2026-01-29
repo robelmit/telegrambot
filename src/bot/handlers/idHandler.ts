@@ -3,20 +3,69 @@ import { t } from '../../locales';
 import logger from '../../utils/logger';
 import axios from 'axios';
 import { generateOptimizedFaydaToken } from '../../services/captcha/optimizedCaptcha';
+import User from '../../models/User';
+import { WalletService } from '../../services/payment';
 
 const FAYDA_API_BASE = 'https://api-resident.fayda.et';
+const NATIONAL_ID_PRICE = parseInt(process.env.NATIONAL_ID_PRICE || '10', 10);
+const walletService = new WalletService();
 
 export async function handleIdRequest(ctx: BotContext): Promise<void> {
   const lang = ctx.session.language || 'en';
+  const telegramId = ctx.from?.id;
+
+  if (!telegramId) {
+    await ctx.reply(t(lang, 'error_user_not_found'));
+    return;
+  }
+
+  try {
+    // Get user and check if they have free Fayda access
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      await ctx.reply(t(lang, 'error_user_not_found'));
+      return;
+    }
+
+    // Check if user has free Fayda access
+    if (!user.faydaFree) {
+      // Check balance
+      if (user.walletBalance < NATIONAL_ID_PRICE) {
+        await ctx.reply(
+          lang === 'am'
+            ? `❌ በቂ ሂሳብ የለዎትም። የብሔራዊ መታወቂያ ማውረድ ${NATIONAL_ID_PRICE} ብር ያስከፍላል።\n\n💰 የአሁን ሂሳብ: ${user.walletBalance} ብር\n💳 የሚያስፈልግ: ${NATIONAL_ID_PRICE} ብር\n\nእባክዎ በ/topup ሂሳብዎን ይሙሉ።`
+            : `❌ Insufficient balance. National ID download costs ${NATIONAL_ID_PRICE} birr.\n\n💰 Current balance: ${user.walletBalance} birr\n💳 Required: ${NATIONAL_ID_PRICE} birr\n\nPlease top up using /topup.`
+        );
+        return;
+      }
+
+      // Show price info
+      await ctx.reply(
+        lang === 'am'
+          ? `💰 የብሔራዊ መታወቂያ ማውረድ ${NATIONAL_ID_PRICE} ብር ያስከፍላል።\n\nየእርስዎ ሂሳብ: ${user.walletBalance} ብር`
+          : `💰 National ID download costs ${NATIONAL_ID_PRICE} birr.\n\nYour balance: ${user.walletBalance} birr`
+      );
+    } else {
+      // User has free access
+      await ctx.reply(
+        lang === 'am'
+          ? '✅ እርስዎ ነፃ የብሔራዊ መታወቂያ ማውረድ መዳረሻ አለዎት!'
+          : '✅ You have free National ID download access!'
+      );
+    }
   
-  // Set session state to await FIN number
-  ctx.session.awaitingFinNumber = true;
-  
-  await ctx.reply(
-    lang === 'am' 
-      ? '🆔 እባክዎ የFCN/FAN ቁጥርዎን ያስገቡ:'
-      : '🆔 Please enter your FCN/FAN number:'
-  );
+    // Set session state to await FIN number
+    ctx.session.awaitingFinNumber = true;
+    
+    await ctx.reply(
+      lang === 'am' 
+        ? '🆔 እባክዎ የFCN/FAN ቁጥርዎን ያስገቡ:'
+        : '🆔 Please enter your FCN/FAN number:'
+    );
+  } catch (error) {
+    logger.error('ID request error:', error);
+    await ctx.reply(t(lang, 'error_processing'));
+  }
 }
 
 export async function handleFinNumber(ctx: BotContext, finNumber: string): Promise<void> {
@@ -106,6 +155,30 @@ export async function handleOtp(ctx: BotContext, otp: string): Promise<void> {
   try {
     ctx.session.awaitingOtp = false;
     
+    // Get user
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      await ctx.reply(t(lang, 'error_user_not_found'));
+      return;
+    }
+
+    // Check if user needs to pay
+    const needsPayment = !user.faydaFree;
+    
+    if (needsPayment) {
+      // Check balance again before processing
+      if (user.walletBalance < NATIONAL_ID_PRICE) {
+        await ctx.reply(
+          lang === 'am'
+            ? `❌ በቂ ሂሳብ የለዎትም። ${NATIONAL_ID_PRICE} ብር ያስፈልጋል።`
+            : `❌ Insufficient balance. ${NATIONAL_ID_PRICE} birr required.`
+        );
+        delete ctx.session.finNumber;
+        delete ctx.session.faydaToken;
+        return;
+      }
+    }
+    
     await ctx.reply(
       lang === 'am'
         ? '⏳ OTP በማረጋገጥ ላይ...'
@@ -150,13 +223,35 @@ export async function handleOtp(ctx: BotContext, otp: string): Promise<void> {
     // Convert base64 to buffer
     const pdfBuffer = Buffer.from(pdfResponse.data.pdf, 'base64');
 
+    // Charge user if not free
+    if (needsPayment) {
+      const debitSuccess = await walletService.debit(
+        user._id.toString(),
+        NATIONAL_ID_PRICE,
+        `national_id_${uin}`
+      );
+
+      if (!debitSuccess) {
+        await ctx.reply(
+          lang === 'am'
+            ? '❌ ክፍያ አልተሳካም። እባክዎ እንደገና ይሞክሩ።'
+            : '❌ Payment failed. Please try again.'
+        );
+        delete ctx.session.finNumber;
+        delete ctx.session.faydaToken;
+        return;
+      }
+
+      logger.info(`Charged ${NATIONAL_ID_PRICE} birr to user ${telegramId} for National ID download`);
+    }
+
     // Send PDF to user
     await ctx.replyWithDocument(
       { source: pdfBuffer, filename: `fayda_id_${uin}.pdf` },
       {
         caption: lang === 'am'
-          ? `✅ የእርስዎ ብሔራዊ መታወቂያ PDF!\n\n👤 ስም: ${fullName?.amh || fullName?.eng || 'N/A'}\n🆔 UIN: ${uin}`
-          : `✅ Your National ID PDF!\n\n👤 Name: ${fullName?.eng || fullName?.amh || 'N/A'}\n🆔 UIN: ${uin}`
+          ? `✅ የእርስዎ ብሔራዊ መታወቂያ PDF!\n\n👤 ስም: ${fullName?.amh || fullName?.eng || 'N/A'}\n🆔 UIN: ${uin}${needsPayment ? `\n💰 ክፍያ: ${NATIONAL_ID_PRICE} ብር` : '\n✨ ነፃ'}\n\n📄 አሁን ይህንን PDF ለመስራት መላክ ይችላሉ!`
+          : `✅ Your National ID PDF!\n\n👤 Name: ${fullName?.eng || fullName?.amh || 'N/A'}\n🆔 UIN: ${uin}${needsPayment ? `\n💰 Charged: ${NATIONAL_ID_PRICE} birr` : '\n✨ Free'}\n\n📄 You can now send this PDF to generate your ID card!`
       }
     );
 
@@ -164,7 +259,7 @@ export async function handleOtp(ctx: BotContext, otp: string): Promise<void> {
     delete ctx.session.finNumber;
     delete ctx.session.faydaToken;
 
-    logger.info(`PDF sent successfully to user ${telegramId}`);
+    logger.info(`PDF sent successfully to user ${telegramId}${needsPayment ? ` (charged ${NATIONAL_ID_PRICE} birr)` : ' (free)'}`);
 
   } catch (error: any) {
     logger.error('OTP validation error:', error);

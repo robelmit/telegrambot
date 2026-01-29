@@ -25,6 +25,8 @@ async function initTransformers() {
       env = transformersModule.env;
       
       // Configure transformers.js for Production Node.js
+      // Use WASM backend instead of ONNX to avoid native binding issues on Windows
+      env.backends.onnx.wasm.numThreads = 1;
       env.allowLocalModels = true;
       env.allowRemoteModels = true;
       env.useBrowserCache = false;
@@ -32,7 +34,7 @@ async function initTransformers() {
       env.cacheDir = process.env.TRANSFORMERS_CACHE || './.cache/transformers';
       env.localModelPath = process.env.TRANSFORMERS_CACHE || './.cache/transformers';
       
-      logger.info('Transformers.js module loaded successfully');
+      logger.info('Transformers.js module loaded successfully (using WASM backend)');
     } catch (error) {
       logger.error('Failed to load transformers.js:', error);
       throw error;
@@ -105,6 +107,7 @@ export function registerFonts(): void {
  * Get or initialize the background removal pipeline
  * Uses Xenova/modnet model - lightweight and efficient
  * Auto-recovers if pipeline becomes stale
+ * Uses WASM backend to avoid native binding issues on Windows
  */
 async function getSegmenter(forceReinit: boolean = false) {
   // Initialize transformers module first
@@ -117,10 +120,13 @@ async function getSegmenter(forceReinit: boolean = false) {
     } else {
       logger.info('Initializing background removal pipeline (first time only)...');
     }
+    
+    // Force WASM backend to avoid ONNX native binding issues
     segmenterPipeline = await transformers.pipeline('image-segmentation', 'Xenova/modnet', {
-      dtype: 'fp32'
+      dtype: 'fp32',
+      device: 'wasm' // Force WASM backend instead of ONNX
     });
-    logger.info('Background removal pipeline initialized');
+    logger.info('Background removal pipeline initialized (WASM backend)');
   }
   return segmenterPipeline;
 }

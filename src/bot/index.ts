@@ -53,6 +53,7 @@ import {
   handleAdminBan,
   handleAdminUnban,
   handleAdminMakeAdmin,
+  handleAdminFreeFayda,
   handleAdminBroadcast,
   handleAdminBack,
   handleAdminTextInput
@@ -114,6 +115,7 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.command('id', handleIdRequest);
   bot.command('stats', handleStats);
   bot.command('admin', handleAdmin);
+  bot.command('free', handleAdminFreeFayda);
   
   // Bulk upload commands
   bot.command('bulk', handleBulk);
@@ -160,6 +162,7 @@ export function createBot(token: string): Telegraf<BotContext> {
   bot.action('admin_ban', handleAdminBan);
   bot.action('admin_unban', handleAdminUnban);
   bot.action('admin_make_admin', handleAdminMakeAdmin);
+  bot.action('admin_free_fayda', handleAdminFreeFayda);
   bot.action('admin_broadcast', handleAdminBroadcast);
   bot.action('admin_back', handleAdminBack);
 
@@ -242,7 +245,8 @@ export async function startBot(bot: Telegraf<BotContext>): Promise<void> {
     { command: 'agent', description: 'Agent/Referral program' },
     { command: 'language', description: 'Change language' },
     { command: 'settings', description: 'Bot settings' },
-    { command: 'help', description: 'Get help' }
+    { command: 'help', description: 'Get help' },
+    { command: 'free', description: '[Admin] Grant free Fayda access' }
   ]);
   logger.info('Bot commands set');
 

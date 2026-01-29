@@ -121,10 +121,13 @@ export class PDFValidatorImpl implements PDFValidator {
         logger.warn(`eFayda document has ${data.numpages} pages, expected ${EFAYDA_MARKERS.EXPECTED_PAGES}`);
       }
 
-      // Check for key identifiers
+      // Check for key identifiers (FCN, FIN, FAN)
+      // Support both inline and multiline formats
       const hasIdentifiers = 
         /FIN\s*[:\s]*\d{4}\s*\d{4}\s*\d{4}/i.test(text) ||
         /FAN\s*[:\s]*\d+/i.test(text) ||
+        /FCN\s*[:]/i.test(text) || // FCN label (number may be on next line)
+        /\d{4}\s*\d{4}\s*\d{4}\s*\d{4}/.test(text) || // 16-digit ID number with spaces
         /\d{10,20}/.test(text); // Long number sequences (FCN, FIN, FAN)
 
       if (!hasIdentifiers) {

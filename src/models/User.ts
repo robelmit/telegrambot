@@ -10,6 +10,8 @@ export interface IUser extends Document {
   settings: UserSettings;
   // Admin field
   isAdmin: boolean;
+  // Fayda free access (for National ID downloads)
+  faydaFree: boolean;
   // Agent/Referral fields
   isAgent: boolean;
   agentCode: string | null;
@@ -57,6 +59,11 @@ const UserSchema = new Schema<IUser>({
   },
   // Admin field
   isAdmin: {
+    type: Boolean,
+    default: false
+  },
+  // Fayda free access (for National ID downloads)
+  faydaFree: {
     type: Boolean,
     default: false
   },

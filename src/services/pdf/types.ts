@@ -43,7 +43,8 @@ export const EFAYDA_MARKERS = {
     'National ID',
     'eFayda',
     'FIN',
-    'FAN'
+    'FAN',
+    'FCN'
   ],
   // Minimum text length for valid eFayda document
   MIN_TEXT_LENGTH: 100,

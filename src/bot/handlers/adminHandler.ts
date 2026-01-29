@@ -63,6 +63,9 @@ export async function handleAdmin(ctx: BotContext): Promise<void> {
       ],
       [
         { text: '👑 Make Admin', callback_data: 'admin_make_admin' },
+        { text: '🆓 Free Fayda', callback_data: 'admin_free_fayda' }
+      ],
+      [
         { text: '📢 Broadcast', callback_data: 'admin_broadcast' }
       ]
     ]
@@ -509,6 +512,53 @@ export async function handleAdminMakeAdmin(ctx: BotContext): Promise<void> {
   );
 }
 
+// Free Fayda prompt
+export async function handleAdminFreeFayda(ctx: BotContext): Promise<void> {
+  const telegramId = ctx.from?.id;
+  if (!telegramId || !(await isAdmin(telegramId))) {
+    // Check if it's a callback query or command
+    if ('answerCbQuery' in ctx && typeof ctx.answerCbQuery === 'function') {
+      await ctx.answerCbQuery('⛔ Access denied.');
+    } else {
+      await ctx.reply('⛔ Access denied. Admin only.');
+    }
+    return;
+  }
+
+  // Answer callback if it's from inline button
+  if ('answerCbQuery' in ctx && typeof ctx.answerCbQuery === 'function') {
+    await ctx.answerCbQuery();
+  }
+  
+  ctx.session.adminAction = 'free_fayda';
+  
+  const message = '🆓 *Free Fayda Access*\n\nSend the Telegram ID of the user to grant free National ID downloads:\n\n💡 They will still pay for ID card generation (rendering service).';
+  const keyboard = {
+    inline_keyboard: [[{ text: '« Cancel', callback_data: 'admin_back' }]]
+  };
+  
+  // Try to edit message if it's a callback, otherwise send new message
+  try {
+    if ('editMessageText' in ctx && typeof ctx.editMessageText === 'function') {
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+      });
+    } else {
+      await ctx.reply(message, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+      });
+    }
+  } catch (error) {
+    // If edit fails, send new message
+    await ctx.reply(message, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    });
+  }
+}
+
 // Broadcast prompt
 export async function handleAdminBroadcast(ctx: BotContext): Promise<void> {
   const telegramId = ctx.from?.id;
@@ -561,6 +611,9 @@ export async function handleAdminBack(ctx: BotContext): Promise<void> {
       ],
       [
         { text: '👑 Make Admin', callback_data: 'admin_make_admin' },
+        { text: '🆓 Free Fayda', callback_data: 'admin_free_fayda' }
+      ],
+      [
         { text: '📢 Broadcast', callback_data: 'admin_broadcast' }
       ]
     ]
@@ -609,12 +662,31 @@ export async function handleAdminTextInput(ctx: BotContext): Promise<boolean> {
         const flags = [
           user.isAdmin ? '👑 Admin' : '',
           user.isAgent ? '🤝 Agent' : '',
+          user.faydaFree ? '🆓 Free Fayda' : '',
           user.isBanned ? '🚫 Banned' : ''
         ].filter(Boolean).join(', ') || 'Regular user';
+
+        // Try to get user info from Telegram
+        let telegramInfo = '';
+        try {
+          const telegramUser = await ctx.telegram.getChat(userId);
+          if ('username' in telegramUser && telegramUser.type === 'private') {
+            const username = telegramUser.username ? `@${telegramUser.username}` : 'No username';
+            const firstName = telegramUser.first_name || '';
+            const lastName = 'last_name' in telegramUser ? telegramUser.last_name || '' : '';
+            const fullName = `${firstName} ${lastName}`.trim() || 'No name';
+            telegramInfo = `Name: ${fullName}\nUsername: ${username}\n`;
+          } else {
+            telegramInfo = 'Telegram info: Not accessible\n';
+          }
+        } catch (e) {
+          telegramInfo = 'Telegram info: Not accessible\n';
+        }
 
         await ctx.reply(
           `👤 *User Details*\n\n` +
           `ID: \`${user.telegramId}\`\n` +
+          `${telegramInfo}` +
           `Status: ${flags}\n` +
           `Balance: ${user.walletBalance} ETB\n` +
           `Orders: ${user.totalOrders || 0}\n` +
@@ -653,6 +725,18 @@ export async function handleAdminTextInput(ctx: BotContext): Promise<boolean> {
           return true;
         }
 
+        // Get user info
+        let userInfo = '';
+        try {
+          const telegramUser = await ctx.telegram.getChat(userId);
+          if ('username' in telegramUser && telegramUser.type === 'private') {
+            const username = telegramUser.username ? `@${telegramUser.username}` : '';
+            const firstName = telegramUser.first_name || '';
+            const fullName = `${firstName}${username ? ` (${username})` : ''}`;
+            userInfo = fullName ? `\n👤 ${fullName}` : '';
+          }
+        } catch (e) {}
+
         // Notify user
         try {
           await ctx.telegram.sendMessage(
@@ -661,7 +745,7 @@ export async function handleAdminTextInput(ctx: BotContext): Promise<boolean> {
           );
         } catch (e) {}
 
-        await ctx.reply(`✅ Added ${amount} ETB to user ${userId}.\nNew balance: ${user.walletBalance} ETB`);
+        await ctx.reply(`✅ Added ${amount} ETB to user ${userId}.${userInfo}\nNew balance: ${user.walletBalance} ETB`);
         logger.info(`Admin ${telegramId} added ${amount} ETB to user ${userId}`);
         ctx.session.adminAction = undefined;
         return true;
@@ -688,6 +772,18 @@ export async function handleAdminTextInput(ctx: BotContext): Promise<boolean> {
           return true;
         }
 
+        // Get user info
+        let userInfo = '';
+        try {
+          const telegramUser = await ctx.telegram.getChat(userId);
+          if ('username' in telegramUser && telegramUser.type === 'private') {
+            const username = telegramUser.username ? `@${telegramUser.username}` : '';
+            const firstName = telegramUser.first_name || '';
+            const fullName = `${firstName}${username ? ` (${username})` : ''}`;
+            userInfo = fullName ? `\n👤 ${fullName}` : '';
+          }
+        } catch (e) {}
+
         // Notify user
         try {
           await ctx.telegram.sendMessage(
@@ -696,7 +792,7 @@ export async function handleAdminTextInput(ctx: BotContext): Promise<boolean> {
           );
         } catch (e) {}
 
-        await ctx.reply(`🚫 User ${userId} has been banned.\nReason: ${reason}`);
+        await ctx.reply(`🚫 User ${userId} has been banned.${userInfo}\nReason: ${reason}`);
         logger.info(`Admin ${telegramId} banned user ${userId}: ${reason}`);
         ctx.session.adminAction = undefined;
         return true;
@@ -749,13 +845,77 @@ export async function handleAdminTextInput(ctx: BotContext): Promise<boolean> {
           return true;
         }
 
+        // Get user info
+        let userInfo = '';
+        try {
+          const telegramUser = await ctx.telegram.getChat(userId);
+          if ('username' in telegramUser && telegramUser.type === 'private') {
+            const username = telegramUser.username ? `@${telegramUser.username}` : '';
+            const firstName = telegramUser.first_name || '';
+            const fullName = `${firstName}${username ? ` (${username})` : ''}`;
+            userInfo = fullName ? `\n👤 ${fullName}` : '';
+          }
+        } catch (e) {}
+
         // Notify user
         try {
           await ctx.telegram.sendMessage(userId, '👑 You have been granted admin privileges!');
         } catch (e) {}
 
-        await ctx.reply(`👑 User ${userId} is now an admin.`);
+        await ctx.reply(`👑 User ${userId} is now an admin.${userInfo}`);
         logger.info(`Admin ${telegramId} made user ${userId} an admin`);
+        ctx.session.adminAction = undefined;
+        return true;
+      }
+
+      case 'free_fayda': {
+        const userId = parseInt(text, 10);
+        if (isNaN(userId)) {
+          await ctx.reply('❌ Invalid Telegram ID.');
+          return true;
+        }
+
+        const user = await User.findOneAndUpdate(
+          { telegramId: userId },
+          { faydaFree: true },
+          { new: true }
+        );
+
+        if (!user) {
+          await ctx.reply('❌ User not found.');
+          return true;
+        }
+
+        // Try to get user info from Telegram
+        let userInfo = '';
+        try {
+          const telegramUser = await ctx.telegram.getChat(userId);
+          if ('username' in telegramUser && telegramUser.type === 'private') {
+            const username = telegramUser.username ? `@${telegramUser.username}` : 'No username';
+            const firstName = telegramUser.first_name || '';
+            const lastName = 'last_name' in telegramUser ? telegramUser.last_name || '' : '';
+            const fullName = `${firstName} ${lastName}`.trim() || 'No name';
+            userInfo = `\n\n👤 Name: ${fullName}\n🔗 Username: ${username}`;
+          } else {
+            userInfo = '\n\n⚠️ User info not accessible (user may not have started the bot)';
+          }
+        } catch (e) {
+          // User info not accessible (user hasn't started bot or blocked it)
+          userInfo = '\n\n⚠️ User info not accessible (user may not have started the bot)';
+        }
+
+        // Notify user
+        try {
+          await ctx.telegram.sendMessage(
+            userId, 
+            '🆓 You have been granted free National ID download access!\n\n✨ You can now download National ID PDFs without charge.\n💡 ID card generation (rendering) still requires payment.'
+          );
+        } catch (e) {
+          userInfo += '\n❌ Could not notify user (user may have blocked the bot)';
+        }
+
+        await ctx.reply(`🆓 User ${userId} now has free Fayda access.${userInfo}\n\n💡 They still pay for ID card generation.`);
+        logger.info(`Admin ${telegramId} granted free Fayda access to user ${userId}`);
         ctx.session.adminAction = undefined;
         return true;
       }

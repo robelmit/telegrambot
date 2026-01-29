@@ -15,7 +15,7 @@ export interface SessionData {
   // Bulk upload mode
   awaitingBulkPdf?: boolean;
   // Admin
-  adminAction?: 'find_user' | 'add_balance' | 'ban_user' | 'unban_user' | 'make_admin' | 'broadcast';
+  adminAction?: 'find_user' | 'add_balance' | 'ban_user' | 'unban_user' | 'make_admin' | 'free_fayda' | 'broadcast';
   // National ID generation
   awaitingFinNumber?: boolean;
   awaitingOtp?: boolean;

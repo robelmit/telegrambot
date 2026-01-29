@@ -48,6 +48,7 @@ export {
   handleAdminBan,
   handleAdminUnban,
   handleAdminMakeAdmin,
+  handleAdminFreeFayda,
   handleAdminBroadcast,
   handleAdminBack,
   handleAdminTextInput
