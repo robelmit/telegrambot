@@ -255,10 +255,17 @@ export class PDFParserImpl implements PDFParser {
       }
     }
 
-    // Extract FCN (16 digits with spaces) - this is the FAN
-    const fcnPattern = /(\d{4}\s+\d{4}\s+\d{4}\s+\d{4})/;
+    // Extract FCN (16 digits with or without spaces) - this is the FAN
+    // Format 1: 4287 1307 4680 6479 (with spaces)
+    // Format 2: 4287130746806479 (without spaces)
+    const fcnPattern = /(\d{4}\s+\d{4}\s+\d{4}\s+\d{4}|\d{16})/;
     const fcnMatch = text.match(fcnPattern);
-    if (fcnMatch) data.fcn = fcnMatch[1];
+    if (fcnMatch) {
+      // Normalize to format with spaces
+      const fcnRaw = fcnMatch[1].replace(/\s/g, '');
+      data.fcn = fcnRaw.replace(/(\d{4})(\d{4})(\d{4})(\d{4})/, '$1 $2 $3 $4');
+      logger.info(`Found FCN: ${data.fcn}`);
+    }
 
     // Extract Amharic name - it appears right after FCN, before English name
     // PDF Structure: [Woreda] -> [FCN] -> [Amharic Name] -> [English Name]
